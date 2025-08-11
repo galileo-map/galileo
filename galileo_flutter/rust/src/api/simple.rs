@@ -11,6 +11,6 @@ pub fn init_app() {
 
 
 fn init_galileo(&self){
-    galileo::render::WgpuRenderer::new_with_window(&mut self, surface, adapter, size);
+    galileo::render::WgpuRenderer::new_with_device_and_texture(&mut self, surface, adapter, size);
 
 }

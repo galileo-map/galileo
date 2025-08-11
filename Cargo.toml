@@ -5,6 +5,7 @@ members = [
     "galileo-types",
     "galileo-egui",
     "web-example",
+    "galileo_flutter/rust"
 ]
 resolver = "2"
 
