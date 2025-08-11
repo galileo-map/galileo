@@ -14,6 +14,11 @@ irondash_texture = "*"
 irondash_run_loop = "*"
 irondash_engine_context = "*"
 irondash_dart_ffi = "*"
+galileo = { version = "0.2.1", path = "../../galileo" }
+log = {workspace = true}
+tracing-appender = "0.2.3"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
