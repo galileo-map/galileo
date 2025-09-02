@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:galileo_flutter/galileo_flutter.dart';
+import 'package:irondash_engine_context/irondash_engine_context.dart';
 
 Future<void> main() async {
-  await RustLib.init();
+  await initGalileo();
+  WidgetsFlutterBinding.ensureInitialized();
+  // Get the actual FFI pointer from irondash engine context
+  final engineContext = EngineContext.instance;
+  final ffiPointer = await engineContext.getEngineHandle();
+
+  // Initialize Galileo FFI with the real pointer
+  await galileoFlutterInit(ffiPtr: ffiPointer);
+
   runApp(const MyApp());
 }
 
@@ -12,13 +21,219 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text('flutter_rust_bridge quickstart')),
-        body: Center(
-          child: Text(
-            'Action: Call Rust `greet("Tom")`\nResult: `${greet(name: "Tom")}`',
+      title: 'Galileo Flutter Demo',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const GalileoMapPage(),
+    );
+  }
+}
+
+class GalileoMapPage extends StatefulWidget {
+  const GalileoMapPage({super.key});
+
+  @override
+  State<GalileoMapPage> createState() => _GalileoMapPageState();
+}
+
+class _GalileoMapPageState extends State<GalileoMapPage> {
+  MapViewport? currentViewport;
+  String statusMessage = 'Map is ready';
+
+  void _onViewportChanged(MapViewport viewport) {
+    setState(() {
+      currentViewport = viewport;
+      statusMessage =
+          'Lat: ${viewport.center.latitude.toStringAsFixed(4)}, '
+          'Lon: ${viewport.center.longitude.toStringAsFixed(4)}, '
+          'Zoom: ${viewport.zoom.toStringAsFixed(2)}';
+    });
+  }
+
+  void _onMapTap(double x, double y) {
+    setState(() {
+      statusMessage =
+          'Tapped at: (${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})';
+    });
+
+    // Clear the message after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          statusMessage =
+              currentViewport != null
+                  ? 'Lat: ${currentViewport!.center.latitude.toStringAsFixed(4)}, '
+                      'Lon: ${currentViewport!.center.longitude.toStringAsFixed(4)}, '
+                      'Zoom: ${currentViewport!.zoom.toStringAsFixed(2)}'
+                  : 'Map is ready';
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Galileo Flutter Demo'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: Column(
+        children: [
+          // Status bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.grey[100],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Status: $statusMessage',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Controls: Arrow keys to pan, +/- to zoom, mouse/touch to interact',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
-        ),
+          // Map widget
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              child: GalileoMapWidget.fromConfig(
+                size: const MapSize(width: 800, height: 600),
+                layers: const [
+                  LayerConfig.osm(), // OpenStreetMap layer
+                ],
+                enableKeyboard: true,
+                onTap: _onMapTap,
+                onViewportChanged: _onViewportChanged,
+                child: Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Map Controls:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text('• Drag to pan', style: TextStyle(fontSize: 10)),
+                        Text('• Pinch to zoom', style: TextStyle(fontSize: 10)),
+                        Text(
+                          '• Arrow keys to pan',
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        Text('• +/- to zoom', style: TextStyle(fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Control panel
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16.0),
+            color: Colors.grey[50],
+            child: Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // TODO: Implement in Phase 2
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Zoom to location (coming in Phase 2)'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('My Location'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // TODO: Implement in Phase 2
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Reset view (coming in Phase 2)'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reset View'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // TODO: Implement in Phase 2
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Add layer (coming in Phase 2)'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.layers),
+                  label: const Text('Add Layer'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('About'),
+                  content: const Text(
+                    'This is a Galileo Flutter integration demo.\n\n'
+                    'Phase 1: ✅ Complete\n'
+                    '• FRB Integration\n'
+                    '• Widget Structure\n'
+                    '• Event Handling\n\n'
+                    'Phase 2: 🚧 Coming Soon\n'
+                    '• Actual Map Rendering\n'
+                    '• Real Texture Integration\n'
+                    '• Layer Management',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+          );
+        },
+        child: const Icon(Icons.info),
       ),
     );
   }

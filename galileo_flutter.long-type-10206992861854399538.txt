@@ -1,0 +1,2 @@
+irondash_texture::Texture<{type error}>
+irondash_texture::platform::platform_impl::g_object_wrapper::GObjectWrapper

@@ -1,0 +1,14 @@
+(dyn galileo::control::UserEventHandler + 'static)
+std::ptr::Unique<(dyn galileo::control::UserEventHandler + 'static)>
+std::boxed::Box<(dyn galileo::control::UserEventHandler + 'static)>
+std::marker::PhantomData<std::boxed::Box<(dyn galileo::control::UserEventHandler + 'static)>>
+alloc::raw_vec::RawVec<std::boxed::Box<(dyn galileo::control::UserEventHandler + 'static)>>
+std::vec::Vec<std::boxed::Box<(dyn galileo::control::UserEventHandler + 'static)>>
+std::sync::Mutex<galileo::control::EventProcessor>
+std::sync::Arc<std::sync::Mutex<galileo::control::EventProcessor>>
+std::sync::Arc<api::galileo_map::MapSession>
+(i64, std::sync::Arc<api::galileo_map::MapSession>)
+hashbrown::raw::RawTable<(i64, std::sync::Arc<api::galileo_map::MapSession>)>
+hashbrown::map::HashMap<i64, std::sync::Arc<api::galileo_map::MapSession>, std::hash::RandomState>
+std::collections::HashMap<i64, std::sync::Arc<api::galileo_map::MapSession>>
+std::sync::Mutex<std::collections::HashMap<i64, std::sync::Arc<api::galileo_map::MapSession>>>

@@ -1,16 +1,21 @@
-#[flutter_rust_bridge::frb(sync)] // Synchronous mode for simplicity of the demo
-pub fn greet(name: String) -> String {
-    format!("Hello, {name}!")
-}
+use crate::core::{IS_INITIALIZED};
+use log::debug;
+
+
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
-    // Default utilities - feel free to customize
-    flutter_rust_bridge::setup_default_user_utils();
+    crate::core::init_logger();
 }
 
 
-fn init_galileo(&self){
-    galileo::render::WgpuRenderer::new_with_device_and_texture(&mut self, surface, adapter, size);
+pub fn galileo_flutter_init(ffi_ptr: i64) {
+    let mut is_initialized = IS_INITIALIZED.lock().unwrap();
+    if *is_initialized {
+        return;
+    }
+    irondash_dart_ffi::irondash_init_ffi(ffi_ptr as *mut std::ffi::c_void);
 
+    debug!("Done initializing galileo flutter");
+    *is_initialized = true;
 }

@@ -285,7 +285,7 @@ impl MvtFeature {
         values: &[MvtValue],
     ) -> Result<HashMap<String, MvtValue>, GalileoMvtError> {
         let mut properties = HashMap::new();
-        if !tags.len().is_multiple_of(2) {
+        if tags.len() % 2 != 0 {
             return Err(GalileoMvtError::Generic(
                 "Invalid number of tags in feature".into(),
             ));
