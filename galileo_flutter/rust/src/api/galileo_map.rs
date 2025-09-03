@@ -103,7 +103,6 @@ unsafe impl Sync for MapSession {}
 #[frb(init)]
 pub fn init_galileo_flutter() {
     flutter_rust_bridge::setup_default_user_utils();
-    env_logger::init();
 }
 
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash

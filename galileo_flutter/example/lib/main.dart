@@ -3,14 +3,10 @@ import 'package:galileo_flutter/galileo_flutter.dart';
 import 'package:irondash_engine_context/irondash_engine_context.dart';
 
 Future<void> main() async {
-  await initGalileo();
   WidgetsFlutterBinding.ensureInitialized();
-  // Get the actual FFI pointer from irondash engine context
-  final engineContext = EngineContext.instance;
-  final ffiPointer = await engineContext.getEngineHandle();
-
+  
   // Initialize Galileo FFI with the real pointer
-  await galileoFlutterInit(ffiPtr: ffiPointer);
+  await initGalileo();
 
   runApp(const MyApp());
 }
