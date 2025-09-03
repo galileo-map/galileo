@@ -4,8 +4,8 @@ members = [
     "galileo-mvt",
     "galileo-types",
     "galileo-egui",
-    "web-example",
-    "galileo_flutter/rust"
+    "galileo_flutter/rust",
+    "web-example"
 ]
 resolver = "2"
 

@@ -9,22 +9,32 @@
 pub mod windowless_renderer;
 pub mod render_loop;
 pub mod pixel_buffer;
+pub mod session;
 
+
+use tokio::runtime::Runtime;
 pub use windowless_renderer::WindowlessRenderer;
 pub use render_loop::RenderLoop;
 pub use pixel_buffer::PixelBuffer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use log::debug;
-
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 
 lazy_static::lazy_static! {
-    pub static ref IS_INITIALIZED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
+    pub static ref IS_INITIALIZED: AtomicBool = AtomicBool::new(false);
     static ref WORKER_GUARD: std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>> = std::sync::Mutex::new(None);
+    pub static ref TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::from(
+        tokio::runtime::Builder::new_current_thread()
+            .worker_threads(4)
+            .enable_all()
+            .build().unwrap()
+    );
 }
 
 pub(crate) fn init_logger() {
-    let is_initialized = IS_INITIALIZED.lock().unwrap();
-    if *is_initialized {
+    let is_initialized = IS_INITIALIZED.load(Ordering::SeqCst);
+    if is_initialized {
         return;
     }
     let file_appender = tracing_appender::rolling::daily("./logs", "galileo_flutter.log");

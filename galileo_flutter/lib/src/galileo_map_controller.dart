@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:galileo_flutter/src/rust/api/dart_types.dart';
-import 'package:galileo_flutter/src/rust/api/galileo_map.dart' as rlib;
+import 'package:galileo_flutter/src/rust/api/api.dart' as rlib;
 import 'package:irondash_engine_context/irondash_engine_context.dart';
 import "package:rxdart/rxdart.dart" as rx;
 

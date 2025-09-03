@@ -4,26 +4,26 @@
 //! managing Galileo maps in Flutter applications with real texture rendering.
 
 use flutter_rust_bridge::frb;
-use log::{debug, info, warn, error};
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use tokio::sync::mpsc;
 use galileo::galileo_types::cartesian::Size;
 use galileo::galileo_types::geo::impls::GeoPoint2d;
-use galileo::galileo_types::geo::{NewGeoPoint, GeoPoint};
-use galileo::{Map, MapBuilder};
+use galileo::galileo_types::geo::{GeoPoint, NewGeoPoint};
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use galileo::control::MouseButton;
-use irondash_texture::{BoxedPixelData, SimplePixelData, Texture, PayloadProvider};
+use galileo::{Map, MapBuilder};
+use irondash_texture::{BoxedPixelData, PayloadProvider, SimplePixelData, Texture};
+use log::{debug, error, info, warn};
+use std::collections::HashMap;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 
 use crate::api::dart_types::*;
-use crate::core::windowless_renderer::WindowlessRenderer;
-use crate::core::render_loop::RenderLoop;
 use crate::core::pixel_buffer::PixelBuffer;
+use crate::core::render_loop::RenderLoop;
+use crate::core::windowless_renderer::WindowlessRenderer;
+use crate::core::{IS_INITIALIZED, TOKIO_RUNTIME};
 
 lazy_static::lazy_static! {
     static ref SESSION_COUNTER: Mutex<i64> = Mutex::new(0);
-    static ref IS_INITIALIZED: Mutex<bool> = Mutex::new(false);
     static ref SESSIONS: Mutex<HashMap<i64, Arc<MapSession>>> = Mutex::new(HashMap::new());
     static ref RENDER_TASK_HANDLES: Mutex<HashMap<i64, tokio::task::JoinHandle<()>>> = Mutex::new(HashMap::new());
 }
@@ -88,11 +88,7 @@ impl PayloadProvider<BoxedPixelData> for TexturePixelProvider {
         let pixels = self.pixel_data.lock().unwrap();
         let size = self.size.lock().unwrap();
 
-        SimplePixelData::new_boxed(
-            size.width as i32,
-            size.height as i32,
-            pixels.clone(),
-        )
+        SimplePixelData::new_boxed(size.width as i32, size.height as i32, pixels.clone())
     }
 }
 
@@ -107,8 +103,7 @@ pub fn init_galileo_flutter() {
 
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash
 pub fn galileo_flutter_init(ffi_ptr: i64) {
-    let mut is_initialized = IS_INITIALIZED.lock().unwrap();
-    if *is_initialized {
+    if IS_INITIALIZED.load(Ordering::SeqCst) {
         return;
     }
 
@@ -116,7 +111,7 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
     irondash_dart_ffi::irondash_init_ffi(ffi_ptr as *mut std::ffi::c_void);
 
     info!("Galileo Flutter plugin initialized with FFI and texture support");
-    *is_initialized = true;
+    IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
 
 /// Updates the session counter and returns a new session ID
@@ -140,17 +135,9 @@ pub fn create_new_galileo_map(
 
     let texture_id = session_id * 1000;
 
-    // Spawn async task to create the session
-    tokio::spawn(async move {
-        match create_map_session_async(session_id, engine_handle, size, config).await {
-            Ok(_) => {
-                info!("Successfully created map session {} with texture {}", session_id, texture_id);
-            }
-            Err(e) => {
-                error!("Failed to create map session {}: {}", session_id, e);
-            }
-        }
-    });
+    TOKIO_RUNTIME.get().unwrap().handle().block_on(async {
+        create_map_session_async(session_id, engine_handle, size, config).await
+    })?;
 
     // Return texture ID immediately
     Ok(texture_id)
@@ -165,7 +152,8 @@ async fn create_map_session_async(
 ) -> anyhow::Result<()> {
     // Create windowless renderer
     let renderer_size = Size::new(size.width, size.height);
-    let renderer = WindowlessRenderer::new(renderer_size).await
+    let renderer = WindowlessRenderer::new(renderer_size)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to create renderer: {}", e))?;
     let renderer = Arc::new(Mutex::new(renderer));
 
@@ -218,14 +206,15 @@ async fn create_map_session_async(
     }
 
     // Start render loop
-    render_loop.start()
+    render_loop
+        .start()
         .map_err(|e| anyhow::anyhow!("Failed to start render loop: {}", e))?;
 
     // Start rendering task
-    let render_handle = tokio::spawn(render_task(
-        session.clone(),
-        render_rx,
-    ));
+    let render_handle = TOKIO_RUNTIME
+        .get()
+        .unwrap()
+        .spawn(render_task(session.clone(), render_rx));
 
     // Store render task handle
     {
@@ -233,7 +222,10 @@ async fn create_map_session_async(
         handles.insert(session_id, render_handle);
     }
 
-    info!("Map session {} created with full rendering pipeline", session_id);
+    info!(
+        "Map session {} created with full rendering pipeline",
+        session_id
+    );
     Ok(())
 }
 
@@ -247,8 +239,8 @@ fn create_galileo_map_with_layers() -> anyhow::Result<Map> {
     // Set initial viewport (center on world)
     let map = MapBuilder::default()
         .with_layer(osm_layer)
-        .with_latlon(0.0, 0.0)  // Center on equator/prime meridian
-        .with_z_level(2)        // Initial zoom level
+        .with_latlon(0.0, 0.0) // Center on equator/prime meridian
+        .with_z_level(2) // Initial zoom level
         .build();
 
     Ok(map)
@@ -269,18 +261,18 @@ async fn create_flutter_texture(
 }
 
 /// Helper function to safely read pixels without holding mutex across await
-async fn read_pixels_from_buffer(
-    pixel_buffer: Arc<Mutex<PixelBuffer>>,
-) -> anyhow::Result<Vec<u8>> {
+async fn read_pixels_from_buffer(pixel_buffer: Arc<Mutex<PixelBuffer>>) -> anyhow::Result<Vec<u8>> {
     // Use spawn_blocking to handle the async operation safely
+    let handle = TOKIO_RUNTIME.get().unwrap().handle().clone();
     let result = tokio::task::spawn_blocking(move || {
         // Get a runtime handle for the blocking context
-        tokio::runtime::Handle::current().block_on(async move {
+        handle.block_on(async move {
             let mut buffer = pixel_buffer.lock().unwrap();
             let pixels = buffer.read_pixels().await?;
             Ok::<Vec<u8>, anyhow::Error>(pixels.to_vec())
         })
-    }).await;
+    })
+    .await;
 
     result.map_err(|e| anyhow::anyhow!("Join error: {}", e))?
 }
@@ -291,7 +283,7 @@ async fn render_task(
     mut render_rx: mpsc::UnboundedReceiver<RenderMessage>,
 ) {
     let mut render_interval = tokio::time::interval(
-        std::time::Duration::from_millis(33) // ~30 FPS
+        std::time::Duration::from_millis(33), // ~30 FPS
     );
 
     info!("Starting render task for session {}", session.session_id);
@@ -352,26 +344,30 @@ async fn render_frame(session: &Arc<MapSession>) -> anyhow::Result<()> {
         let mut renderer = session.renderer.lock().unwrap();
         let map = session.map.lock().unwrap();
 
-        renderer.render_map(&map)
+        renderer
+            .render_map(&map)
             .map_err(|e| anyhow::anyhow!("Failed to render map: {}", e))?;
     }
 
     // Copy texture to staging buffer
     let target_texture = {
         let renderer = session.renderer.lock().unwrap();
-        renderer.target_texture()
+        renderer
+            .target_texture()
             .ok_or_else(|| anyhow::anyhow!("No target texture available"))?
             .clone()
     };
 
     {
         let mut pixel_buffer = session.pixel_buffer.lock().unwrap();
-        pixel_buffer.copy_from_texture(&target_texture)
+        pixel_buffer
+            .copy_from_texture(&target_texture)
             .map_err(|e| anyhow::anyhow!("Failed to copy texture to buffer: {}", e))?;
     }
 
     // Read pixels from staging buffer (use helper to avoid async mutex issues)
-    let pixels = read_pixels_from_buffer(session.pixel_buffer.clone()).await
+    let pixels = read_pixels_from_buffer(session.pixel_buffer.clone())
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to read pixels: {}", e))?;
 
     // Update texture provider
@@ -380,7 +376,8 @@ async fn render_frame(session: &Arc<MapSession>) -> anyhow::Result<()> {
     // Mark frame available for Flutter
     {
         let flutter_texture = session.flutter_texture.lock().unwrap();
-        flutter_texture.mark_frame_available()
+        flutter_texture
+            .mark_frame_available()
             .map_err(|e| anyhow::anyhow!("Failed to mark frame available: {:?}", e))?;
     }
 
@@ -389,20 +386,25 @@ async fn render_frame(session: &Arc<MapSession>) -> anyhow::Result<()> {
 
 /// Resizes the rendering session.
 async fn resize_session(session: &Arc<MapSession>, new_size: MapSize) -> anyhow::Result<()> {
-    info!("Resizing session {} to {}x{}", session.session_id, new_size.width, new_size.height);
+    info!(
+        "Resizing session {} to {}x{}",
+        session.session_id, new_size.width, new_size.height
+    );
 
     // Resize renderer
     {
         let mut renderer = session.renderer.lock().unwrap();
         let size = Size::new(new_size.width, new_size.height);
-        renderer.resize(size)
+        renderer
+            .resize(size)
             .map_err(|e| anyhow::anyhow!("Failed to resize renderer: {}", e))?;
     }
 
     // Resize pixel buffer
     {
         let mut pixel_buffer = session.pixel_buffer.lock().unwrap();
-        pixel_buffer.resize(new_size)
+        pixel_buffer
+            .resize(new_size)
             .map_err(|e| anyhow::anyhow!("Failed to resize pixel buffer: {}", e))?;
     }
 
@@ -418,11 +420,13 @@ async fn resize_session(session: &Arc<MapSession>, new_size: MapSize) -> anyhow:
 /// Triggers a map update and re-render.
 fn trigger_map_update(session_id: i64) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     let render_commands = session.render_commands.lock().unwrap();
-    render_commands.send(RenderMessage::UpdateMap)
+    render_commands
+        .send(RenderMessage::UpdateMap)
         .map_err(|e| anyhow::anyhow!("Failed to send update message: {}", e))?;
 
     Ok(())
@@ -439,7 +443,10 @@ impl GalileoMapSession {
     }
 
     pub fn set_viewport(&self, viewport: MapViewport) {
-        debug!("GalileoMapSession::set_viewport called with viewport {:?}", viewport);
+        debug!(
+            "GalileoMapSession::set_viewport called with viewport {:?}",
+            viewport
+        );
     }
 
     pub fn get_viewport(&self) -> MapViewport {
@@ -454,23 +461,38 @@ impl GalileoMapSession {
     }
 
     pub fn handle_touch_event(&self, event: TouchEvent) {
-        debug!("GalileoMapSession::handle_touch_event called with event {:?}", event);
+        debug!(
+            "GalileoMapSession::handle_touch_event called with event {:?}",
+            event
+        );
     }
 
     pub fn handle_scroll_event(&self, event: ScrollEvent) {
-        debug!("GalileoMapSession::handle_scroll_event called with event {:?}", event);
+        debug!(
+            "GalileoMapSession::handle_scroll_event called with event {:?}",
+            event
+        );
     }
 
     pub fn handle_pan_event(&self, event: PanEvent) {
-        debug!("GalileoMapSession::handle_pan_event called with event {:?}", event);
+        debug!(
+            "GalileoMapSession::handle_pan_event called with event {:?}",
+            event
+        );
     }
 
     pub fn handle_scale_event(&self, event: ScaleEvent) {
-        debug!("GalileoMapSession::handle_scale_event called with event {:?}", event);
+        debug!(
+            "GalileoMapSession::handle_scale_event called with event {:?}",
+            event
+        );
     }
 
     pub fn add_layer(&self, config: LayerConfig) -> anyhow::Result<()> {
-        debug!("GalileoMapSession::add_layer called with config {:?}", config);
+        debug!(
+            "GalileoMapSession::add_layer called with config {:?}",
+            config
+        );
         Ok(())
     }
 }
@@ -479,11 +501,15 @@ impl GalileoMapSession {
 
 pub fn handle_session_touch_event(session_id: i64, event: TouchEvent) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let _session = sessions.get(&session_id)
+    let _session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     // Simple touch handling - for now just trigger a re-render
-    debug!("Touch event for session {}: {:?} at ({}, {})", session_id, event.event_type, event.x, event.y);
+    debug!(
+        "Touch event for session {}: {:?} at ({}, {})",
+        session_id, event.event_type, event.x, event.y
+    );
 
     // Trigger re-render
     trigger_map_update(session_id)?;
@@ -493,11 +519,15 @@ pub fn handle_session_touch_event(session_id: i64, event: TouchEvent) -> anyhow:
 
 pub fn handle_session_pan_event(session_id: i64, event: PanEvent) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     // Simple pan handling - modify map center based on delta
-    debug!("Pan event for session {}: {:?} delta=({}, {})", session_id, event.event_type, event.delta_x, event.delta_y);
+    debug!(
+        "Pan event for session {}: {:?} delta=({}, {})",
+        session_id, event.event_type, event.delta_x, event.delta_y
+    );
 
     if let PanEventType::Update = event.event_type {
         let mut map = session.map.lock().unwrap();
@@ -505,7 +535,9 @@ pub fn handle_session_pan_event(session_id: i64, event: PanEvent) -> anyhow::Res
 
         // Calculate new position based on pan delta
         // This is a simplified implementation - in a real app you'd convert screen coordinates to map coordinates
-        let current_pos = current_view.position().unwrap_or_else(|| GeoPoint2d::latlon(0.0, 0.0));
+        let current_pos = current_view
+            .position()
+            .unwrap_or_else(|| GeoPoint2d::latlon(0.0, 0.0));
         let delta_scale = 0.0001; // Simple scaling factor
         let new_lat = current_pos.lat() - event.delta_y * delta_scale;
         let new_lon = current_pos.lon() + event.delta_x * delta_scale;
@@ -523,11 +555,15 @@ pub fn handle_session_pan_event(session_id: i64, event: PanEvent) -> anyhow::Res
 
 pub fn handle_session_scale_event(session_id: i64, event: ScaleEvent) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     // Simple zoom handling - modify resolution based on scale
-    debug!("Scale event for session {}: scale={} at ({}, {})", session_id, event.scale, event.focal_x, event.focal_y);
+    debug!(
+        "Scale event for session {}: scale={} at ({}, {})",
+        session_id, event.scale, event.focal_x, event.focal_y
+    );
 
     {
         let mut map = session.map.lock().unwrap();
@@ -551,11 +587,13 @@ pub fn handle_session_scale_event(session_id: i64, event: ScaleEvent) -> anyhow:
 /// Resize a session
 pub fn resize_session_size(session_id: i64, size: MapSize) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     let render_commands = session.render_commands.lock().unwrap();
-    render_commands.send(RenderMessage::Resize(size))
+    render_commands
+        .send(RenderMessage::Resize(size))
         .map_err(|e| anyhow::anyhow!("Failed to send resize message: {}", e))?;
 
     Ok(())
@@ -604,7 +642,10 @@ pub fn destroy_session(session_id: i64) {
 
         // Stop render loop
         if let Err(e) = session.render_loop.stop() {
-            warn!("Failed to stop render loop for session {}: {}", session_id, e);
+            warn!(
+                "Failed to stop render loop for session {}: {}",
+                session_id, e
+            );
         }
 
         // Send stop message to render task
@@ -634,14 +675,17 @@ pub fn destroy_session(session_id: i64) {
 /// Gets the current viewport for a session
 pub fn get_session_viewport(session_id: i64) -> anyhow::Result<MapViewport> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     let map = session.map.lock().unwrap();
     let view = map.view();
 
     // Get center position - need to project from current CRS to lat/lon
-    let center_point = view.position().unwrap_or_else(|| GeoPoint2d::latlon(0.0, 0.0));
+    let center_point = view
+        .position()
+        .unwrap_or_else(|| GeoPoint2d::latlon(0.0, 0.0));
 
     Ok(MapViewport {
         center: MapPosition {
@@ -656,7 +700,8 @@ pub fn get_session_viewport(session_id: i64) -> anyhow::Result<MapViewport> {
 /// Sets the viewport for a session
 pub fn set_session_viewport(session_id: i64, viewport: MapViewport) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     {
@@ -664,7 +709,10 @@ pub fn set_session_viewport(session_id: i64, viewport: MapViewport) -> anyhow::R
         let center = GeoPoint2d::latlon(viewport.center.latitude, viewport.center.longitude);
 
         // Update the map view
-        let new_view = map.view().with_position(&center).with_resolution(viewport.zoom);
+        let new_view = map
+            .view()
+            .with_position(&center)
+            .with_resolution(viewport.zoom);
         map.set_view(new_view);
     }
 
@@ -677,16 +725,18 @@ pub fn set_session_viewport(session_id: i64, viewport: MapViewport) -> anyhow::R
 /// Adds a layer to a session
 pub fn add_session_layer(session_id: i64, layer_config: LayerConfig) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock().unwrap();
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
     let layer = match layer_config {
-        LayerConfig::Osm => {
-            RasterTileLayerBuilder::new_osm()
-                .build()
-                .map_err(|e| anyhow::anyhow!("Failed to create OSM layer: {}", e))?
-        }
-        LayerConfig::RasterTiles { url_template: _, attribution: _ } => {
+        LayerConfig::Osm => RasterTileLayerBuilder::new_osm()
+            .build()
+            .map_err(|e| anyhow::anyhow!("Failed to create OSM layer: {}", e))?,
+        LayerConfig::RasterTiles {
+            url_template: _,
+            attribution: _,
+        } => {
             // For now, just return OSM layer for custom tile providers
             // TODO: Implement custom URL tile providers
             RasterTileLayerBuilder::new_osm()

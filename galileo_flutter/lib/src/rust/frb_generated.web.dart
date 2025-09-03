@@ -6,9 +6,8 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
+import 'api/api.dart';
 import 'api/dart_types.dart';
-import 'api/galileo_map.dart';
-import 'api/simple.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -26,10 +25,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   get rust_arc_decrement_strong_count_GalileoMapSessionPtr =>
       wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession;
 
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_TextureHandlePtr =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle;
-
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
@@ -40,32 +35,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  TextureHandle
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    dynamic raw,
-  );
-
-  @protected
   GalileoMapSession
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
     dynamic raw,
   );
 
   @protected
-  TextureHandle
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    dynamic raw,
-  );
-
-  @protected
   GalileoMapSession
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    dynamic raw,
-  );
-
-  @protected
-  TextureHandle
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
     dynamic raw,
   );
 
@@ -113,9 +90,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LayerConfig dco_decode_layer_config(dynamic raw);
-
-  @protected
-  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -183,32 +157,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  TextureHandle
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   GalileoMapSession
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
     SseDeserializer deserializer,
   );
 
   @protected
-  TextureHandle
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   GalileoMapSession
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  TextureHandle
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
     SseDeserializer deserializer,
   );
 
@@ -258,9 +214,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LayerConfig sse_decode_layer_config(SseDeserializer deserializer);
-
-  @protected
-  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -333,13 +286,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    TextureHandle self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
     GalileoMapSession self,
     SseSerializer serializer,
@@ -347,22 +293,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    TextureHandle self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
     GalileoMapSession self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    TextureHandle self,
     SseSerializer serializer,
   );
 
@@ -431,9 +363,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_layer_config(LayerConfig self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -522,22 +451,6 @@ class RustLibWire implements BaseWire {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
         ptr,
       );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-        ptr,
-      );
 }
 
 @JS('wasm_bindgen')
@@ -553,16 +466,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTextureHandle(
     int ptr,
   );
 }

@@ -8,6 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_types.freezed.dart';
 
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `TextureHandle`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GalileoMapSession>>
@@ -36,27 +37,6 @@ abstract class GalileoMapSession implements RustOpaqueInterface {
   Future<void> resize({required MapSize size});
 
   Future<void> setViewport({required MapViewport viewport});
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TextureHandle>>
-abstract class TextureHandle implements RustOpaqueInterface {
-  @override
-  Future<void> dispose();
-
-  Future<PlatformInt64> getTextureId();
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<TextureHandle> newInstance({
-    required int width,
-    required int height,
-  }) => RustLib.instance.api.crateApiDartTypesTextureHandleNew(
-    width: width,
-    height: height,
-  );
-
-  Future<void> resize({required int width, required int height});
-
-  Future<void> updatePixels({required List<int> pixels});
 }
 
 @freezed
