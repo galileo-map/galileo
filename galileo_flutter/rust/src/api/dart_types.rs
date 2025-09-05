@@ -137,13 +137,7 @@ pub enum LayerConfig {
     },
 }
 
-// Opaque types for complex Rust objects that shouldn't be exposed to Dart directly
-/// Opaque handle to the Galileo map session.
-/// This contains the actual map state and rendering context.
-#[frb(opaque)]
-pub struct GalileoMapSession {
-    // Internal implementation will be in the implementation file
-}
+
 
 /// Opaque handle to a Flutter texture.
 /// This manages the texture that will be displayed in the Flutter widget.
@@ -151,3 +145,4 @@ pub struct GalileoMapSession {
 pub struct TextureHandle {
     // Internal texture management
 }
+

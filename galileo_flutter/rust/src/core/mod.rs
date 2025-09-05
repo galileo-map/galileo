@@ -9,7 +9,7 @@
 pub mod windowless_renderer;
 pub mod render_loop;
 pub mod pixel_buffer;
-pub mod session;
+pub mod flutter;
 
 
 use tokio::runtime::Runtime;

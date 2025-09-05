@@ -22,15 +22,17 @@ use crate::core::render_loop::RenderLoop;
 use crate::core::windowless_renderer::WindowlessRenderer;
 use crate::core::{IS_INITIALIZED, TOKIO_RUNTIME};
 
+type SessionID = i64;
+
 lazy_static::lazy_static! {
-    static ref SESSION_COUNTER: Mutex<i64> = Mutex::new(0);
-    static ref SESSIONS: Mutex<HashMap<i64, Arc<MapSession>>> = Mutex::new(HashMap::new());
+    static ref SESSION_COUNTER: Mutex<SessionID> = Mutex::new(0);
+    static ref SESSIONS: Mutex<HashMap<SessionID, Arc<MapSession>>> = Mutex::new(HashMap::new());
     static ref RENDER_TASK_HANDLES: Mutex<HashMap<i64, tokio::task::JoinHandle<()>>> = Mutex::new(HashMap::new());
 }
 
 /// Internal map session that manages the Galileo map with rendering.
 struct MapSession {
-    session_id: i64,
+    session_id: SessionID,
     map: Arc<Mutex<Map>>,
     renderer: Arc<Mutex<WindowlessRenderer>>,
     render_loop: Arc<RenderLoop>,
@@ -246,36 +248,9 @@ fn create_galileo_map_with_layers() -> anyhow::Result<Map> {
     Ok(map)
 }
 
-/// Creates a Flutter texture using irondash with proper provider.
-async fn create_flutter_texture(
-    engine_handle: i64,
-    provider: Arc<TexturePixelProvider>,
-) -> anyhow::Result<Texture<BoxedPixelData>> {
-    // Create boxed provider for irondash
-    let boxed_provider: Arc<dyn PayloadProvider<BoxedPixelData>> = provider;
 
-    let texture = Texture::new_with_provider(engine_handle, boxed_provider)
-        .map_err(|e| anyhow::anyhow!("Failed to create Flutter texture: {:?}", e))?;
 
-    Ok(texture)
-}
 
-/// Helper function to safely read pixels without holding mutex across await
-async fn read_pixels_from_buffer(pixel_buffer: Arc<Mutex<PixelBuffer>>) -> anyhow::Result<Vec<u8>> {
-    // Use spawn_blocking to handle the async operation safely
-    let handle = TOKIO_RUNTIME.get().unwrap().handle().clone();
-    let result = tokio::task::spawn_blocking(move || {
-        // Get a runtime handle for the blocking context
-        handle.block_on(async move {
-            let mut buffer = pixel_buffer.lock().unwrap();
-            let pixels = buffer.read_pixels().await?;
-            Ok::<Vec<u8>, anyhow::Error>(pixels.to_vec())
-        })
-    })
-    .await;
-
-    result.map_err(|e| anyhow::anyhow!("Join error: {}", e))?
-}
 
 /// Main rendering task that handles the actual rendering pipeline.
 async fn render_task(
@@ -337,85 +312,6 @@ async fn render_task(
     info!("Render task completed for session {}", session.session_id);
 }
 
-/// Renders a single frame for the session.
-async fn render_frame(session: &Arc<MapSession>) -> anyhow::Result<()> {
-    // Render the map to wgpu texture
-    {
-        let mut renderer = session.renderer.lock().unwrap();
-        let map = session.map.lock().unwrap();
-
-        renderer
-            .render_map(&map)
-            .map_err(|e| anyhow::anyhow!("Failed to render map: {}", e))?;
-    }
-
-    // Copy texture to staging buffer
-    let target_texture = {
-        let renderer = session.renderer.lock().unwrap();
-        renderer
-            .target_texture()
-            .ok_or_else(|| anyhow::anyhow!("No target texture available"))?
-            .clone()
-    };
-
-    {
-        let mut pixel_buffer = session.pixel_buffer.lock().unwrap();
-        pixel_buffer
-            .copy_from_texture(&target_texture)
-            .map_err(|e| anyhow::anyhow!("Failed to copy texture to buffer: {}", e))?;
-    }
-
-    // Read pixels from staging buffer (use helper to avoid async mutex issues)
-    let pixels = read_pixels_from_buffer(session.pixel_buffer.clone())
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to read pixels: {}", e))?;
-
-    // Update texture provider
-    session.texture_provider.update_pixels(pixels);
-
-    // Mark frame available for Flutter
-    {
-        let flutter_texture = session.flutter_texture.lock().unwrap();
-        flutter_texture
-            .mark_frame_available()
-            .map_err(|e| anyhow::anyhow!("Failed to mark frame available: {:?}", e))?;
-    }
-
-    Ok(())
-}
-
-/// Resizes the rendering session.
-async fn resize_session(session: &Arc<MapSession>, new_size: MapSize) -> anyhow::Result<()> {
-    info!(
-        "Resizing session {} to {}x{}",
-        session.session_id, new_size.width, new_size.height
-    );
-
-    // Resize renderer
-    {
-        let mut renderer = session.renderer.lock().unwrap();
-        let size = Size::new(new_size.width, new_size.height);
-        renderer
-            .resize(size)
-            .map_err(|e| anyhow::anyhow!("Failed to resize renderer: {}", e))?;
-    }
-
-    // Resize pixel buffer
-    {
-        let mut pixel_buffer = session.pixel_buffer.lock().unwrap();
-        pixel_buffer
-            .resize(new_size)
-            .map_err(|e| anyhow::anyhow!("Failed to resize pixel buffer: {}", e))?;
-    }
-
-    // Resize texture provider
-    session.texture_provider.resize(new_size);
-
-    // Trigger render to fill new size
-    render_frame(session).await?;
-
-    Ok(())
-}
 
 /// Triggers a map update and re-render.
 fn trigger_map_update(session_id: i64) -> anyhow::Result<()> {
@@ -430,71 +326,6 @@ fn trigger_map_update(session_id: i64) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Failed to send update message: {}", e))?;
 
     Ok(())
-}
-
-// Implementation for GalileoMapSession (keeping the existing interface)
-impl GalileoMapSession {
-    pub fn new(_size: MapSize, _config: RenderConfig) -> Self {
-        GalileoMapSession {}
-    }
-
-    pub fn resize(&self, size: MapSize) {
-        debug!("GalileoMapSession::resize called with size {:?}", size);
-    }
-
-    pub fn set_viewport(&self, viewport: MapViewport) {
-        debug!(
-            "GalileoMapSession::set_viewport called with viewport {:?}",
-            viewport
-        );
-    }
-
-    pub fn get_viewport(&self) -> MapViewport {
-        MapViewport {
-            center: MapPosition {
-                latitude: 0.0,
-                longitude: 0.0,
-            },
-            zoom: 1.0,
-            rotation: 0.0,
-        }
-    }
-
-    pub fn handle_touch_event(&self, event: TouchEvent) {
-        debug!(
-            "GalileoMapSession::handle_touch_event called with event {:?}",
-            event
-        );
-    }
-
-    pub fn handle_scroll_event(&self, event: ScrollEvent) {
-        debug!(
-            "GalileoMapSession::handle_scroll_event called with event {:?}",
-            event
-        );
-    }
-
-    pub fn handle_pan_event(&self, event: PanEvent) {
-        debug!(
-            "GalileoMapSession::handle_pan_event called with event {:?}",
-            event
-        );
-    }
-
-    pub fn handle_scale_event(&self, event: ScaleEvent) {
-        debug!(
-            "GalileoMapSession::handle_scale_event called with event {:?}",
-            event
-        );
-    }
-
-    pub fn add_layer(&self, config: LayerConfig) -> anyhow::Result<()> {
-        debug!(
-            "GalileoMapSession::add_layer called with config {:?}",
-            config
-        );
-        Ok(())
-    }
 }
 
 /// Event handling functions that work with simple coordinate mapping
@@ -609,7 +440,7 @@ pub fn mark_session_alive(session_id: i64) {
 }
 
 /// Destroys all streams for a given engine
-pub fn destroy_engine_streams(engine_id: i64) {
+pub fn destroy_all_engine_sessions(engine_id: i64) {
     debug!("destroy_engine_streams called for engine {}", engine_id);
 
     // Find and remove all sessions for this engine
@@ -631,9 +462,9 @@ pub fn destroy_engine_streams(engine_id: i64) {
 /// Destroys a specific session
 pub fn destroy_session(session_id: i64) {
     debug!("destroy_session called for session {}", session_id);
-
+    
     // Stop render task first
-    if let Some(session) = SESSIONS.lock().unwrap().get(&session_id) {
+    if let Some(session) = SESSIONS.lock().unwrap().remove(&session_id) {
         // Mark as not alive
         {
             let mut is_alive = session.is_alive.lock().unwrap();
@@ -655,11 +486,6 @@ pub fn destroy_session(session_id: i64) {
         }
     }
 
-    // Remove session from storage
-    {
-        let mut sessions = SESSIONS.lock().unwrap();
-        sessions.remove(&session_id);
-    }
 
     // Wait for render task to complete and remove handle
     {

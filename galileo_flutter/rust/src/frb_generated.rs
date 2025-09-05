@@ -658,7 +658,7 @@ fn wire__crate__api__api__destroy_engine_streams_impl(
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok({
-                        crate::api::api::destroy_engine_streams(api_engine_id);
+                        crate::api::api::destroy_all_engine_sessions(api_engine_id);
                     })?;
                     Ok(output_ok)
                 })())
