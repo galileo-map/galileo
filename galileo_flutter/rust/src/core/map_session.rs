@@ -105,13 +105,10 @@ impl MapSession {
         // set session as message callback for galileo
         {
             struct _SessionWrapper(Arc<MapSession>);
-            
+
             impl galileo::Messenger for _SessionWrapper {
                 fn request_redraw(&self) {
-                    TOKIO_RUNTIME
-                        .get()
-                        .unwrap()
-                        .block_on(self.0._draw_no_res())
+                    TOKIO_RUNTIME.get().unwrap().block_on(self.0._draw_no_res())
                 }
             }
 
@@ -138,13 +135,12 @@ impl MapSession {
             .as_ref()
             .ok_or(anyhow::anyhow!("Flutter context not available"))
     }
-    
-    pub fn add_layer(&self, layer: impl galileo::layer::Layer + 'static)     {
+
+    pub fn add_layer(&self, layer: impl galileo::layer::Layer + 'static) {
         let mut map = self.map.lock();
         map.layers_mut().push(layer);
         map.redraw();
     }
-    
 
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {

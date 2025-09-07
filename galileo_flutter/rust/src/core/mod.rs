@@ -1,8 +1,8 @@
 pub mod flutter;
 pub mod galileo_ref;
+pub mod map_session;
 pub mod pixel_buffer;
 pub mod windowless_renderer;
-pub mod map_session;
 
 use log::debug;
 use parking_lot::Mutex;
@@ -17,7 +17,6 @@ pub use windowless_renderer::WindowlessRenderer;
 
 use crate::core::flutter::pixel_texture::SharedPixelPayloadHolder;
 use crate::core::map_session::{MapSession, SessionID};
-
 
 lazy_static::lazy_static! {
     pub static ref IS_INITIALIZED: AtomicBool = AtomicBool::new(false);

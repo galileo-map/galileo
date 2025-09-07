@@ -26,8 +26,6 @@ pub fn init_galileo_flutter() {
     flutter_rust_bridge::setup_default_user_utils();
 }
 
-
-
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash
 pub fn galileo_flutter_init(ffi_ptr: i64) {
     if IS_INITIALIZED.load(Ordering::SeqCst) {
@@ -41,18 +39,14 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
     IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
 
-
-
 /// Triggers a map update and re-render.
 fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock();
     let session = sessions
         .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
-    TOKIO_RUNTIME.get().unwrap().block_on(
-    session.redraw()    
-    )}
-
+    TOKIO_RUNTIME.get().unwrap().block_on(session.redraw())
+}
 
 /// Marks the session as alive (called periodically from Flutter)
 pub fn mark_session_alive(session_id: SessionID) {
@@ -100,7 +94,6 @@ pub fn destroy_session(session_id: SessionID) {
     }
     info!("Session {session_id} does not exist")
 }
-
 
 /// Adds a layer to a session
 pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> anyhow::Result<()> {
