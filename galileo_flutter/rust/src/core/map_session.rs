@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-use crate::api::dart_types::{MapInitConfig, MapSize};
+use crate::api::dart_types::{LayerConfig, MapInitConfig, MapSize};
 use crate::core::flutter::pixel_texture::{
     create_flutter_texture, PixelPayloadHolder, SharedPixelPayloadHolder,
     SharedSendablePixelTexture,
@@ -43,7 +43,7 @@ impl FlutterCtx {
 /// Internal map session that manages the Galileo map with rendering.
 pub struct MapSession {
     session_id: SessionID,
-    pub map: Arc<Mutex<galileo::Map>>,
+    map: Arc<Mutex<galileo::Map>>,
     renderer: Arc<Mutex<WindowlessRenderer>>,
     wgpu_pixel_buffer: Arc<Mutex<PixelBuffer>>,
     /// this is optional because we wanna drop this on the platform thread.
@@ -102,6 +102,22 @@ impl MapSession {
             engine_handle,
             is_alive: AtomicBool::new(true),
         });
+        // set session as message callback for galileo
+        {
+            struct _SessionWrapper(Arc<MapSession>);
+            
+            impl galileo::Messenger for _SessionWrapper {
+                fn request_redraw(&self) {
+                    TOKIO_RUNTIME
+                        .get()
+                        .unwrap()
+                        .block_on(self.0._draw_no_res())
+                }
+            }
+
+            let mut map = map.lock();
+            map.set_messenger(Some(_SessionWrapper(session.clone())));
+        }
 
         {
             let mut sessions = SESSIONS.lock();
@@ -123,13 +139,13 @@ impl MapSession {
             .ok_or(anyhow::anyhow!("Flutter context not available"))
     }
     
-    pub async fn handle_mouse_event(&self) -> anyhow::Result<()>{
-        let map = self.map.lock();
-        map.set_messenger(messenger);
-        
-        Ok(())
+    pub fn add_layer(&self, layer: impl galileo::layer::Layer + 'static)     {
+        let mut map = self.map.lock();
+        map.layers_mut().push(layer);
+        map.redraw();
     }
     
+
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {
         // Render the map to wgpu texture
@@ -200,26 +216,12 @@ impl MapSession {
 
         Ok(())
     }
-    async fn _draw_no_res(&self){
-             self.redraw().await.inspect_err(|err|{
-                error!("{err}")
-            });
-             
+    async fn _draw_no_res(&self) {
+        self.redraw().await.inspect_err(|err| error!("{err}"));
     }
     pub fn terminate(&self) {
         self.is_alive.store(false, Ordering::SeqCst);
     }
-}
-
-impl galileo::Messenger for MapSession{
-
-    fn request_redraw(&self) {
-        TOKIO_RUNTIME.get().unwrap().block_on(
-           self._draw_no_res()
-            
-        )
-    }
-    
 }
 
 /// Updates the session counter and returns a new session ID

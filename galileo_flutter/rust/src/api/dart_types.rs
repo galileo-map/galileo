@@ -2,7 +2,9 @@
 //! All types here are used by flutter_rust_bridge_codegen.
 
 use flutter_rust_bridge::frb;
+use galileo::control::{MouseButton, MouseButtonState, MouseButtonsState, MouseEvent, UserEvent};
 use galileo::galileo_types;
+use galileo_types::cartesian::{Point2, Vector2};
 
 /// Geographic position with latitude and longitude coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,85 +63,6 @@ impl Default for MapInitConfig {
     }
 }
 
-/// Touch event from Flutter gesture detection.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct TouchEvent {
-    /// X coordinate relative to the map widget
-    pub x: f64,
-    /// Y coordinate relative to the map widget
-    pub y: f64,
-    /// Type of touch event
-    pub event_type: TouchEventType,
-}
-
-/// Types of touch events that can occur.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TouchEventType {
-    Down,
-    Move,
-    Up,
-    Cancel,
-}
-
-/// Scroll/zoom event from Flutter gesture detection.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ScrollEvent {
-    /// X coordinate relative to the map widget
-    pub x: f64,
-    /// Y coordinate relative to the map widget
-    pub y: f64,
-    /// Horizontal scroll delta
-    pub delta_x: f64,
-    /// Vertical scroll delta (used for zoom)
-    pub delta_y: f64,
-}
-
-/// Pan gesture event from Flutter gesture detection.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct PanEvent {
-    /// X coordinate relative to the map widget
-    pub x: f64,
-    /// Y coordinate relative to the map widget
-    pub y: f64,
-    /// Change in X since last event
-    pub delta_x: f64,
-    /// Change in Y since last event
-    pub delta_y: f64,
-    /// Type of pan event
-    pub event_type: PanEventType,
-}
-
-/// Types of pan events that can occur.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PanEventType {
-    Start,
-    Update,
-    End,
-}
-
-/// Scale/pinch gesture event from Flutter gesture detection.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ScaleEvent {
-    /// Focal point X coordinate relative to the map widget
-    pub focal_x: f64,
-    /// Focal point Y coordinate relative to the map widget
-    pub focal_y: f64,
-    /// Scale factor (1.0 = no change)
-    pub scale: f64,
-    /// Rotation in radians
-    pub rotation: f64,
-    /// Type of scale event
-    pub event_type: ScaleEventType,
-}
-
-/// Types of scale events that can occur.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ScaleEventType {
-    Start,
-    Update,
-    End,
-}
-
 /// Layer configuration for different types of map layers.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LayerConfig {
@@ -152,9 +75,64 @@ pub enum LayerConfig {
     },
 }
 
-/// Opaque handle to a Flutter texture.
-/// This manages the texture that will be displayed in the Flutter widget.
-#[frb(opaque)]
-pub struct TextureHandle {
-    // Internal texture management
+// Mirror types for UserEvent and its inner fields
+
+// Mirror for Point2<f64>
+#[frb(mirror(Point2))]
+pub struct _Point2 {
+    pub x: f64,
+    pub y: f64,
+}
+
+// Mirror for Vector2<f64>
+#[frb(mirror(Vector2<f64>))]
+pub struct _Vector2f64 {
+    pub dx: f64,
+    pub dy: f64,
+}
+
+// Mirror for MouseButton
+#[frb(mirror(MouseButton))]
+pub enum _MouseButton {
+    Left,
+    Middle,
+    Right,
+    Other,
+}
+
+// Mirror for MouseButtonState
+#[frb(mirror(MouseButtonState))]
+pub enum _MouseButtonState {
+    Pressed,
+    Released,
+}
+
+// Mirror for MouseButtonsState
+#[frb(mirror(MouseButtonsState))]
+pub struct _MouseButtonsState {
+    pub left: MouseButtonState,
+    pub middle: MouseButtonState,
+    pub right: MouseButtonState,
+}
+
+// Mirror for MouseEvent
+#[frb(mirror(MouseEvent))]
+pub struct _MouseEvent {
+    pub screen_pointer_position: Point2,
+    pub buttons: MouseButtonsState,
+}
+
+// Mirror for UserEvent
+#[frb(mirror(UserEvent))]
+pub enum _UserEvent {
+    ButtonPressed(MouseButton, MouseEvent),
+    ButtonReleased(MouseButton, MouseEvent),
+    Click(MouseButton, MouseEvent),
+    DoubleClick(MouseButton, MouseEvent),
+    PointerMoved(MouseEvent),
+    DragStarted(MouseButton, MouseEvent),
+    Drag(MouseButton, Vector2<f64>, MouseEvent),
+    DragEnded(MouseButton, MouseEvent),
+    Scroll(f64, MouseEvent),
+    Zoom(f64, Point2),
 }

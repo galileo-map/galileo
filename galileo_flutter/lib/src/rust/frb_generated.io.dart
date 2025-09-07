@@ -19,28 +19,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_GalileoMapSessionPtr =>
-      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSessionPtr;
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SizeU32Ptr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32Ptr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
-  GalileoMapSession
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     dynamic raw,
   );
 
   @protected
-  GalileoMapSession
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    dynamic raw,
-  );
-
-  @protected
-  GalileoMapSession
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     dynamic raw,
   );
 
@@ -57,31 +50,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MapSize dco_decode_box_autoadd_map_size(dynamic raw);
 
   @protected
-  MapViewport dco_decode_box_autoadd_map_viewport(dynamic raw);
-
-  @protected
-  PanEvent dco_decode_box_autoadd_pan_event(dynamic raw);
-
-  @protected
-  RenderConfig dco_decode_box_autoadd_render_config(dynamic raw);
-
-  @protected
-  ScaleEvent dco_decode_box_autoadd_scale_event(dynamic raw);
-
-  @protected
-  ScrollEvent dco_decode_box_autoadd_scroll_event(dynamic raw);
-
-  @protected
-  TouchEvent dco_decode_box_autoadd_touch_event(dynamic raw);
-
-  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
   double dco_decode_f_64(dynamic raw);
-
-  @protected
-  int dco_decode_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
@@ -93,22 +65,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
-  MapPosition dco_decode_map_position(dynamic raw);
+  MapInitConfig dco_decode_map_init_config(dynamic raw);
 
   @protected
   MapSize dco_decode_map_size(dynamic raw);
 
   @protected
-  MapViewport dco_decode_map_viewport(dynamic raw);
-
-  @protected
   String? dco_decode_opt_String(dynamic raw);
-
-  @protected
-  PanEvent dco_decode_pan_event(dynamic raw);
-
-  @protected
-  PanEventType dco_decode_pan_event_type(dynamic raw);
 
   @protected
   (double, double, double, double) dco_decode_record_f_32_f_32_f_32_f_32(
@@ -116,22 +79,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RenderConfig dco_decode_render_config(dynamic raw);
-
-  @protected
-  ScaleEvent dco_decode_scale_event(dynamic raw);
-
-  @protected
-  ScaleEventType dco_decode_scale_event_type(dynamic raw);
-
-  @protected
-  ScrollEvent dco_decode_scroll_event(dynamic raw);
-
-  @protected
-  TouchEvent dco_decode_touch_event(dynamic raw);
-
-  @protected
-  TouchEventType dco_decode_touch_event_type(dynamic raw);
+  (double, double) dco_decode_record_f_64_f_64(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -149,20 +97,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
-  GalileoMapSession
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     SseDeserializer deserializer,
   );
 
   @protected
-  GalileoMapSession
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  GalileoMapSession
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     SseDeserializer deserializer,
   );
 
@@ -179,33 +121,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MapSize sse_decode_box_autoadd_map_size(SseDeserializer deserializer);
 
   @protected
-  MapViewport sse_decode_box_autoadd_map_viewport(SseDeserializer deserializer);
-
-  @protected
-  PanEvent sse_decode_box_autoadd_pan_event(SseDeserializer deserializer);
-
-  @protected
-  RenderConfig sse_decode_box_autoadd_render_config(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  ScaleEvent sse_decode_box_autoadd_scale_event(SseDeserializer deserializer);
-
-  @protected
-  ScrollEvent sse_decode_box_autoadd_scroll_event(SseDeserializer deserializer);
-
-  @protected
-  TouchEvent sse_decode_box_autoadd_touch_event(SseDeserializer deserializer);
-
-  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
@@ -217,22 +136,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
-  MapPosition sse_decode_map_position(SseDeserializer deserializer);
+  MapInitConfig sse_decode_map_init_config(SseDeserializer deserializer);
 
   @protected
   MapSize sse_decode_map_size(SseDeserializer deserializer);
 
   @protected
-  MapViewport sse_decode_map_viewport(SseDeserializer deserializer);
-
-  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
-
-  @protected
-  PanEvent sse_decode_pan_event(SseDeserializer deserializer);
-
-  @protected
-  PanEventType sse_decode_pan_event_type(SseDeserializer deserializer);
 
   @protected
   (double, double, double, double) sse_decode_record_f_32_f_32_f_32_f_32(
@@ -240,22 +150,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RenderConfig sse_decode_render_config(SseDeserializer deserializer);
-
-  @protected
-  ScaleEvent sse_decode_scale_event(SseDeserializer deserializer);
-
-  @protected
-  ScaleEventType sse_decode_scale_event_type(SseDeserializer deserializer);
-
-  @protected
-  ScrollEvent sse_decode_scroll_event(SseDeserializer deserializer);
-
-  @protected
-  TouchEvent sse_decode_touch_event(SseDeserializer deserializer);
-
-  @protected
-  TouchEventType sse_decode_touch_event_type(SseDeserializer deserializer);
+  (double, double) sse_decode_record_f_64_f_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -270,6 +165,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -277,22 +175,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    GalileoMapSession self,
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
+    SizeU32 self,
     SseSerializer serializer,
   );
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    GalileoMapSession self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    GalileoMapSession self,
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
+    SizeU32 self,
     SseSerializer serializer,
   );
 
@@ -312,49 +203,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_map_size(MapSize self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_map_viewport(
-    MapViewport self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_pan_event(
-    PanEvent self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_render_config(
-    RenderConfig self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_scale_event(
-    ScaleEvent self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_scroll_event(
-    ScrollEvent self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_touch_event(
-    TouchEvent self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
@@ -369,22 +221,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_map_position(MapPosition self, SseSerializer serializer);
+  void sse_encode_map_init_config(MapInitConfig self, SseSerializer serializer);
 
   @protected
   void sse_encode_map_size(MapSize self, SseSerializer serializer);
 
   @protected
-  void sse_encode_map_viewport(MapViewport self, SseSerializer serializer);
-
-  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_pan_event(PanEvent self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_pan_event_type(PanEventType self, SseSerializer serializer);
 
   @protected
   void sse_encode_record_f_32_f_32_f_32_f_32(
@@ -393,26 +236,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_render_config(RenderConfig self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_scale_event(ScaleEvent self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_scale_event_type(
-    ScaleEventType self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_scroll_event(ScrollEvent self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_touch_event(TouchEvent self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_touch_event_type(
-    TouchEventType self,
+  void sse_encode_record_f_64_f_64(
+    (double, double) self,
     SseSerializer serializer,
   );
 
@@ -427,6 +252,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -444,36 +272,36 @@ class RustLibWire implements BaseWire {
     : _lookup = dynamicLibrary.lookup;
 
   void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
       ptr,
     );
   }
 
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSessionPtr =
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32Ptr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_galileo_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession',
+        'frbgen_galileo_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32',
       );
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSessionPtr
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32 =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32Ptr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
       ptr,
     );
   }
 
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSessionPtr =
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32Ptr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-        'frbgen_galileo_flutter_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession',
+        'frbgen_galileo_flutter_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32',
       );
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSessionPtr
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32 =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32Ptr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

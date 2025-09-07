@@ -8,36 +8,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_types.freezed.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `TextureHandle`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapPosition`, `MapViewport`, `MouseButtonState`, `MouseButton`, `MouseButtonsState`, `MouseEvent`, `Point2`, `UserEvent`, `_Vector2f64`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<GalileoMapSession>>
-abstract class GalileoMapSession implements RustOpaqueInterface {
-  Future<void> addLayer({required LayerConfig config});
-
-  Future<MapViewport> getViewport();
-
-  Future<void> handlePanEvent({required PanEvent event});
-
-  Future<void> handleScaleEvent({required ScaleEvent event});
-
-  Future<void> handleScrollEvent({required ScrollEvent event});
-
-  Future<void> handleTouchEvent({required TouchEvent event});
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<GalileoMapSession> newInstance({
-    required MapSize size,
-    required RenderConfig config,
-  }) => RustLib.instance.api.crateApiDartTypesGalileoMapSessionNew(
-    size: size,
-    config: config,
-  );
-
-  Future<void> resize({required MapSize size});
-
-  Future<void> setViewport({required MapViewport viewport});
-}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner< Size < u32 >>>
+abstract class SizeU32 implements RustOpaqueInterface {}
 
 @freezed
 sealed class LayerConfig with _$LayerConfig {
@@ -53,23 +28,52 @@ sealed class LayerConfig with _$LayerConfig {
   }) = LayerConfig_RasterTiles;
 }
 
-/// Geographic position with latitude and longitude coordinates.
-class MapPosition {
-  final double latitude;
-  final double longitude;
+class MapInitConfig {
+  final (double, double) latlon;
+  final int zoomLevel;
+  final MapSize mapSize;
 
-  const MapPosition({required this.latitude, required this.longitude});
+  /// Frames per second for the render loop (default: 30)
+  final int fps;
+
+  /// Enable multisampling anti-aliasing
+  final bool enableMultisampling;
+
+  /// Background color as RGBA (0.0-1.0 range)
+  final (double, double, double, double) backgroundColor;
+
+  const MapInitConfig({
+    required this.latlon,
+    required this.zoomLevel,
+    required this.mapSize,
+    required this.fps,
+    required this.enableMultisampling,
+    required this.backgroundColor,
+  });
+
+  static Future<MapInitConfig> default_() =>
+      RustLib.instance.api.crateApiDartTypesMapInitConfigDefault();
 
   @override
-  int get hashCode => latitude.hashCode ^ longitude.hashCode;
+  int get hashCode =>
+      latlon.hashCode ^
+      zoomLevel.hashCode ^
+      mapSize.hashCode ^
+      fps.hashCode ^
+      enableMultisampling.hashCode ^
+      backgroundColor.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MapPosition &&
+      other is MapInitConfig &&
           runtimeType == other.runtimeType &&
-          latitude == other.latitude &&
-          longitude == other.longitude;
+          latlon == other.latlon &&
+          zoomLevel == other.zoomLevel &&
+          mapSize == other.mapSize &&
+          fps == other.fps &&
+          enableMultisampling == other.enableMultisampling &&
+          backgroundColor == other.backgroundColor;
 }
 
 /// Physical size of the map in pixels.
@@ -78,6 +82,9 @@ class MapSize {
   final int height;
 
   const MapSize({required this.width, required this.height});
+
+  Future<SizeU32> asGalileo() =>
+      RustLib.instance.api.crateApiDartTypesMapSizeAsGalileo(that: this);
 
   @override
   int get hashCode => width.hashCode ^ height.hashCode;
@@ -90,223 +97,3 @@ class MapSize {
           width == other.width &&
           height == other.height;
 }
-
-/// Map viewport configuration including center, zoom, and rotation.
-class MapViewport {
-  final MapPosition center;
-  final double zoom;
-  final double rotation;
-
-  const MapViewport({
-    required this.center,
-    required this.zoom,
-    required this.rotation,
-  });
-
-  @override
-  int get hashCode => center.hashCode ^ zoom.hashCode ^ rotation.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MapViewport &&
-          runtimeType == other.runtimeType &&
-          center == other.center &&
-          zoom == other.zoom &&
-          rotation == other.rotation;
-}
-
-/// Pan gesture event from Flutter gesture detection.
-class PanEvent {
-  /// X coordinate relative to the map widget
-  final double x;
-
-  /// Y coordinate relative to the map widget
-  final double y;
-
-  /// Change in X since last event
-  final double deltaX;
-
-  /// Change in Y since last event
-  final double deltaY;
-
-  /// Type of pan event
-  final PanEventType eventType;
-
-  const PanEvent({
-    required this.x,
-    required this.y,
-    required this.deltaX,
-    required this.deltaY,
-    required this.eventType,
-  });
-
-  @override
-  int get hashCode =>
-      x.hashCode ^
-      y.hashCode ^
-      deltaX.hashCode ^
-      deltaY.hashCode ^
-      eventType.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PanEvent &&
-          runtimeType == other.runtimeType &&
-          x == other.x &&
-          y == other.y &&
-          deltaX == other.deltaX &&
-          deltaY == other.deltaY &&
-          eventType == other.eventType;
-}
-
-/// Types of pan events that can occur.
-enum PanEventType { start, update, end }
-
-/// Configuration for the rendering system.
-class RenderConfig {
-  /// Frames per second for the render loop (default: 30)
-  final int fps;
-
-  /// Enable multisampling anti-aliasing
-  final bool enableMultisampling;
-
-  /// Background color as RGBA (0.0-1.0 range)
-  final (double, double, double, double) backgroundColor;
-
-  const RenderConfig({
-    required this.fps,
-    required this.enableMultisampling,
-    required this.backgroundColor,
-  });
-
-  static Future<RenderConfig> default_() =>
-      RustLib.instance.api.crateApiDartTypesRenderConfigDefault();
-
-  @override
-  int get hashCode =>
-      fps.hashCode ^ enableMultisampling.hashCode ^ backgroundColor.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RenderConfig &&
-          runtimeType == other.runtimeType &&
-          fps == other.fps &&
-          enableMultisampling == other.enableMultisampling &&
-          backgroundColor == other.backgroundColor;
-}
-
-/// Scale/pinch gesture event from Flutter gesture detection.
-class ScaleEvent {
-  /// Focal point X coordinate relative to the map widget
-  final double focalX;
-
-  /// Focal point Y coordinate relative to the map widget
-  final double focalY;
-
-  /// Scale factor (1.0 = no change)
-  final double scale;
-
-  /// Rotation in radians
-  final double rotation;
-
-  /// Type of scale event
-  final ScaleEventType eventType;
-
-  const ScaleEvent({
-    required this.focalX,
-    required this.focalY,
-    required this.scale,
-    required this.rotation,
-    required this.eventType,
-  });
-
-  @override
-  int get hashCode =>
-      focalX.hashCode ^
-      focalY.hashCode ^
-      scale.hashCode ^
-      rotation.hashCode ^
-      eventType.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ScaleEvent &&
-          runtimeType == other.runtimeType &&
-          focalX == other.focalX &&
-          focalY == other.focalY &&
-          scale == other.scale &&
-          rotation == other.rotation &&
-          eventType == other.eventType;
-}
-
-/// Types of scale events that can occur.
-enum ScaleEventType { start, update, end }
-
-/// Scroll/zoom event from Flutter gesture detection.
-class ScrollEvent {
-  /// X coordinate relative to the map widget
-  final double x;
-
-  /// Y coordinate relative to the map widget
-  final double y;
-
-  /// Horizontal scroll delta
-  final double deltaX;
-
-  /// Vertical scroll delta (used for zoom)
-  final double deltaY;
-
-  const ScrollEvent({
-    required this.x,
-    required this.y,
-    required this.deltaX,
-    required this.deltaY,
-  });
-
-  @override
-  int get hashCode =>
-      x.hashCode ^ y.hashCode ^ deltaX.hashCode ^ deltaY.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ScrollEvent &&
-          runtimeType == other.runtimeType &&
-          x == other.x &&
-          y == other.y &&
-          deltaX == other.deltaX &&
-          deltaY == other.deltaY;
-}
-
-/// Touch event from Flutter gesture detection.
-class TouchEvent {
-  /// X coordinate relative to the map widget
-  final double x;
-
-  /// Y coordinate relative to the map widget
-  final double y;
-
-  /// Type of touch event
-  final TouchEventType eventType;
-
-  const TouchEvent({required this.x, required this.y, required this.eventType});
-
-  @override
-  int get hashCode => x.hashCode ^ y.hashCode ^ eventType.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TouchEvent &&
-          runtimeType == other.runtimeType &&
-          x == other.x &&
-          y == other.y &&
-          eventType == other.eventType;
-}
-
-/// Types of touch events that can occur.
-enum TouchEventType { down, move, up, cancel }

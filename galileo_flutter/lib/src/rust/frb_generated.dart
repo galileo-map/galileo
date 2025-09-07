@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1583387579;
+  int get rustContentHash => -1399700163;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,115 +78,32 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<void> crateApiDartTypesGalileoMapSessionAddLayer({
-    required GalileoMapSession that,
-    required LayerConfig config,
-  });
-
-  Future<MapViewport> crateApiDartTypesGalileoMapSessionGetViewport({
-    required GalileoMapSession that,
-  });
-
-  Future<void> crateApiDartTypesGalileoMapSessionHandlePanEvent({
-    required GalileoMapSession that,
-    required PanEvent event,
-  });
-
-  Future<void> crateApiDartTypesGalileoMapSessionHandleScaleEvent({
-    required GalileoMapSession that,
-    required ScaleEvent event,
-  });
-
-  Future<void> crateApiDartTypesGalileoMapSessionHandleScrollEvent({
-    required GalileoMapSession that,
-    required ScrollEvent event,
-  });
-
-  Future<void> crateApiDartTypesGalileoMapSessionHandleTouchEvent({
-    required GalileoMapSession that,
-    required TouchEvent event,
-  });
-
-  Future<GalileoMapSession> crateApiDartTypesGalileoMapSessionNew({
-    required MapSize size,
-    required RenderConfig config,
-  });
-
-  Future<void> crateApiDartTypesGalileoMapSessionResize({
-    required GalileoMapSession that,
-    required MapSize size,
-  });
-
-  Future<void> crateApiDartTypesGalileoMapSessionSetViewport({
-    required GalileoMapSession that,
-    required MapViewport viewport,
-  });
-
   Future<void> crateApiApiAddSessionLayer({
-    required PlatformInt64 sessionId,
+    required int sessionId,
     required LayerConfig layerConfig,
   });
 
-  Future<PlatformInt64> crateApiApiCreateNewGalileoMap({
-    required PlatformInt64 sessionId,
-    required PlatformInt64 engineHandle,
-    required MapSize size,
-    required RenderConfig config,
-  });
-
-  Future<PlatformInt64> crateApiApiCreateNewSession();
-
-  Future<void> crateApiApiDestroyEngineStreams({
+  Future<void> crateApiApiDestroyAllEngineSessions({
     required PlatformInt64 engineId,
   });
 
-  Future<void> crateApiApiDestroySession({required PlatformInt64 sessionId});
+  Future<void> crateApiApiDestroySession({required int sessionId});
 
   Future<void> crateApiApiGalileoFlutterInit({required PlatformInt64 ffiPtr});
 
-  Future<MapViewport> crateApiApiGetSessionViewport({
-    required PlatformInt64 sessionId,
-  });
-
-  Future<void> crateApiApiHandleSessionPanEvent({
-    required PlatformInt64 sessionId,
-    required PanEvent event,
-  });
-
-  Future<void> crateApiApiHandleSessionScaleEvent({
-    required PlatformInt64 sessionId,
-    required ScaleEvent event,
-  });
-
-  Future<void> crateApiApiHandleSessionTouchEvent({
-    required PlatformInt64 sessionId,
-    required TouchEvent event,
-  });
-
   Future<void> crateApiApiInitGalileoFlutter();
 
-  Future<void> crateApiApiMarkSessionAlive({required PlatformInt64 sessionId});
+  Future<MapInitConfig> crateApiDartTypesMapInitConfigDefault();
 
-  Future<RenderConfig> crateApiDartTypesRenderConfigDefault();
+  Future<SizeU32> crateApiDartTypesMapSizeAsGalileo({required MapSize that});
 
-  Future<void> crateApiApiResizeSessionSize({
-    required PlatformInt64 sessionId,
-    required MapSize size,
-  });
+  Future<void> crateApiApiMarkSessionAlive({required int sessionId});
 
-  Future<void> crateApiApiSetSessionViewport({
-    required PlatformInt64 sessionId,
-    required MapViewport viewport,
-  });
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_SizeU32;
 
-  RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_GalileoMapSession;
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_SizeU32;
 
-  RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_GalileoMapSession;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_GalileoMapSessionPtr;
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_SizeU32Ptr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -198,363 +115,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<void> crateApiDartTypesGalileoMapSessionAddLayer({
-    required GalileoMapSession that,
-    required LayerConfig config,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_layer_config(config, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 1,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionAddLayerConstMeta,
-        argValues: [that, config],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDartTypesGalileoMapSessionAddLayerConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_add_layer",
-        argNames: ["that", "config"],
-      );
-
-  @override
-  Future<MapViewport> crateApiDartTypesGalileoMapSessionGetViewport({
-    required GalileoMapSession that,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 2,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_map_viewport,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionGetViewportConstMeta,
-        argValues: [that],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDartTypesGalileoMapSessionGetViewportConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_get_viewport",
-        argNames: ["that"],
-      );
-
-  @override
-  Future<void> crateApiDartTypesGalileoMapSessionHandlePanEvent({
-    required GalileoMapSession that,
-    required PanEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_pan_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 3,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionHandlePanEventConstMeta,
-        argValues: [that, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDartTypesGalileoMapSessionHandlePanEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_handle_pan_event",
-        argNames: ["that", "event"],
-      );
-
-  @override
-  Future<void> crateApiDartTypesGalileoMapSessionHandleScaleEvent({
-    required GalileoMapSession that,
-    required ScaleEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_scale_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 4,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionHandleScaleEventConstMeta,
-        argValues: [that, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDartTypesGalileoMapSessionHandleScaleEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_handle_scale_event",
-        argNames: ["that", "event"],
-      );
-
-  @override
-  Future<void> crateApiDartTypesGalileoMapSessionHandleScrollEvent({
-    required GalileoMapSession that,
-    required ScrollEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_scroll_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 5,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDartTypesGalileoMapSessionHandleScrollEventConstMeta,
-        argValues: [that, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDartTypesGalileoMapSessionHandleScrollEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_handle_scroll_event",
-        argNames: ["that", "event"],
-      );
-
-  @override
-  Future<void> crateApiDartTypesGalileoMapSessionHandleTouchEvent({
-    required GalileoMapSession that,
-    required TouchEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_touch_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 6,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionHandleTouchEventConstMeta,
-        argValues: [that, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDartTypesGalileoMapSessionHandleTouchEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_handle_touch_event",
-        argNames: ["that", "event"],
-      );
-
-  @override
-  Future<GalileoMapSession> crateApiDartTypesGalileoMapSessionNew({
-    required MapSize size,
-    required RenderConfig config,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_map_size(size, serializer);
-          sse_encode_box_autoadd_render_config(config, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 7,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionNewConstMeta,
-        argValues: [size, config],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDartTypesGalileoMapSessionNewConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_new",
-        argNames: ["size", "config"],
-      );
-
-  @override
-  Future<void> crateApiDartTypesGalileoMapSessionResize({
-    required GalileoMapSession that,
-    required MapSize size,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_map_size(size, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 8,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionResizeConstMeta,
-        argValues: [that, size],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDartTypesGalileoMapSessionResizeConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_resize",
-        argNames: ["that", "size"],
-      );
-
-  @override
-  Future<void> crateApiDartTypesGalileoMapSessionSetViewport({
-    required GalileoMapSession that,
-    required MapViewport viewport,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_map_viewport(viewport, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 9,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesGalileoMapSessionSetViewportConstMeta,
-        argValues: [that, viewport],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDartTypesGalileoMapSessionSetViewportConstMeta =>
-      const TaskConstMeta(
-        debugName: "GalileoMapSession_set_viewport",
-        argNames: ["that", "viewport"],
-      );
-
-  @override
   Future<void> crateApiApiAddSessionLayer({
-    required PlatformInt64 sessionId,
+    required int sessionId,
     required LayerConfig layerConfig,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
+          sse_encode_u_32(sessionId, serializer);
           sse_encode_box_autoadd_layer_config(layerConfig, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 1,
             port: port_,
           );
         },
@@ -575,73 +149,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<PlatformInt64> crateApiApiCreateNewGalileoMap({
-    required PlatformInt64 sessionId,
-    required PlatformInt64 engineHandle,
-    required MapSize size,
-    required RenderConfig config,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          sse_encode_i_64(engineHandle, serializer);
-          sse_encode_box_autoadd_map_size(size, serializer);
-          sse_encode_box_autoadd_render_config(config, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 11,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_i_64,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiCreateNewGalileoMapConstMeta,
-        argValues: [sessionId, engineHandle, size, config],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiCreateNewGalileoMapConstMeta =>
-      const TaskConstMeta(
-        debugName: "create_new_galileo_map",
-        argNames: ["sessionId", "engineHandle", "size", "config"],
-      );
-
-  @override
-  Future<PlatformInt64> crateApiApiCreateNewSession() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 12,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_i_64,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiApiCreateNewSessionConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiCreateNewSessionConstMeta =>
-      const TaskConstMeta(debugName: "create_new_session", argNames: []);
-
-  @override
-  Future<void> crateApiApiDestroyEngineStreams({
+  Future<void> crateApiApiDestroyAllEngineSessions({
     required PlatformInt64 engineId,
   }) {
     return handler.executeNormal(
@@ -652,7 +160,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 2,
             port: port_,
           );
         },
@@ -660,30 +168,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiApiDestroyEngineStreamsConstMeta,
+        constMeta: kCrateApiApiDestroyAllEngineSessionsConstMeta,
         argValues: [engineId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiApiDestroyEngineStreamsConstMeta =>
+  TaskConstMeta get kCrateApiApiDestroyAllEngineSessionsConstMeta =>
       const TaskConstMeta(
-        debugName: "destroy_engine_streams",
+        debugName: "destroy_all_engine_sessions",
         argNames: ["engineId"],
       );
 
   @override
-  Future<void> crateApiApiDestroySession({required PlatformInt64 sessionId}) {
+  Future<void> crateApiApiDestroySession({required int sessionId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
+          sse_encode_u_32(sessionId, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 3,
             port: port_,
           );
         },
@@ -713,7 +221,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 4,
             port: port_,
           );
         },
@@ -735,144 +243,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<MapViewport> crateApiApiGetSessionViewport({
-    required PlatformInt64 sessionId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 16,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_map_viewport,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiGetSessionViewportConstMeta,
-        argValues: [sessionId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiGetSessionViewportConstMeta =>
-      const TaskConstMeta(
-        debugName: "get_session_viewport",
-        argNames: ["sessionId"],
-      );
-
-  @override
-  Future<void> crateApiApiHandleSessionPanEvent({
-    required PlatformInt64 sessionId,
-    required PanEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          sse_encode_box_autoadd_pan_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 17,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiHandleSessionPanEventConstMeta,
-        argValues: [sessionId, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiHandleSessionPanEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "handle_session_pan_event",
-        argNames: ["sessionId", "event"],
-      );
-
-  @override
-  Future<void> crateApiApiHandleSessionScaleEvent({
-    required PlatformInt64 sessionId,
-    required ScaleEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          sse_encode_box_autoadd_scale_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 18,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiHandleSessionScaleEventConstMeta,
-        argValues: [sessionId, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiHandleSessionScaleEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "handle_session_scale_event",
-        argNames: ["sessionId", "event"],
-      );
-
-  @override
-  Future<void> crateApiApiHandleSessionTouchEvent({
-    required PlatformInt64 sessionId,
-    required TouchEvent event,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          sse_encode_box_autoadd_touch_event(event, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 19,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiHandleSessionTouchEventConstMeta,
-        argValues: [sessionId, event],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiHandleSessionTouchEventConstMeta =>
-      const TaskConstMeta(
-        debugName: "handle_session_touch_event",
-        argNames: ["sessionId", "event"],
-      );
-
-  @override
   Future<void> crateApiApiInitGalileoFlutter() {
     return handler.executeNormal(
       NormalTask(
@@ -881,7 +251,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 5,
             port: port_,
           );
         },
@@ -900,16 +270,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_galileo_flutter", argNames: []);
 
   @override
-  Future<void> crateApiApiMarkSessionAlive({required PlatformInt64 sessionId}) {
+  Future<MapInitConfig> crateApiDartTypesMapInitConfigDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_map_init_config,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDartTypesMapInitConfigDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDartTypesMapInitConfigDefaultConstMeta =>
+      const TaskConstMeta(debugName: "map_init_config_default", argNames: []);
+
+  @override
+  Future<SizeU32> crateApiDartTypesMapSizeAsGalileo({required MapSize that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_map_size(that, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiDartTypesMapSizeAsGalileoConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDartTypesMapSizeAsGalileoConstMeta =>
+      const TaskConstMeta(debugName: "map_size_as_galileo", argNames: ["that"]);
+
+  @override
+  Future<void> crateApiApiMarkSessionAlive({required int sessionId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(sessionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
             port: port_,
           );
         },
@@ -930,110 +356,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: ["sessionId"],
       );
 
-  @override
-  Future<RenderConfig> crateApiDartTypesRenderConfigDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 22,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_render_config,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiDartTypesRenderConfigDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDartTypesRenderConfigDefaultConstMeta =>
-      const TaskConstMeta(debugName: "render_config_default", argNames: []);
-
-  @override
-  Future<void> crateApiApiResizeSessionSize({
-    required PlatformInt64 sessionId,
-    required MapSize size,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          sse_encode_box_autoadd_map_size(size, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 23,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiResizeSessionSizeConstMeta,
-        argValues: [sessionId, size],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiResizeSessionSizeConstMeta =>
-      const TaskConstMeta(
-        debugName: "resize_session_size",
-        argNames: ["sessionId", "size"],
-      );
-
-  @override
-  Future<void> crateApiApiSetSessionViewport({
-    required PlatformInt64 sessionId,
-    required MapViewport viewport,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(sessionId, serializer);
-          sse_encode_box_autoadd_map_viewport(viewport, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 24,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiApiSetSessionViewportConstMeta,
-        argValues: [sessionId, viewport],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiApiSetSessionViewportConstMeta =>
-      const TaskConstMeta(
-        debugName: "set_session_viewport",
-        argNames: ["sessionId", "viewport"],
-      );
-
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_GalileoMapSession =>
-      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession;
+  get rust_arc_increment_strong_count_SizeU32 =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_GalileoMapSession =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession;
+  get rust_arc_decrement_strong_count_SizeU32 =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
@@ -1042,30 +371,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  GalileoMapSession
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GalileoMapSessionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return SizeU32Impl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
-  GalileoMapSession
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GalileoMapSessionImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  GalileoMapSession
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return GalileoMapSessionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return SizeU32Impl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1093,42 +413,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  MapViewport dco_decode_box_autoadd_map_viewport(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_map_viewport(raw);
-  }
-
-  @protected
-  PanEvent dco_decode_box_autoadd_pan_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_pan_event(raw);
-  }
-
-  @protected
-  RenderConfig dco_decode_box_autoadd_render_config(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_render_config(raw);
-  }
-
-  @protected
-  ScaleEvent dco_decode_box_autoadd_scale_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_scale_event(raw);
-  }
-
-  @protected
-  ScrollEvent dco_decode_box_autoadd_scroll_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_scroll_event(raw);
-  }
-
-  @protected
-  TouchEvent dco_decode_box_autoadd_touch_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_touch_event(raw);
-  }
-
-  @protected
   double dco_decode_f_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -1138,12 +422,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
-  }
-
-  @protected
-  int dco_decode_i_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as int;
   }
 
   @protected
@@ -1175,14 +453,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  MapPosition dco_decode_map_position(dynamic raw) {
+  MapInitConfig dco_decode_map_init_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return MapPosition(
-      latitude: dco_decode_f_64(arr[0]),
-      longitude: dco_decode_f_64(arr[1]),
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return MapInitConfig(
+      latlon: dco_decode_record_f_64_f_64(arr[0]),
+      zoomLevel: dco_decode_u_32(arr[1]),
+      mapSize: dco_decode_map_size(arr[2]),
+      fps: dco_decode_u_32(arr[3]),
+      enableMultisampling: dco_decode_bool(arr[4]),
+      backgroundColor: dco_decode_record_f_32_f_32_f_32_f_32(arr[5]),
     );
   }
 
@@ -1199,43 +481,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  MapViewport dco_decode_map_viewport(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return MapViewport(
-      center: dco_decode_map_position(arr[0]),
-      zoom: dco_decode_f_64(arr[1]),
-      rotation: dco_decode_f_64(arr[2]),
-    );
-  }
-
-  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
-  }
-
-  @protected
-  PanEvent dco_decode_pan_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return PanEvent(
-      x: dco_decode_f_64(arr[0]),
-      y: dco_decode_f_64(arr[1]),
-      deltaX: dco_decode_f_64(arr[2]),
-      deltaY: dco_decode_f_64(arr[3]),
-      eventType: dco_decode_pan_event_type(arr[4]),
-    );
-  }
-
-  @protected
-  PanEventType dco_decode_pan_event_type(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return PanEventType.values[raw as int];
   }
 
   @protected
@@ -1256,70 +504,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RenderConfig dco_decode_render_config(dynamic raw) {
+  (double, double) dco_decode_record_f_64_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return RenderConfig(
-      fps: dco_decode_u_32(arr[0]),
-      enableMultisampling: dco_decode_bool(arr[1]),
-      backgroundColor: dco_decode_record_f_32_f_32_f_32_f_32(arr[2]),
-    );
-  }
-
-  @protected
-  ScaleEvent dco_decode_scale_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return ScaleEvent(
-      focalX: dco_decode_f_64(arr[0]),
-      focalY: dco_decode_f_64(arr[1]),
-      scale: dco_decode_f_64(arr[2]),
-      rotation: dco_decode_f_64(arr[3]),
-      eventType: dco_decode_scale_event_type(arr[4]),
-    );
-  }
-
-  @protected
-  ScaleEventType dco_decode_scale_event_type(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ScaleEventType.values[raw as int];
-  }
-
-  @protected
-  ScrollEvent dco_decode_scroll_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return ScrollEvent(
-      x: dco_decode_f_64(arr[0]),
-      y: dco_decode_f_64(arr[1]),
-      deltaX: dco_decode_f_64(arr[2]),
-      deltaY: dco_decode_f_64(arr[3]),
-    );
-  }
-
-  @protected
-  TouchEvent dco_decode_touch_event(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return TouchEvent(
-      x: dco_decode_f_64(arr[0]),
-      y: dco_decode_f_64(arr[1]),
-      eventType: dco_decode_touch_event_type(arr[2]),
-    );
-  }
-
-  @protected
-  TouchEventType dco_decode_touch_event_type(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return TouchEventType.values[raw as int];
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_f_64(arr[0]), dco_decode_f_64(arr[1]));
   }
 
   @protected
@@ -1354,36 +545,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  GalileoMapSession
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return GalileoMapSessionImpl.frbInternalSseDecode(
+    return SizeU32Impl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
   }
 
   @protected
-  GalileoMapSession
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
+  SizeU32
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return GalileoMapSessionImpl.frbInternalSseDecode(
-      sse_decode_usize(deserializer),
-      sse_decode_i_32(deserializer),
-    );
-  }
-
-  @protected
-  GalileoMapSession
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return GalileoMapSessionImpl.frbInternalSseDecode(
+    return SizeU32Impl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1417,48 +596,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  MapViewport sse_decode_box_autoadd_map_viewport(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_map_viewport(deserializer));
-  }
-
-  @protected
-  PanEvent sse_decode_box_autoadd_pan_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_pan_event(deserializer));
-  }
-
-  @protected
-  RenderConfig sse_decode_box_autoadd_render_config(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_render_config(deserializer));
-  }
-
-  @protected
-  ScaleEvent sse_decode_box_autoadd_scale_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_scale_event(deserializer));
-  }
-
-  @protected
-  ScrollEvent sse_decode_box_autoadd_scroll_event(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_scroll_event(deserializer));
-  }
-
-  @protected
-  TouchEvent sse_decode_box_autoadd_touch_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_touch_event(deserializer));
-  }
-
-  @protected
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
@@ -1468,12 +605,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
-  }
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -1510,11 +641,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  MapPosition sse_decode_map_position(SseDeserializer deserializer) {
+  MapInitConfig sse_decode_map_init_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_latitude = sse_decode_f_64(deserializer);
-    var var_longitude = sse_decode_f_64(deserializer);
-    return MapPosition(latitude: var_latitude, longitude: var_longitude);
+    var var_latlon = sse_decode_record_f_64_f_64(deserializer);
+    var var_zoomLevel = sse_decode_u_32(deserializer);
+    var var_mapSize = sse_decode_map_size(deserializer);
+    var var_fps = sse_decode_u_32(deserializer);
+    var var_enableMultisampling = sse_decode_bool(deserializer);
+    var var_backgroundColor = sse_decode_record_f_32_f_32_f_32_f_32(
+      deserializer,
+    );
+    return MapInitConfig(
+      latlon: var_latlon,
+      zoomLevel: var_zoomLevel,
+      mapSize: var_mapSize,
+      fps: var_fps,
+      enableMultisampling: var_enableMultisampling,
+      backgroundColor: var_backgroundColor,
+    );
   }
 
   @protected
@@ -1526,19 +670,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  MapViewport sse_decode_map_viewport(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_center = sse_decode_map_position(deserializer);
-    var var_zoom = sse_decode_f_64(deserializer);
-    var var_rotation = sse_decode_f_64(deserializer);
-    return MapViewport(
-      center: var_center,
-      zoom: var_zoom,
-      rotation: var_rotation,
-    );
-  }
-
-  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1547,30 +678,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
-  }
-
-  @protected
-  PanEvent sse_decode_pan_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_x = sse_decode_f_64(deserializer);
-    var var_y = sse_decode_f_64(deserializer);
-    var var_deltaX = sse_decode_f_64(deserializer);
-    var var_deltaY = sse_decode_f_64(deserializer);
-    var var_eventType = sse_decode_pan_event_type(deserializer);
-    return PanEvent(
-      x: var_x,
-      y: var_y,
-      deltaX: var_deltaX,
-      deltaY: var_deltaY,
-      eventType: var_eventType,
-    );
-  }
-
-  @protected
-  PanEventType sse_decode_pan_event_type(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return PanEventType.values[inner];
   }
 
   @protected
@@ -1586,73 +693,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RenderConfig sse_decode_render_config(SseDeserializer deserializer) {
+  (double, double) sse_decode_record_f_64_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_fps = sse_decode_u_32(deserializer);
-    var var_enableMultisampling = sse_decode_bool(deserializer);
-    var var_backgroundColor = sse_decode_record_f_32_f_32_f_32_f_32(
-      deserializer,
-    );
-    return RenderConfig(
-      fps: var_fps,
-      enableMultisampling: var_enableMultisampling,
-      backgroundColor: var_backgroundColor,
-    );
-  }
-
-  @protected
-  ScaleEvent sse_decode_scale_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_focalX = sse_decode_f_64(deserializer);
-    var var_focalY = sse_decode_f_64(deserializer);
-    var var_scale = sse_decode_f_64(deserializer);
-    var var_rotation = sse_decode_f_64(deserializer);
-    var var_eventType = sse_decode_scale_event_type(deserializer);
-    return ScaleEvent(
-      focalX: var_focalX,
-      focalY: var_focalY,
-      scale: var_scale,
-      rotation: var_rotation,
-      eventType: var_eventType,
-    );
-  }
-
-  @protected
-  ScaleEventType sse_decode_scale_event_type(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return ScaleEventType.values[inner];
-  }
-
-  @protected
-  ScrollEvent sse_decode_scroll_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_x = sse_decode_f_64(deserializer);
-    var var_y = sse_decode_f_64(deserializer);
-    var var_deltaX = sse_decode_f_64(deserializer);
-    var var_deltaY = sse_decode_f_64(deserializer);
-    return ScrollEvent(
-      x: var_x,
-      y: var_y,
-      deltaX: var_deltaX,
-      deltaY: var_deltaY,
-    );
-  }
-
-  @protected
-  TouchEvent sse_decode_touch_event(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_x = sse_decode_f_64(deserializer);
-    var var_y = sse_decode_f_64(deserializer);
-    var var_eventType = sse_decode_touch_event_type(deserializer);
-    return TouchEvent(x: var_x, y: var_y, eventType: var_eventType);
-  }
-
-  @protected
-  TouchEventType sse_decode_touch_event_type(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return TouchEventType.values[inner];
+    var var_field0 = sse_decode_f_64(deserializer);
+    var var_field1 = sse_decode_f_64(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -1679,6 +724,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -1689,39 +740,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    GalileoMapSession self,
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
+    SizeU32 self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as GalileoMapSessionImpl).frbInternalSseEncode(move: true),
+      (self as SizeU32Impl).frbInternalSseEncode(move: true),
       serializer,
     );
   }
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    GalileoMapSession self,
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSizeu32(
+    SizeU32 self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as GalileoMapSessionImpl).frbInternalSseEncode(move: false),
-      serializer,
-    );
-  }
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerGalileoMapSession(
-    GalileoMapSession self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-      (self as GalileoMapSessionImpl).frbInternalSseEncode(move: null),
+      (self as SizeU32Impl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -1754,60 +792,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_map_viewport(
-    MapViewport self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_map_viewport(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_pan_event(
-    PanEvent self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_pan_event(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_render_config(
-    RenderConfig self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_render_config(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_scale_event(
-    ScaleEvent self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_scale_event(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_scroll_event(
-    ScrollEvent self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_scroll_event(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_touch_event(
-    TouchEvent self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_touch_event(self, serializer);
-  }
-
-  @protected
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
@@ -1817,12 +801,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
-  }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
   }
 
   @protected
@@ -1858,10 +836,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_map_position(MapPosition self, SseSerializer serializer) {
+  void sse_encode_map_init_config(
+    MapInitConfig self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_64(self.latitude, serializer);
-    sse_encode_f_64(self.longitude, serializer);
+    sse_encode_record_f_64_f_64(self.latlon, serializer);
+    sse_encode_u_32(self.zoomLevel, serializer);
+    sse_encode_map_size(self.mapSize, serializer);
+    sse_encode_u_32(self.fps, serializer);
+    sse_encode_bool(self.enableMultisampling, serializer);
+    sse_encode_record_f_32_f_32_f_32_f_32(self.backgroundColor, serializer);
   }
 
   @protected
@@ -1872,14 +857,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_map_viewport(MapViewport self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_map_position(self.center, serializer);
-    sse_encode_f_64(self.zoom, serializer);
-    sse_encode_f_64(self.rotation, serializer);
-  }
-
-  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1887,22 +864,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_String(self, serializer);
     }
-  }
-
-  @protected
-  void sse_encode_pan_event(PanEvent self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_64(self.x, serializer);
-    sse_encode_f_64(self.y, serializer);
-    sse_encode_f_64(self.deltaX, serializer);
-    sse_encode_f_64(self.deltaY, serializer);
-    sse_encode_pan_event_type(self.eventType, serializer);
-  }
-
-  @protected
-  void sse_encode_pan_event_type(PanEventType self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -1918,56 +879,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_render_config(RenderConfig self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_32(self.fps, serializer);
-    sse_encode_bool(self.enableMultisampling, serializer);
-    sse_encode_record_f_32_f_32_f_32_f_32(self.backgroundColor, serializer);
-  }
-
-  @protected
-  void sse_encode_scale_event(ScaleEvent self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_64(self.focalX, serializer);
-    sse_encode_f_64(self.focalY, serializer);
-    sse_encode_f_64(self.scale, serializer);
-    sse_encode_f_64(self.rotation, serializer);
-    sse_encode_scale_event_type(self.eventType, serializer);
-  }
-
-  @protected
-  void sse_encode_scale_event_type(
-    ScaleEventType self,
+  void sse_encode_record_f_64_f_64(
+    (double, double) self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_scroll_event(ScrollEvent self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_64(self.x, serializer);
-    sse_encode_f_64(self.y, serializer);
-    sse_encode_f_64(self.deltaX, serializer);
-    sse_encode_f_64(self.deltaY, serializer);
-  }
-
-  @protected
-  void sse_encode_touch_event(TouchEvent self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_f_64(self.x, serializer);
-    sse_encode_f_64(self.y, serializer);
-    sse_encode_touch_event_type(self.eventType, serializer);
-  }
-
-  @protected
-  void sse_encode_touch_event_type(
-    TouchEventType self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
+    sse_encode_f_64(self.$1, serializer);
+    sse_encode_f_64(self.$2, serializer);
   }
 
   @protected
@@ -1992,68 +910,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
 }
 
 @sealed
-class GalileoMapSessionImpl extends RustOpaque implements GalileoMapSession {
+class SizeU32Impl extends RustOpaque implements SizeU32 {
   // Not to be used by end users
-  GalileoMapSessionImpl.frbInternalDcoDecode(List<dynamic> wire)
+  SizeU32Impl.frbInternalDcoDecode(List<dynamic> wire)
     : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
-  GalileoMapSessionImpl.frbInternalSseDecode(
-    BigInt ptr,
-    int externalSizeOnNative,
-  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+  SizeU32Impl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_GalileoMapSession,
+        RustLib.instance.api.rust_arc_increment_strong_count_SizeU32,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_GalileoMapSession,
+        RustLib.instance.api.rust_arc_decrement_strong_count_SizeU32,
     rustArcDecrementStrongCountPtr:
-        RustLib
-            .instance
-            .api
-            .rust_arc_decrement_strong_count_GalileoMapSessionPtr,
+        RustLib.instance.api.rust_arc_decrement_strong_count_SizeU32Ptr,
   );
-
-  Future<void> addLayer({required LayerConfig config}) => RustLib.instance.api
-      .crateApiDartTypesGalileoMapSessionAddLayer(that: this, config: config);
-
-  Future<MapViewport> getViewport() => RustLib.instance.api
-      .crateApiDartTypesGalileoMapSessionGetViewport(that: this);
-
-  Future<void> handlePanEvent({required PanEvent event}) =>
-      RustLib.instance.api.crateApiDartTypesGalileoMapSessionHandlePanEvent(
-        that: this,
-        event: event,
-      );
-
-  Future<void> handleScaleEvent({required ScaleEvent event}) =>
-      RustLib.instance.api.crateApiDartTypesGalileoMapSessionHandleScaleEvent(
-        that: this,
-        event: event,
-      );
-
-  Future<void> handleScrollEvent({required ScrollEvent event}) =>
-      RustLib.instance.api.crateApiDartTypesGalileoMapSessionHandleScrollEvent(
-        that: this,
-        event: event,
-      );
-
-  Future<void> handleTouchEvent({required TouchEvent event}) =>
-      RustLib.instance.api.crateApiDartTypesGalileoMapSessionHandleTouchEvent(
-        that: this,
-        event: event,
-      );
-
-  Future<void> resize({required MapSize size}) => RustLib.instance.api
-      .crateApiDartTypesGalileoMapSessionResize(that: this, size: size);
-
-  Future<void> setViewport({required MapViewport viewport}) =>
-      RustLib.instance.api.crateApiDartTypesGalileoMapSessionSetViewport(
-        that: this,
-        viewport: viewport,
-      );
 }

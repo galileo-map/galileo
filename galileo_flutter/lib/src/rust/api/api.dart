@@ -7,93 +7,29 @@ import '../frb_generated.dart';
 import 'dart_types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `create_flutter_texture`, `create_galileo_map_with_layers`, `create_map_session_async`, `new`, `read_pixels_from_buffer`, `render_frame`, `render_task`, `resize_session`, `resize`, `trigger_map_update`, `update_pixels`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapSession`, `RENDER_TASK_HANDLES`, `RenderMessage`, `SESSIONS`, `SESSION_COUNTER`, `TexturePixelProvider`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `deref`, `deref`, `deref`, `fmt`, `get_payload`, `initialize`, `initialize`, `initialize`
+// These functions are ignored because they are not marked as `pub`: `request_map_redraw`
 
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash
 Future<void> galileoFlutterInit({required PlatformInt64 ffiPtr}) =>
     RustLib.instance.api.crateApiApiGalileoFlutterInit(ffiPtr: ffiPtr);
 
-/// Updates the session counter and returns a new session ID
-Future<PlatformInt64> createNewSession() =>
-    RustLib.instance.api.crateApiApiCreateNewSession();
-
-/// Creates a new Galileo map session with full texture rendering.
-Future<PlatformInt64> createNewGalileoMap({
-  required PlatformInt64 sessionId,
-  required PlatformInt64 engineHandle,
-  required MapSize size,
-  required RenderConfig config,
-}) => RustLib.instance.api.crateApiApiCreateNewGalileoMap(
-  sessionId: sessionId,
-  engineHandle: engineHandle,
-  size: size,
-  config: config,
-);
-
-/// Event handling functions that work with simple coordinate mapping
-Future<void> handleSessionTouchEvent({
-  required PlatformInt64 sessionId,
-  required TouchEvent event,
-}) => RustLib.instance.api.crateApiApiHandleSessionTouchEvent(
-  sessionId: sessionId,
-  event: event,
-);
-
-Future<void> handleSessionPanEvent({
-  required PlatformInt64 sessionId,
-  required PanEvent event,
-}) => RustLib.instance.api.crateApiApiHandleSessionPanEvent(
-  sessionId: sessionId,
-  event: event,
-);
-
-Future<void> handleSessionScaleEvent({
-  required PlatformInt64 sessionId,
-  required ScaleEvent event,
-}) => RustLib.instance.api.crateApiApiHandleSessionScaleEvent(
-  sessionId: sessionId,
-  event: event,
-);
-
-/// Resize a session
-Future<void> resizeSessionSize({
-  required PlatformInt64 sessionId,
-  required MapSize size,
-}) => RustLib.instance.api.crateApiApiResizeSessionSize(
-  sessionId: sessionId,
-  size: size,
-);
-
 /// Marks the session as alive (called periodically from Flutter)
-Future<void> markSessionAlive({required PlatformInt64 sessionId}) =>
+Future<void> markSessionAlive({required int sessionId}) =>
     RustLib.instance.api.crateApiApiMarkSessionAlive(sessionId: sessionId);
 
 /// Destroys all streams for a given engine
-Future<void> destroyEngineStreams({required PlatformInt64 engineId}) =>
-    RustLib.instance.api.crateApiApiDestroyEngineStreams(engineId: engineId);
+Future<void> destroyAllEngineSessions({required PlatformInt64 engineId}) =>
+    RustLib.instance.api.crateApiApiDestroyAllEngineSessions(
+      engineId: engineId,
+    );
 
 /// Destroys a specific session
-Future<void> destroySession({required PlatformInt64 sessionId}) =>
+Future<void> destroySession({required int sessionId}) =>
     RustLib.instance.api.crateApiApiDestroySession(sessionId: sessionId);
-
-/// Gets the current viewport for a session
-Future<MapViewport> getSessionViewport({required PlatformInt64 sessionId}) =>
-    RustLib.instance.api.crateApiApiGetSessionViewport(sessionId: sessionId);
-
-/// Sets the viewport for a session
-Future<void> setSessionViewport({
-  required PlatformInt64 sessionId,
-  required MapViewport viewport,
-}) => RustLib.instance.api.crateApiApiSetSessionViewport(
-  sessionId: sessionId,
-  viewport: viewport,
-);
 
 /// Adds a layer to a session
 Future<void> addSessionLayer({
-  required PlatformInt64 sessionId,
+  required int sessionId,
   required LayerConfig layerConfig,
 }) => RustLib.instance.api.crateApiApiAddSessionLayer(
   sessionId: sessionId,
