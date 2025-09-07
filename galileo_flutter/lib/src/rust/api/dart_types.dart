@@ -10,9 +10,7 @@ part 'dart_types.freezed.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapPosition`, `MapViewport`, `MouseButtonState`, `MouseButton`, `MouseButtonsState`, `MouseEvent`, `Point2`, `UserEvent`, `_Vector2f64`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner< Size < u32 >>>
-abstract class SizeU32 implements RustOpaqueInterface {}
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `as_galileo`
 
 @freezed
 sealed class LayerConfig with _$LayerConfig {
@@ -82,9 +80,6 @@ class MapSize {
   final int height;
 
   const MapSize({required this.width, required this.height});
-
-  Future<SizeU32> asGalileo() =>
-      RustLib.instance.api.crateApiDartTypesMapSizeAsGalileo(that: this);
 
   @override
   int get hashCode => width.hashCode ^ height.hashCode;

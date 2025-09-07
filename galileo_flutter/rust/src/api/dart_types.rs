@@ -27,8 +27,8 @@ pub struct MapSize {
     pub width: u32,
     pub height: u32,
 }
-
 impl MapSize {
+    #[frb(ignore)]
     pub fn as_galileo(&self) -> galileo_types::cartesian::Size<u32> {
         galileo_types::cartesian::Size::new(self.width, self.height)
     }
