@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1129745581;
+  int get rustContentHash => -124574723;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -90,6 +90,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiApiDestroySession({required int sessionId});
 
   Future<void> crateApiApiGalileoFlutterInit({required PlatformInt64 ffiPtr});
+
+  Future<void> crateApiApiHandleEventForSession({
+    required int sessionId,
+    required UserEvent event,
+  });
 
   Future<void> crateApiApiInitGalileoFlutter();
 
@@ -235,6 +240,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiApiHandleEventForSession({
+    required int sessionId,
+    required UserEvent event,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(sessionId, serializer);
+          sse_encode_box_autoadd_user_event(event, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiApiHandleEventForSessionConstMeta,
+        argValues: [sessionId, event],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiApiHandleEventForSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "handle_event_for_session",
+        argNames: ["sessionId", "event"],
+      );
+
+  @override
   Future<void> crateApiApiInitGalileoFlutter() {
     return handler.executeNormal(
       NormalTask(
@@ -243,7 +283,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -270,7 +310,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -298,7 +338,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -344,6 +384,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MouseEvent dco_decode_box_autoadd_mouse_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mouse_event(raw);
+  }
+
+  @protected
+  Point2 dco_decode_box_autoadd_point_2(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_point_2(raw);
+  }
+
+  @protected
+  UserEvent dco_decode_box_autoadd_user_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_user_event(raw);
+  }
+
+  @protected
+  Vector2 dco_decode_box_autoadd_vector_2(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_vector_2(raw);
+  }
+
+  @protected
   double dco_decode_f_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -353,6 +417,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -412,9 +482,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MouseButton dco_decode_mouse_button(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return MouseButton.values[raw as int];
+  }
+
+  @protected
+  MouseButtonState dco_decode_mouse_button_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return MouseButtonState.values[raw as int];
+  }
+
+  @protected
+  MouseButtonsState dco_decode_mouse_buttons_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return MouseButtonsState(
+      left: dco_decode_mouse_button_state(arr[0]),
+      middle: dco_decode_mouse_button_state(arr[1]),
+      right: dco_decode_mouse_button_state(arr[2]),
+    );
+  }
+
+  @protected
+  MouseEvent dco_decode_mouse_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return MouseEvent(
+      screenPointerPosition: dco_decode_point_2(arr[0]),
+      buttons: dco_decode_mouse_buttons_state(arr[1]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  Point2 dco_decode_point_2(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Point2(x: dco_decode_f_64(arr[0]), y: dco_decode_f_64(arr[1]));
   }
 
   @protected
@@ -463,6 +579,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UserEvent dco_decode_user_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return UserEvent_ButtonPressed(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 1:
+        return UserEvent_ButtonReleased(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 2:
+        return UserEvent_Click(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 3:
+        return UserEvent_DoubleClick(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 4:
+        return UserEvent_PointerMoved(
+          dco_decode_box_autoadd_mouse_event(raw[1]),
+        );
+      case 5:
+        return UserEvent_DragStarted(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 6:
+        return UserEvent_Drag(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_vector_2(raw[2]),
+          dco_decode_box_autoadd_mouse_event(raw[3]),
+        );
+      case 7:
+        return UserEvent_DragEnded(
+          dco_decode_mouse_button(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 8:
+        return UserEvent_Scroll(
+          dco_decode_f_64(raw[1]),
+          dco_decode_box_autoadd_mouse_event(raw[2]),
+        );
+      case 9:
+        return UserEvent_Zoom(
+          dco_decode_f_64(raw[1]),
+          dco_decode_box_autoadd_point_2(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  Vector2 dco_decode_vector_2(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Vector2(dx: dco_decode_f_64(arr[0]), dy: dco_decode_f_64(arr[1]));
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -491,6 +675,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MouseEvent sse_decode_box_autoadd_mouse_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mouse_event(deserializer));
+  }
+
+  @protected
+  Point2 sse_decode_box_autoadd_point_2(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_point_2(deserializer));
+  }
+
+  @protected
+  UserEvent sse_decode_box_autoadd_user_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_user_event(deserializer));
+  }
+
+  @protected
+  Vector2 sse_decode_box_autoadd_vector_2(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_vector_2(deserializer));
+  }
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
@@ -500,6 +708,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -565,6 +779,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MouseButton sse_decode_mouse_button(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return MouseButton.values[inner];
+  }
+
+  @protected
+  MouseButtonState sse_decode_mouse_button_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return MouseButtonState.values[inner];
+  }
+
+  @protected
+  MouseButtonsState sse_decode_mouse_buttons_state(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_left = sse_decode_mouse_button_state(deserializer);
+    var var_middle = sse_decode_mouse_button_state(deserializer);
+    var var_right = sse_decode_mouse_button_state(deserializer);
+    return MouseButtonsState(
+      left: var_left,
+      middle: var_middle,
+      right: var_right,
+    );
+  }
+
+  @protected
+  MouseEvent sse_decode_mouse_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_screenPointerPosition = sse_decode_point_2(deserializer);
+    var var_buttons = sse_decode_mouse_buttons_state(deserializer);
+    return MouseEvent(
+      screenPointerPosition: var_screenPointerPosition,
+      buttons: var_buttons,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -573,6 +827,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  Point2 sse_decode_point_2(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_x = sse_decode_f_64(deserializer);
+    var var_y = sse_decode_f_64(deserializer);
+    return Point2(x: var_x, y: var_y);
   }
 
   @protected
@@ -613,9 +875,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
+  UserEvent sse_decode_user_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_ButtonPressed(var_field0, var_field1);
+      case 1:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_ButtonReleased(var_field0, var_field1);
+      case 2:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_Click(var_field0, var_field1);
+      case 3:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_DoubleClick(var_field0, var_field1);
+      case 4:
+        var var_field0 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_PointerMoved(var_field0);
+      case 5:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_DragStarted(var_field0, var_field1);
+      case 6:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_vector_2(deserializer);
+        var var_field2 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_Drag(var_field0, var_field1, var_field2);
+      case 7:
+        var var_field0 = sse_decode_mouse_button(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_DragEnded(var_field0, var_field1);
+      case 8:
+        var var_field0 = sse_decode_f_64(deserializer);
+        var var_field1 = sse_decode_box_autoadd_mouse_event(deserializer);
+        return UserEvent_Scroll(var_field0, var_field1);
+      case 9:
+        var var_field0 = sse_decode_f_64(deserializer);
+        var var_field1 = sse_decode_box_autoadd_point_2(deserializer);
+        return UserEvent_Zoom(var_field0, var_field1);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  Vector2 sse_decode_vector_2(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_dx = sse_decode_f_64(deserializer);
+    var var_dy = sse_decode_f_64(deserializer);
+    return Vector2(dx: var_dx, dy: var_dy);
   }
 
   @protected
@@ -649,6 +964,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_mouse_event(
+    MouseEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mouse_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_point_2(Point2 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_point_2(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_user_event(
+    UserEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_user_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_vector_2(Vector2 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_vector_2(self, serializer);
+  }
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
@@ -658,6 +1003,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
   }
 
   @protected
@@ -714,6 +1065,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_mouse_button(MouseButton self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_mouse_button_state(
+    MouseButtonState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_mouse_buttons_state(
+    MouseButtonsState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mouse_button_state(self.left, serializer);
+    sse_encode_mouse_button_state(self.middle, serializer);
+    sse_encode_mouse_button_state(self.right, serializer);
+  }
+
+  @protected
+  void sse_encode_mouse_event(MouseEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_point_2(self.screenPointerPosition, serializer);
+    sse_encode_mouse_buttons_state(self.buttons, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -721,6 +1105,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_String(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_point_2(Point2 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.x, serializer);
+    sse_encode_f_64(self.y, serializer);
   }
 
   @protected
@@ -763,8 +1154,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
+  void sse_encode_user_event(UserEvent self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
+    switch (self) {
+      case UserEvent_ButtonPressed(field0: final field0, field1: final field1):
+        sse_encode_i_32(0, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_ButtonReleased(field0: final field0, field1: final field1):
+        sse_encode_i_32(1, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_Click(field0: final field0, field1: final field1):
+        sse_encode_i_32(2, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_DoubleClick(field0: final field0, field1: final field1):
+        sse_encode_i_32(3, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_PointerMoved(field0: final field0):
+        sse_encode_i_32(4, serializer);
+        sse_encode_box_autoadd_mouse_event(field0, serializer);
+      case UserEvent_DragStarted(field0: final field0, field1: final field1):
+        sse_encode_i_32(5, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_Drag(
+        field0: final field0,
+        field1: final field1,
+        field2: final field2,
+      ):
+        sse_encode_i_32(6, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_vector_2(field1, serializer);
+        sse_encode_box_autoadd_mouse_event(field2, serializer);
+      case UserEvent_DragEnded(field0: final field0, field1: final field1):
+        sse_encode_i_32(7, serializer);
+        sse_encode_mouse_button(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_Scroll(field0: final field0, field1: final field1):
+        sse_encode_i_32(8, serializer);
+        sse_encode_f_64(field0, serializer);
+        sse_encode_box_autoadd_mouse_event(field1, serializer);
+      case UserEvent_Zoom(field0: final field0, field1: final field1):
+        sse_encode_i_32(9, serializer);
+        sse_encode_f_64(field0, serializer);
+        sse_encode_box_autoadd_point_2(field1, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_vector_2(Vector2 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.dx, serializer);
+    sse_encode_f_64(self.dy, serializer);
   }
 }

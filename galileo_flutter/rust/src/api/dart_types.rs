@@ -2,9 +2,7 @@
 //! All types here are used by flutter_rust_bridge_codegen.
 
 use flutter_rust_bridge::frb;
-use galileo::control::{MouseButton, MouseButtonState, MouseButtonsState, MouseEvent, UserEvent};
 use galileo::galileo_types;
-use galileo_types::cartesian::{Point2, Vector2};
 
 /// Geographic position with latitude and longitude coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -27,12 +25,7 @@ pub struct MapSize {
     pub width: u32,
     pub height: u32,
 }
-impl MapSize {
-    #[frb(ignore)]
-    pub fn as_galileo(&self) -> galileo_types::cartesian::Size<u32> {
-        galileo_types::cartesian::Size::new(self.width, self.height)
-    }
-}
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MapInitConfig {
@@ -75,64 +68,180 @@ pub enum LayerConfig {
     },
 }
 
-// Mirror types for UserEvent and its inner fields
+// Manual type definitions for Dart-friendly versions
 
-// Mirror for Point2<f64>
-#[frb(mirror(Point2))]
-pub struct _Point2 {
+/// 2D point in cartesian coordinate space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Point2 {
     pub x: f64,
     pub y: f64,
 }
 
-// Mirror for Vector2<f64>
-#[frb(mirror(Vector2<f64>))]
-pub struct _Vector2f64 {
+impl Point2 {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo_types::cartesian::Point2<f64> {
+        galileo_types::cartesian::Point2::new(self.x, self.y)
+    }
+}
+
+/// 2D vector in cartesian coordinate space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vector2 {
     pub dx: f64,
     pub dy: f64,
 }
 
-// Mirror for MouseButton
-#[frb(mirror(MouseButton))]
-pub enum _MouseButton {
+impl Vector2 {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo_types::cartesian::Vector2<f64> {
+        galileo_types::cartesian::Vector2::new(self.dx, self.dy)
+    }
+}
+
+/// Mouse button enum.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum MouseButton {
+    /// The button you click when you want to shoot.
     Left,
+    /// The button you click when you want to reload.
     Middle,
+    /// The button you click when you want to hit with a rifle handle.
     Right,
+    /// The button you click when you are a pro gamer and want to look cool.
     Other,
 }
 
-// Mirror for MouseButtonState
-#[frb(mirror(MouseButtonState))]
-pub enum _MouseButtonState {
+impl MouseButton {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo::control::MouseButton {
+        match self {
+            MouseButton::Left => galileo::control::MouseButton::Left,
+            MouseButton::Middle => galileo::control::MouseButton::Middle,
+            MouseButton::Right => galileo::control::MouseButton::Right,
+            MouseButton::Other => galileo::control::MouseButton::Other,
+        }
+    }
+}
+
+/// Mouse button state.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum MouseButtonState {
+    /// Button is pressed.
     Pressed,
+    /// Button is not pressed.
     Released,
 }
 
-// Mirror for MouseButtonsState
-#[frb(mirror(MouseButtonsState))]
-pub struct _MouseButtonsState {
+impl MouseButtonState {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo::control::MouseButtonState {
+        match self {
+            MouseButtonState::Pressed => galileo::control::MouseButtonState::Pressed,
+            MouseButtonState::Released => galileo::control::MouseButtonState::Released,
+        }
+    }
+}
+
+/// State of all mouse buttons.
+#[derive(Debug, Copy, Clone)]
+pub struct MouseButtonsState {
+    /// State of the left mouse button.
     pub left: MouseButtonState,
+    /// State of the middle mouse button.
     pub middle: MouseButtonState,
+    /// State of the right mouse button.
     pub right: MouseButtonState,
 }
 
-// Mirror for MouseEvent
-#[frb(mirror(MouseEvent))]
-pub struct _MouseEvent {
+impl MouseButtonsState {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo::control::MouseButtonsState {
+        galileo::control::MouseButtonsState {
+            left: self.left.to_galileo(),
+            middle: self.middle.to_galileo(),
+            right: self.right.to_galileo(),
+        }
+    }
+}
+
+/// State of the mouse at the moment of the event.
+#[derive(Debug, Clone)]
+pub struct MouseEvent {
+    /// Pointer position on the screen in pixels from the top-left corner.
     pub screen_pointer_position: Point2,
+    /// State of the mouse buttons.
     pub buttons: MouseButtonsState,
 }
 
-// Mirror for UserEvent
-#[frb(mirror(UserEvent))]
-pub enum _UserEvent {
+impl MouseEvent {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo::control::MouseEvent {
+        galileo::control::MouseEvent {
+            screen_pointer_position: self.screen_pointer_position.to_galileo(),
+            buttons: self.buttons.to_galileo(),
+        }
+    }
+}
+
+/// User interaction event.
+#[derive(Debug, Clone)]
+pub enum UserEvent {
+    /// A mouse button was pressed.
     ButtonPressed(MouseButton, MouseEvent),
+    /// A mouse button was released.
     ButtonReleased(MouseButton, MouseEvent),
+    /// A mouse button was clicked.
     Click(MouseButton, MouseEvent),
+    /// A double click was done.
     DoubleClick(MouseButton, MouseEvent),
+    /// Mouse pointer moved.
     PointerMoved(MouseEvent),
+    /// Drag started.
     DragStarted(MouseButton, MouseEvent),
-    Drag(MouseButton, Vector2<f64>, MouseEvent),
+    /// Mouse pointer moved after drag started was consumed.
+    Drag(MouseButton, Vector2, MouseEvent),
+    /// Mouse button was released while dragging.
     DragEnded(MouseButton, MouseEvent),
+    /// Scroll event is called.
     Scroll(f64, MouseEvent),
+    /// Zoom is called around a point.
     Zoom(f64, Point2),
+}
+
+impl UserEvent {
+    #[frb(ignore)]
+    pub fn to_galileo(&self) -> galileo::control::UserEvent {
+        match self {
+            UserEvent::ButtonPressed(button, event) => {
+                galileo::control::UserEvent::ButtonPressed(button.to_galileo(), event.to_galileo())
+            }
+            UserEvent::ButtonReleased(button, event) => {
+                galileo::control::UserEvent::ButtonReleased(button.to_galileo(), event.to_galileo())
+            }
+            UserEvent::Click(button, event) => {
+                galileo::control::UserEvent::Click(button.to_galileo(), event.to_galileo())
+            }
+            UserEvent::DoubleClick(button, event) => {
+                galileo::control::UserEvent::DoubleClick(button.to_galileo(), event.to_galileo())
+            }
+            UserEvent::PointerMoved(event) => {
+                galileo::control::UserEvent::PointerMoved(event.to_galileo())
+            }
+            UserEvent::DragStarted(button, event) => {
+                galileo::control::UserEvent::DragStarted(button.to_galileo(), event.to_galileo())
+            }
+            UserEvent::Drag(button, vector, event) => {
+                galileo::control::UserEvent::Drag(button.to_galileo(), vector.to_galileo(), event.to_galileo())
+            }
+            UserEvent::DragEnded(button, event) => {
+                galileo::control::UserEvent::DragEnded(button.to_galileo(), event.to_galileo())
+            }
+            UserEvent::Scroll(delta, event) => {
+                galileo::control::UserEvent::Scroll(*delta, event.to_galileo())
+            }
+            UserEvent::Zoom(delta, point) => {
+                galileo::control::UserEvent::Zoom(*delta, point.to_galileo())
+            }
+        }
+    }
 }

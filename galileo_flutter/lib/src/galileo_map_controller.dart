@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:galileo_flutter/src/rust/api/dart_types.dart';
 import 'package:galileo_flutter/src/rust/api/api.dart' as rlib;
+
 import 'package:irondash_engine_context/irondash_engine_context.dart';
 import "package:rxdart/rxdart.dart" as rx;
 
@@ -24,7 +25,7 @@ enum GalileoMapState {
 /// Controller for managing a Galileo map instance
 class GalileoMapController {
   final MapSize size;
-  final RenderConfig config;
+  final MapInitConfig config;
   final List<LayerConfig> layers;
 
   final int sessionId;
@@ -58,7 +59,7 @@ class GalileoMapController {
   /// Create a new Galileo map controller
   static Future<(GalileoMapController?, String?)> create({
     required MapSize size,
-    RenderConfig? config,
+    MapInitConfig? config,
     List<LayerConfig> layers = const [LayerConfig.osm()],
   }) async {
     try {
@@ -69,14 +70,14 @@ class GalileoMapController {
       final sessionId = await rlib.createNewSession();
 
       // Use default config if none provided
-      final renderConfig = config ?? await RenderConfig.default_();
+      final MapInitConfig = config ?? await MapInitConfig.default_();
 
       // Create the map instance
       final textureId = await rlib.createNewGalileoMap(
         sessionId: sessionId,
         engineHandle: handle,
         size: size,
-        config: renderConfig,
+        config: MapInitConfig,
       );
 
       // Create state broadcast
@@ -86,7 +87,7 @@ class GalileoMapController {
 
       final controller = GalileoMapController._(
         size: size,
-        config: renderConfig,
+        config: MapInitConfig,
         layers: layers,
         sessionId: sessionId,
         stateBroadcast: stateBroadcast,
@@ -132,105 +133,15 @@ class GalileoMapController {
     });
   }
 
-  /// Handle touch events from the map widget
-  Future<void> handleTouchEvent({
-    required double x,
-    required double y,
-    required TouchEventType eventType,
-  }) async {
+  /// Handle user events from the map widget
+  Future<void> handleEvent(UserEvent event) async {
     if (!_running) return;
 
     try {
-      // Forward touch event directly to session-based handler
-      await rlib.handleSessionTouchEvent(
-        sessionId: sessionId,
-        event: TouchEvent(x: x, y: y, eventType: eventType),
-      );
+      await rlib.handleEventForSession(sessionId: sessionId, event: event);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error handling touch event: $e');
-      }
-    }
-  }
-
-  /// Handle scroll events from the map widget
-  Future<void> handleScrollEvent({
-    required double x,
-    required double y,
-    required double deltaX,
-    required double deltaY,
-  }) async {
-    if (!_running) return;
-
-    try {
-      // Treat scroll events as zoom operations
-      final zoomFactor = deltaY > 0 ? 0.9 : 1.1;
-      await handleScaleEvent(
-        focalX: x,
-        focalY: y,
-        scale: zoomFactor,
-        rotation: 0.0,
-        eventType: ScaleEventType.update,
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error handling scroll event: $e');
-      }
-    }
-  }
-
-  /// Handle pan events from the map widget
-  Future<void> handlePanEvent({
-    required double x,
-    required double y,
-    required double deltaX,
-    required double deltaY,
-    required PanEventType eventType,
-  }) async {
-    if (!_running) return;
-
-    try {
-      await rlib.handleSessionPanEvent(
-        sessionId: sessionId,
-        event: PanEvent(
-          x: x,
-          y: y,
-          deltaX: deltaX,
-          deltaY: deltaY,
-          eventType: eventType,
-        ),
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error handling pan event: $e');
-      }
-    }
-  }
-
-  /// Handle scale events from the map widget
-  Future<void> handleScaleEvent({
-    required double focalX,
-    required double focalY,
-    required double scale,
-    required double rotation,
-    required ScaleEventType eventType,
-  }) async {
-    if (!_running) return;
-
-    try {
-      await rlib.handleSessionScaleEvent(
-        sessionId: sessionId,
-        event: ScaleEvent(
-          focalX: focalX,
-          focalY: focalY,
-          scale: scale,
-          rotation: rotation,
-          eventType: eventType,
-        ),
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error handling scale event: $e');
+        debugPrint('Error handling event: $e');
       }
     }
   }

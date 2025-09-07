@@ -7,6 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:galileo_flutter/src/galileo_map_controller.dart';
 import 'package:galileo_flutter/src/rust/api/dart_types.dart';
 
+class MapViewport{
+// placeholder
+}
+
 /// A widget that displays a Galileo map with interactive controls
 class GalileoMapWidget extends StatefulWidget {
   final GalileoMapController controller;
@@ -24,9 +28,6 @@ class GalileoMapWidget extends StatefulWidget {
   /// Called when the map is tapped
   final void Function(double x, double y)? onTap;
 
-  /// Called when the map viewport changes
-  final void Function(MapViewport viewport)? onViewportChanged;
-
   const GalileoMapWidget._({
     super.key,
     required this.controller,
@@ -35,7 +36,6 @@ class GalileoMapWidget extends StatefulWidget {
     this.enableKeyboard = true,
     this.focusNode,
     this.onTap,
-    this.onViewportChanged,
   });
 
   /// Create a GalileoMapWidget from an existing controller
@@ -47,7 +47,6 @@ class GalileoMapWidget extends StatefulWidget {
     FocusNode? focusNode,
     Widget? child,
     void Function(double x, double y)? onTap,
-    void Function(MapViewport viewport)? onViewportChanged,
   }) {
     return GalileoMapWidget._(
       key: key,
@@ -56,7 +55,6 @@ class GalileoMapWidget extends StatefulWidget {
       enableKeyboard: enableKeyboard,
       focusNode: focusNode,
       onTap: onTap,
-      onViewportChanged: onViewportChanged,
       child: child,
     );
   }
@@ -65,7 +63,7 @@ class GalileoMapWidget extends StatefulWidget {
   static Widget fromConfig({
     Key? key,
     required MapSize size,
-    RenderConfig? config,
+    MapInitConfig? config,
     List<LayerConfig> layers = const [LayerConfig.osm()],
     bool autoDispose = true,
     bool enableKeyboard = true,
@@ -111,7 +109,6 @@ class GalileoMapWidget extends StatefulWidget {
           enableKeyboard: enableKeyboard,
           focusNode: focusNode,
           onTap: onTap,
-          onViewportChanged: onViewportChanged,
           child: child,
         );
       },
@@ -207,91 +204,131 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         final localPosition = details.localPosition;
         widget.onTap?.call(localPosition.dx, localPosition.dy);
 
-        // Handle touch down event
-        widget.controller.handleTouchEvent(
-          x: localPosition.dx,
-          y: localPosition.dy,
-          eventType: TouchEventType.down,
+        // Handle button press event
+        final event = UserEvent.buttonPressed(
+          MouseButton.left,
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: localPosition.dx,
+              y: localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.pressed,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(event);
       },
       onTapUp: (details) {
         final localPosition = details.localPosition;
 
-        // Handle touch up event
-        widget.controller.handleTouchEvent(
-          x: localPosition.dx,
-          y: localPosition.dy,
-          eventType: TouchEventType.up,
+        // Handle button release event
+        final event = UserEvent.buttonReleased(
+          MouseButton.left,
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: localPosition.dx,
+              y: localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.released,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(event);
       },
       onPanStart: (details) {
         _isDragging = true;
         _lastPanPosition = details.localPosition;
 
-        widget.controller.handlePanEvent(
-          x: details.localPosition.dx,
-          y: details.localPosition.dy,
-          deltaX: 0,
-          deltaY: 0,
-          eventType: PanEventType.start,
+        // Handle drag start event
+        final event = UserEvent.dragStarted(
+          MouseButton.left,
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: details.localPosition.dx,
+              y: details.localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.pressed,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(event);
       },
       onPanUpdate: (details) {
         if (_isDragging && _lastPanPosition != null) {
           final currentPosition = details.localPosition;
           final delta = currentPosition - _lastPanPosition!;
 
-          widget.controller.handlePanEvent(
-            x: currentPosition.dx,
-            y: currentPosition.dy,
-            deltaX: delta.dx,
-            deltaY: delta.dy,
-            eventType: PanEventType.update,
+          // Handle drag event
+          final event = UserEvent.drag(
+            MouseButton.left,
+            Vector2(dx: delta.dx, dy: delta.dy),
+            MouseEvent(
+              screenPointerPosition: Point2(
+                x: currentPosition.dx,
+                y: currentPosition.dy,
+              ),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(event);
 
           _lastPanPosition = currentPosition;
         }
       },
       onPanEnd: (details) {
         if (_isDragging && _lastPanPosition != null) {
-          widget.controller.handlePanEvent(
-            x: _lastPanPosition!.dx,
-            y: _lastPanPosition!.dy,
-            deltaX: 0,
-            deltaY: 0,
-            eventType: PanEventType.end,
+          // Handle drag end event
+          final event = UserEvent.dragEnded(
+            MouseButton.left,
+            MouseEvent(
+              screenPointerPosition: Point2(
+                x: _lastPanPosition!.dx,
+                y: _lastPanPosition!.dy,
+              ),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.released,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(event);
         }
 
         _isDragging = false;
         _lastPanPosition = null;
       },
       onScaleStart: (details) {
-        widget.controller.handleScaleEvent(
-          focalX: details.focalPoint.dx,
-          focalY: details.focalPoint.dy,
-          scale: 1.0,
-          rotation: 0.0,
-          eventType: ScaleEventType.start,
+        // Zoom event at focal point
+        final event = UserEvent.zoom(
+          1.0,
+          Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
         );
+        widget.controller.handleEvent(event);
       },
       onScaleUpdate: (details) {
-        widget.controller.handleScaleEvent(
-          focalX: details.focalPoint.dx,
-          focalY: details.focalPoint.dy,
-          scale: details.scale,
-          rotation: details.rotation,
-          eventType: ScaleEventType.update,
+        // Zoom event with scale factor
+        final event = UserEvent.zoom(
+          details.scale,
+          Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
         );
+        widget.controller.handleEvent(event);
       },
       onScaleEnd: (details) {
-        widget.controller.handleScaleEvent(
-          focalX: 0.0,
-          focalY: 0.0,
-          scale: 1.0,
-          rotation: 0.0,
-          eventType: ScaleEventType.end,
-        );
+        // No specific end event needed for zoom
       },
       child: mapContent,
     );
@@ -299,41 +336,110 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     // Wrap with low-level pointer events for more control
     mapContent = Listener(
       onPointerDown: (event) {
-        widget.controller.handleTouchEvent(
-          x: event.localPosition.dx,
-          y: event.localPosition.dy,
-          eventType: TouchEventType.down,
+        // Handle button press for primary pointer
+        final button =
+            event.kind == PointerDeviceKind.mouse
+                ? MouseButton.left
+                : MouseButton.left; // Default to left for touch
+
+        final mouseEvent = UserEvent.buttonPressed(
+          button,
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: event.localPosition.dx,
+              y: event.localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.pressed,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(mouseEvent);
       },
       onPointerMove: (event) {
-        widget.controller.handleTouchEvent(
-          x: event.localPosition.dx,
-          y: event.localPosition.dy,
-          eventType: TouchEventType.move,
+        // Handle pointer move
+        final mouseEvent = UserEvent.pointerMoved(
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: event.localPosition.dx,
+              y: event.localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.pressed,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(mouseEvent);
       },
       onPointerUp: (event) {
-        widget.controller.handleTouchEvent(
-          x: event.localPosition.dx,
-          y: event.localPosition.dy,
-          eventType: TouchEventType.up,
+        // Handle button release for primary pointer
+        final button =
+            event.kind == PointerDeviceKind.mouse
+                ? MouseButton.left
+                : MouseButton.left; // Default to left for touch
+
+        final mouseEvent = UserEvent.buttonReleased(
+          button,
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: event.localPosition.dx,
+              y: event.localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.released,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(mouseEvent);
       },
       onPointerCancel: (event) {
-        widget.controller.handleTouchEvent(
-          x: event.localPosition.dx,
-          y: event.localPosition.dy,
-          eventType: TouchEventType.cancel,
+        // Handle button release on cancel
+        final button =
+            event.kind == PointerDeviceKind.mouse
+                ? MouseButton.left
+                : MouseButton.left; // Default to left for touch
+
+        final mouseEvent = UserEvent.buttonReleased(
+          button,
+          MouseEvent(
+            screenPointerPosition: Point2(
+              x: event.localPosition.dx,
+              y: event.localPosition.dy,
+            ),
+            buttons: const MouseButtonsState(
+              left: MouseButtonState.released,
+              middle: MouseButtonState.released,
+              right: MouseButtonState.released,
+            ),
+          ),
         );
+        widget.controller.handleEvent(mouseEvent);
       },
       onPointerSignal: (event) {
         if (event is PointerScrollEvent) {
-          widget.controller.handleScrollEvent(
-            x: event.localPosition.dx,
-            y: event.localPosition.dy,
-            deltaX: event.scrollDelta.dx,
-            deltaY: event.scrollDelta.dy,
+          // Handle scroll as zoom event
+          final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+          final scrollEvent = UserEvent.scroll(
+            zoomFactor,
+            MouseEvent(
+              screenPointerPosition: Point2(
+                x: event.localPosition.dx,
+                y: event.localPosition.dy,
+              ),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.released,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(scrollEvent);
         }
       },
       child: mapContent,
@@ -359,66 +465,92 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     if (event is KeyDownEvent) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.arrowUp:
-          // Pan up
-          widget.controller.handlePanEvent(
-            x: widget.controller.size.width / 2,
-            y: widget.controller.size.height / 2,
-            deltaX: 0,
-            deltaY: -20,
-            eventType: PanEventType.update,
+          // Pan up using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final event = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: 0, dy: -20),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(event);
           break;
         case LogicalKeyboardKey.arrowDown:
-          // Pan down
-          widget.controller.handlePanEvent(
-            x: widget.controller.size.width / 2,
-            y: widget.controller.size.height / 2,
-            deltaX: 0,
-            deltaY: 20,
-            eventType: PanEventType.update,
+          // Pan down using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final event = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: 0, dy: 20),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(event);
           break;
         case LogicalKeyboardKey.arrowLeft:
-          // Pan left
-          widget.controller.handlePanEvent(
-            x: widget.controller.size.width / 2,
-            y: widget.controller.size.height / 2,
-            deltaX: -20,
-            deltaY: 0,
-            eventType: PanEventType.update,
+          // Pan left using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final event = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: -20, dy: 0),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(event);
           break;
         case LogicalKeyboardKey.arrowRight:
-          // Pan right
-          widget.controller.handlePanEvent(
-            x: widget.controller.size.width / 2,
-            y: widget.controller.size.height / 2,
-            deltaX: 20,
-            deltaY: 0,
-            eventType: PanEventType.update,
+          // Pan right using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final event = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: 20, dy: 0),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
           );
+          widget.controller.handleEvent(event);
           break;
         case LogicalKeyboardKey.equal:
         case LogicalKeyboardKey.numpadAdd:
           // Zoom in
-          widget.controller.handleScaleEvent(
-            focalX: widget.controller.size.width / 2,
-            focalY: widget.controller.size.height / 2,
-            scale: 1.1,
-            rotation: 0.0,
-            eventType: ScaleEventType.update,
-          );
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final event = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
+          widget.controller.handleEvent(event);
           break;
         case LogicalKeyboardKey.minus:
         case LogicalKeyboardKey.numpadSubtract:
           // Zoom out
-          widget.controller.handleScaleEvent(
-            focalX: widget.controller.size.width / 2,
-            focalY: widget.controller.size.height / 2,
-            scale: 0.9,
-            rotation: 0.0,
-            eventType: ScaleEventType.update,
-          );
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final event = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
+          widget.controller.handleEvent(event);
           break;
       }
     }

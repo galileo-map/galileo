@@ -4,7 +4,6 @@
 //! managing Galileo maps in Flutter applications with real texture rendering.
 
 use flutter_rust_bridge::frb;
-use galileo::control::UserEvent;
 use galileo::galileo_types::cartesian::Size;
 use galileo::galileo_types::geo::impls::GeoPoint2d;
 use galileo::galileo_types::geo::{GeoPoint, NewGeoPoint};
@@ -121,4 +120,9 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
     session.add_layer(layer);
 
     Ok(())
+}
+
+
+pub fn handle_event_for_session(session_id: SessionID, event: UserEvent){
+    
 }

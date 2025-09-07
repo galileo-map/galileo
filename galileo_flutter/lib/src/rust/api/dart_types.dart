@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_types.freezed.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapPosition`, `MapViewport`, `MouseButtonState`, `MouseButton`, `MouseButtonsState`, `MouseEvent`, `Point2`, `UserEvent`, `_Vector2f64`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `as_galileo`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapPosition`, `MapViewport`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`
 
 @freezed
 sealed class LayerConfig with _$LayerConfig {
@@ -91,4 +91,170 @@ class MapSize {
           runtimeType == other.runtimeType &&
           width == other.width &&
           height == other.height;
+}
+
+/// Mouse button enum.
+enum MouseButton {
+  /// The button you click when you want to shoot.
+  left,
+
+  /// The button you click when you want to reload.
+  middle,
+
+  /// The button you click when you want to hit with a rifle handle.
+  right,
+
+  /// The button you click when you are a pro gamer and want to look cool.
+  other,
+}
+
+/// Mouse button state.
+enum MouseButtonState {
+  /// Button is pressed.
+  pressed,
+
+  /// Button is not pressed.
+  released,
+}
+
+/// State of all mouse buttons.
+class MouseButtonsState {
+  /// State of the left mouse button.
+  final MouseButtonState left;
+
+  /// State of the middle mouse button.
+  final MouseButtonState middle;
+
+  /// State of the right mouse button.
+  final MouseButtonState right;
+
+  const MouseButtonsState({
+    required this.left,
+    required this.middle,
+    required this.right,
+  });
+
+  @override
+  int get hashCode => left.hashCode ^ middle.hashCode ^ right.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MouseButtonsState &&
+          runtimeType == other.runtimeType &&
+          left == other.left &&
+          middle == other.middle &&
+          right == other.right;
+}
+
+/// State of the mouse at the moment of the event.
+class MouseEvent {
+  /// Pointer position on the screen in pixels from the top-left corner.
+  final Point2 screenPointerPosition;
+
+  /// State of the mouse buttons.
+  final MouseButtonsState buttons;
+
+  const MouseEvent({
+    required this.screenPointerPosition,
+    required this.buttons,
+  });
+
+  @override
+  int get hashCode => screenPointerPosition.hashCode ^ buttons.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MouseEvent &&
+          runtimeType == other.runtimeType &&
+          screenPointerPosition == other.screenPointerPosition &&
+          buttons == other.buttons;
+}
+
+/// 2D point in cartesian coordinate space.
+class Point2 {
+  final double x;
+  final double y;
+
+  const Point2({required this.x, required this.y});
+
+  @override
+  int get hashCode => x.hashCode ^ y.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Point2 &&
+          runtimeType == other.runtimeType &&
+          x == other.x &&
+          y == other.y;
+}
+
+@freezed
+sealed class UserEvent with _$UserEvent {
+  const UserEvent._();
+
+  /// A mouse button was pressed.
+  const factory UserEvent.buttonPressed(MouseButton field0, MouseEvent field1) =
+      UserEvent_ButtonPressed;
+
+  /// A mouse button was released.
+  const factory UserEvent.buttonReleased(
+    MouseButton field0,
+    MouseEvent field1,
+  ) = UserEvent_ButtonReleased;
+
+  /// A mouse button was clicked.
+  const factory UserEvent.click(MouseButton field0, MouseEvent field1) =
+      UserEvent_Click;
+
+  /// A double click was done.
+  const factory UserEvent.doubleClick(MouseButton field0, MouseEvent field1) =
+      UserEvent_DoubleClick;
+
+  /// Mouse pointer moved.
+  const factory UserEvent.pointerMoved(MouseEvent field0) =
+      UserEvent_PointerMoved;
+
+  /// Drag started.
+  const factory UserEvent.dragStarted(MouseButton field0, MouseEvent field1) =
+      UserEvent_DragStarted;
+
+  /// Mouse pointer moved after drag started was consumed.
+  const factory UserEvent.drag(
+    MouseButton field0,
+    Vector2 field1,
+    MouseEvent field2,
+  ) = UserEvent_Drag;
+
+  /// Mouse button was released while dragging.
+  const factory UserEvent.dragEnded(MouseButton field0, MouseEvent field1) =
+      UserEvent_DragEnded;
+
+  /// Scroll event is called.
+  const factory UserEvent.scroll(double field0, MouseEvent field1) =
+      UserEvent_Scroll;
+
+  /// Zoom is called around a point.
+  const factory UserEvent.zoom(double field0, Point2 field1) = UserEvent_Zoom;
+}
+
+/// 2D vector in cartesian coordinate space.
+class Vector2 {
+  final double dx;
+  final double dy;
+
+  const Vector2({required this.dx, required this.dy});
+
+  @override
+  int get hashCode => dx.hashCode ^ dy.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Vector2 &&
+          runtimeType == other.runtimeType &&
+          dx == other.dx &&
+          dy == other.dy;
 }

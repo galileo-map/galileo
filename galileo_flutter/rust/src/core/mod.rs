@@ -4,6 +4,7 @@ pub mod map_session;
 pub mod pixel_buffer;
 pub mod windowless_renderer;
 
+use galileo::galileo_types;
 use log::debug;
 use parking_lot::Mutex;
 pub use pixel_buffer::PixelBuffer;
@@ -15,8 +16,14 @@ use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 pub use windowless_renderer::WindowlessRenderer;
 
+use crate::api::dart_types::MapSize;
 use crate::core::flutter::pixel_texture::SharedPixelPayloadHolder;
 use crate::core::map_session::{MapSession, SessionID};
+impl MapSize {
+    pub fn as_galileo(&self) -> galileo_types::cartesian::Size<u32> {
+        galileo_types::cartesian::Size::new(self.width, self.height)
+    }
+}
 
 lazy_static::lazy_static! {
     pub static ref IS_INITIALIZED: AtomicBool = AtomicBool::new(false);

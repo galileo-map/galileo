@@ -35,3 +35,11 @@ Future<void> addSessionLayer({
   sessionId: sessionId,
   layerConfig: layerConfig,
 );
+
+Future<void> handleEventForSession({
+  required int sessionId,
+  required UserEvent event,
+}) => RustLib.instance.api.crateApiApiHandleEventForSession(
+  sessionId: sessionId,
+  event: event,
+);
