@@ -1,6 +1,6 @@
 use galileo::galileo_types;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use irondash_texture::{BoxedPixelData, PayloadProvider, SendableTexture, SimplePixelData, Texture};
+use irondash_texture::{BoxedPixelData, PayloadProvider, PixelDataProvider, SendableTexture, SimplePixelData, Texture};
 use log::{debug, error, info, warn};
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -16,19 +16,19 @@ use crate::core::{
 };
 use crate::utils::invoke_on_platform_main_thread;
 
-/// Texture pixel provider that implements irondash's PayloadProvider
-struct PixelTextureProvider {
+/// medium that we will use to set pixel data 
+pub struct PixelPayloadHolder {
     pixel_data: Arc<Mutex<Vec<u8>>>,
     size: Arc<Mutex<MapSize>>,
 }
 
-impl PixelTextureProvider {
-    fn new(size: MapSize) -> Self {
+impl PixelPayloadHolder {
+    pub fn new(size: MapSize) -> Arc<Self> {
         let pixel_count = (size.width * size.height * 4) as usize;
-        Self {
+        Arc::new(Self {
             pixel_data: Arc::new(Mutex::new(vec![0u8; pixel_count])),
             size: Arc::new(Mutex::new(size)),
-        }
+        })
     }
 
     pub fn update_pixels(&self, new_pixels: Vec<u8>) {
@@ -47,7 +47,7 @@ impl PixelTextureProvider {
     }
 }
 
-impl PayloadProvider<BoxedPixelData> for PixelTextureProvider {
+impl PayloadProvider<BoxedPixelData> for PixelPayloadHolder {
     fn get_payload(&self) -> BoxedPixelData {
         let pixels = self.pixel_data.lock();
         let size = self.size.lock();
@@ -56,13 +56,13 @@ impl PayloadProvider<BoxedPixelData> for PixelTextureProvider {
     }
 }
 
-pub type SharedPixelTextureProvider = Arc<PixelTextureProvider>;
+pub type SharedPixelPayloadHolder = Arc<PixelPayloadHolder>;
 
 /// Creates a Flutter texture using irondash with proper provider.
-pub async fn create_flutter_texture(
+pub fn create_flutter_texture(
     engine_handle: i64,
-    provider: Arc<PixelTextureProvider>,
-) -> anyhow::Result<SharedPixelTextureProvider> {
+    payload_holder: Arc<PixelPayloadHolder>,
+) -> anyhow::Result<(SharedSendablePixelTexture, i64)> {
     // Create boxed provider for irondash
     let (sendable_texture, texture_id) =
         invoke_on_platform_main_thread(move || -> anyhow::Result<_> {
@@ -72,12 +72,12 @@ pub async fn create_flutter_texture(
             Ok((texture.into_sendable_texture(), texture_id))
         })?;
 
-    Ok(texture)
+    Ok((sendable_texture, texture_id) )
 }
 
 
 pub type SharedSendableTexture<T> = Arc<SendableTexture<T>>;
-pub type SharedSendablePixelTexture = SharedSendableTexture<Box<PixelTextureProvider>>;
+pub type SharedSendablePixelTexture = SharedSendableTexture<Box<dyn PixelDataProvider>>;
 
 
 

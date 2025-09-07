@@ -15,7 +15,7 @@ use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 pub use windowless_renderer::WindowlessRenderer;
 
-use crate::core::flutter::pixel_texture::SharedPixelTextureProvider;
+use crate::core::flutter::pixel_texture::SharedPixelPayloadHolder;
 use crate::core::map_session::{MapSession, SessionID};
 
 

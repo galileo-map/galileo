@@ -25,6 +25,8 @@ pub fn init_galileo_flutter() {
     flutter_rust_bridge::setup_default_user_utils();
 }
 
+
+
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash
 pub fn galileo_flutter_init(ffi_ptr: i64) {
     if IS_INITIALIZED.load(Ordering::SeqCst) {
@@ -41,25 +43,20 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
 
 
 /// Triggers a map update and re-render.
-fn trigger_map_update(session_id: SessionID) -> anyhow::Result<()> {
+fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock();
     let session = sessions
         .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
-
-    let render_commands = session.render_commands.lock().unwrap();
-    render_commands
-        .send(RenderMessage::UpdateMap)
-        .map_err(|e| anyhow::anyhow!("Failed to send update message: {}", e))?;
-
-    Ok(())
-}
+    TOKIO_RUNTIME.get().unwrap().block_on(
+    session.redraw()    
+    )}
 
 /// Event handling functions that work with simple coordinate mapping
 
-pub fn handle_session_touch_event(session_id: i64, event: TouchEvent) -> anyhow::Result<()> {
+pub fn handle_session_touch_event(session_id: SessionID, event: TouchEvent) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock();
-    let _session = sessions
+    let session = sessions
         .get(&session_id)
         .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
 
@@ -68,11 +65,8 @@ pub fn handle_session_touch_event(session_id: i64, event: TouchEvent) -> anyhow:
         "Touch event for session {}: {:?} at ({}, {})",
         session_id, event.event_type, event.x, event.y
     );
-
-    // Trigger re-render
-    trigger_map_update(session_id)?;
-
-    Ok(())
+      TODO
+    )
 }
 
 pub fn handle_session_pan_event(session_id: i64, event: PanEvent) -> anyhow::Result<()> {
