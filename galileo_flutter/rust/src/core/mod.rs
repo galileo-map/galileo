@@ -1,35 +1,35 @@
-//! Core implementation modules for Galileo Flutter integration.
-//!
-//! This module contains the internal implementation details for:
-//! - Windowless wgpu rendering setup
-//! - FPS-controlled render loops
-//! - Pixel buffer management for texture copying
-//! - Integration with irondash textures
-
-pub mod windowless_renderer;
-pub mod render_loop;
-pub mod pixel_buffer;
 pub mod flutter;
+pub mod galileo_ref;
+pub mod pixel_buffer;
+pub mod windowless_renderer;
+pub mod map_session;
 
-
-use tokio::runtime::Runtime;
-pub use windowless_renderer::WindowlessRenderer;
-pub use render_loop::RenderLoop;
-pub use pixel_buffer::PixelBuffer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use log::debug;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::OnceLock;
+use parking_lot::Mutex;
+pub use pixel_buffer::PixelBuffer;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
+use tokio::runtime::Runtime;
+use tokio::sync::mpsc;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+pub use windowless_renderer::WindowlessRenderer;
+
+use crate::core::flutter::pixel_texture::SharedPixelTextureProvider;
+use crate::core::map_session::{MapSession, SessionID};
+
 
 lazy_static::lazy_static! {
     pub static ref IS_INITIALIZED: AtomicBool = AtomicBool::new(false);
-    static ref WORKER_GUARD: std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>> = std::sync::Mutex::new(None);
+    pub static ref WORKER_GUARD: std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>> = std::sync::Mutex::new(None);
     pub static ref TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::from(
         tokio::runtime::Builder::new_current_thread()
             .worker_threads(4)
             .enable_all()
             .build().unwrap()
     );
+    pub static ref SESSION_COUNTER: AtomicU32 = AtomicU32::new(0);
+    pub static ref SESSIONS: Mutex<HashMap<SessionID, Arc<MapSession>>> = Mutex::new(HashMap::new());
 }
 
 pub(crate) fn init_logger() {

@@ -4,8 +4,8 @@
 //! wgpu textures to Flutter's texture system using irondash. It ensures proper
 //! format conversion (to RGBA) and efficient memory management.
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 use wgpu::{Buffer, Device, Queue};
 
 use crate::api::dart_types::MapSize;
@@ -98,9 +98,11 @@ impl PixelBuffer {
 
         // Now get a reference to the buffer and device separately
         let staging_buffer = self.staging_buffer.as_ref().unwrap();
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Galileo Flutter Pixel Copy Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Galileo Flutter Pixel Copy Encoder"),
+            });
 
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
@@ -133,7 +135,9 @@ impl PixelBuffer {
     /// This maps the buffer for reading and copies the data to our internal
     /// pixel data vector. The data is guaranteed to be in RGBA format.
     pub async fn read_pixels(&mut self) -> Result<&[u8], PixelBufferError> {
-        let staging_buffer = self.staging_buffer.as_ref()
+        let staging_buffer = self
+            .staging_buffer
+            .as_ref()
             .ok_or(PixelBufferError::BufferNotReady)?;
 
         let buffer_slice = staging_buffer.slice(..);
@@ -148,7 +152,8 @@ impl PixelBuffer {
         let _ = self.device.poll(wgpu::MaintainBase::Wait);
 
         // Wait for mapping to complete
-        receiver.await
+        receiver
+            .await
             .map_err(|_| PixelBufferError::MappingFailed)?
             .map_err(|_| PixelBufferError::MappingFailed)?;
 
@@ -251,12 +256,7 @@ pub mod format_utils {
     }
 
     /// Validates that pixel data has the expected size for given dimensions.
-    pub fn validate_pixel_data_size(
-        pixels: &[u8],
-        width: u32,
-        height: u32,
-        channels: u32,
-    ) -> bool {
+    pub fn validate_pixel_data_size(pixels: &[u8], width: u32, height: u32, channels: u32) -> bool {
         let expected_size = (width * height * channels) as usize;
         pixels.len() == expected_size
     }
@@ -269,18 +269,21 @@ mod tests {
     #[test]
     fn test_bgra_to_rgba_conversion() {
         let mut pixels = vec![
-            255, 0, 0, 255,   // Blue pixel in BGRA
-            0, 255, 0, 255,   // Green pixel in BGRA
-            0, 0, 255, 255,   // Red pixel in BGRA
+            255, 0, 0, 255, // Blue pixel in BGRA
+            0, 255, 0, 255, // Green pixel in BGRA
+            0, 0, 255, 255, // Red pixel in BGRA
         ];
 
         bgra_to_rgba(&mut pixels);
 
-        assert_eq!(pixels, vec![
-            0, 0, 255, 255,   // Red pixel in RGBA
-            0, 255, 0, 255,   // Green pixel in RGBA
-            255, 0, 0, 255,   // Blue pixel in RGBA
-        ]);
+        assert_eq!(
+            pixels,
+            vec![
+                0, 0, 255, 255, // Red pixel in RGBA
+                0, 255, 0, 255, // Green pixel in RGBA
+                255, 0, 0, 255, // Blue pixel in RGBA
+            ]
+        );
     }
 
     #[test]
@@ -288,11 +291,14 @@ mod tests {
         let rgb_pixels = vec![255, 0, 0, 0, 255, 0, 0, 0, 255];
         let rgba_pixels = rgb_to_rgba(&rgb_pixels);
 
-        assert_eq!(rgba_pixels, vec![
-            255, 0, 0, 255,   // Red with full alpha
-            0, 255, 0, 255,   // Green with full alpha
-            0, 0, 255, 255,   // Blue with full alpha
-        ]);
+        assert_eq!(
+            rgba_pixels,
+            vec![
+                255, 0, 0, 255, // Red with full alpha
+                0, 255, 0, 255, // Green with full alpha
+                0, 0, 255, 255, // Blue with full alpha
+            ]
+        );
     }
 
     #[test]

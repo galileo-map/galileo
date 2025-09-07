@@ -1,115 +1,84 @@
+use galileo::galileo_types;
+use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
+use irondash_texture::{BoxedPixelData, PayloadProvider, SendableTexture, SimplePixelData, Texture};
+use log::{debug, error, info, warn};
+use parking_lot::Mutex;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::mpsc;
 
+use crate::api::dart_types::{MapInitConfig, MapSize};
+use crate::core::galileo_ref::create_galileo_map;
+use crate::core::{
+    MapSession, PixelBuffer, SessionID, WindowlessRenderer, SESSIONS, TOKIO_RUNTIME
+};
+use crate::utils::invoke_on_platform_main_thread;
+
+/// Texture pixel provider that implements irondash's PayloadProvider
+struct PixelTextureProvider {
+    pixel_data: Arc<Mutex<Vec<u8>>>,
+    size: Arc<Mutex<MapSize>>,
+}
+
+impl PixelTextureProvider {
+    fn new(size: MapSize) -> Self {
+        let pixel_count = (size.width * size.height * 4) as usize;
+        Self {
+            pixel_data: Arc::new(Mutex::new(vec![0u8; pixel_count])),
+            size: Arc::new(Mutex::new(size)),
+        }
+    }
+
+    pub fn update_pixels(&self, new_pixels: Vec<u8>) {
+        let mut pixels = self.pixel_data.lock();
+        *pixels = new_pixels;
+    }
+
+    pub fn resize(&self, new_size: MapSize) {
+        let mut size = self.size.lock();
+        *size = new_size;
+
+        let pixel_count = (new_size.width * new_size.height * 4) as usize;
+        let mut pixels = self.pixel_data.lock();
+        pixels.clear();
+        pixels.resize(pixel_count, 0);
+    }
+}
+
+impl PayloadProvider<BoxedPixelData> for PixelTextureProvider {
+    fn get_payload(&self) -> BoxedPixelData {
+        let pixels = self.pixel_data.lock();
+        let size = self.size.lock();
+
+        SimplePixelData::new_boxed(size.width as i32, size.height as i32, pixels.clone())
+    }
+}
+
+pub type SharedPixelTextureProvider = Arc<PixelTextureProvider>;
 
 /// Creates a Flutter texture using irondash with proper provider.
-async fn create_flutter_texture(
+pub async fn create_flutter_texture(
     engine_handle: i64,
-    provider: Arc<TexturePixelProvider>,
-) -> anyhow::Result<Texture <BoxedPixelData>> {
+    provider: Arc<PixelTextureProvider>,
+) -> anyhow::Result<SharedPixelTextureProvider> {
     // Create boxed provider for irondash
-    let boxed_provider: Arc<dyn PayloadProvider<BoxedPixelData>> = provider;
-
-    let texture = Texture::new_with_provider(engine_handle, boxed_provider)
-        .map_err(|e| anyhow::anyhow!("Failed to create Flutter texture: {:?}", e))?;
+    let (sendable_texture, texture_id) =
+        invoke_on_platform_main_thread(move || -> anyhow::Result<_> {
+            let texture =
+                irondash_texture::Texture::new_with_provider(engine_handle, payload_holder)?;
+            let texture_id = texture.id();
+            Ok((texture.into_sendable_texture(), texture_id))
+        })?;
 
     Ok(texture)
 }
 
-/// Helper function to safely read pixels without holding mutex across await
-async fn read_pixels_from_buffer(pixel_buffer: Arc<Mutex<PixelBuffer>>) -> anyhow::Result<Vec<u8>> {
-    // Use spawn_blocking to handle the async operation safely
-    let handle = TOKIO_RUNTIME.get().unwrap().handle().clone();
-    let result = tokio::task::spawn_blocking(move || {
-        // Get a runtime handle for the blocking context
-        handle.block_on(async move {
-            let mut buffer = pixel_buffer.lock().unwrap();
-            let pixels = buffer.read_pixels().await?;
-            Ok::<Vec<u8>, anyhow::Error>(pixels.to_vec())
-        })
-    })
-    .await;
 
-    result.map_err(|e| anyhow::anyhow!("Join error: {}", e))?
-}
+pub type SharedSendableTexture<T> = Arc<SendableTexture<T>>;
+pub type SharedSendablePixelTexture = SharedSendableTexture<Box<PixelTextureProvider>>;
 
 
 
-/// Renders a single frame for the session.
-async fn render_frame(session: &Arc<MapSession>) -> anyhow::Result<()> {
-    // Render the map to wgpu texture
-    {
-        let mut renderer = session.renderer.lock().unwrap();
-        let map = session.map.lock().unwrap();
 
-        renderer
-            .render_map(&map)
-            .map_err(|e| anyhow::anyhow!("Failed to render map: {}", e))?;
-    }
-
-    // Copy texture to staging buffer
-    let target_texture = {
-        let renderer = session.renderer.lock().unwrap();
-        renderer
-            .target_texture()
-            .ok_or_else(|| anyhow::anyhow!("No target texture available"))?
-            .clone()
-    };
-
-    {
-        let mut pixel_buffer = session.pixel_buffer.lock().unwrap();
-        pixel_buffer
-            .copy_from_texture(&target_texture)
-            .map_err(|e| anyhow::anyhow!("Failed to copy texture to buffer: {}", e))?;
-    }
-
-    // Read pixels from staging buffer (use helper to avoid async mutex issues)
-    let pixels = read_pixels_from_buffer(session.pixel_buffer.clone())
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to read pixels: {}", e))?;
-
-    // Update texture provider
-    session.texture_provider.update_pixels(pixels);
-
-    // Mark frame available for Flutter
-    {
-        let flutter_texture = session.flutter_texture.lock().unwrap();
-        flutter_texture
-            .mark_frame_available()
-            .map_err(|e| anyhow::anyhow!("Failed to mark frame available: {:?}", e))?;
-    }
-
-    Ok(())
-}
-
-
-/// Resizes the rendering session.
-async fn resize_session(session: &Arc<MapSession>, new_size: MapSize) -> anyhow::Result<()> {
-    info!(
-        "Resizing session {} to {}x{}",
-        session.session_id, new_size.width, new_size.height
-    );
-
-    // Resize renderer
-    {
-        let mut renderer = session.renderer.lock().unwrap();
-        let size = Size::new(new_size.width, new_size.height);
-        renderer
-            .resize(size)
-            .map_err(|e| anyhow::anyhow!("Failed to resize renderer: {}", e))?;
-    }
-
-    // Resize pixel buffer
-    {
-        let mut pixel_buffer = session.pixel_buffer.lock().unwrap();
-        pixel_buffer
-            .resize(new_size)
-            .map_err(|e| anyhow::anyhow!("Failed to resize pixel buffer: {}", e))?;
-    }
-
-    // Resize texture provider
-    session.texture_provider.resize(new_size);
-
-    // Trigger render to fill new size
-    render_frame(session).await?;
-
-    Ok(())
-}

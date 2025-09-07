@@ -4,11 +4,14 @@
 //! in the learn-wgpu tutorial. It creates a wgpu device and queue without a surface,
 //! then initializes Galileo's WgpuRenderer with a custom texture.
 
-use std::sync::Arc;
 use galileo::galileo_types::cartesian::Size;
 use galileo::render::WgpuRenderer;
 use parking_lot::Mutex;
-use wgpu::{Device, Queue, Texture, TextureView, TextureDescriptor, TextureFormat, TextureUsages, Extent3d, TextureDimension};
+use std::sync::Arc;
+use wgpu::{
+    Device, Extent3d, Queue, Texture, TextureDescriptor, TextureDimension, TextureFormat,
+    TextureUsages, TextureView,
+};
 
 /// Error types for windowless renderer operations.
 #[derive(Debug, thiserror::Error)]
@@ -51,7 +54,10 @@ impl WindowlessRenderer {
     /// 5. Initialize Galileo's WgpuRenderer
     pub async fn new(size: Size<u32>) -> Result<Self, WindowlessRendererError> {
         if size.width() == 0 || size.height() == 0 {
-            return Err(WindowlessRendererError::InvalidSize(size.width(), size.height()));
+            return Err(WindowlessRendererError::InvalidSize(
+                size.width(),
+                size.height(),
+            ));
         }
 
         // Create wgpu instance
@@ -72,15 +78,13 @@ impl WindowlessRenderer {
 
         // Request device and queue
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: Some("Galileo Flutter Windowless Device"),
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    memory_hints: wgpu::MemoryHints::default(),
-                    trace: wgpu::Trace::Off,
-                },
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("Galileo Flutter Windowless Device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: wgpu::MemoryHints::default(),
+                trace: wgpu::Trace::Off,
+            })
             .await?;
 
         let mut renderer = Self {
@@ -145,7 +149,10 @@ impl WindowlessRenderer {
     /// Resizes the renderer and recreates the target texture.
     pub fn resize(&mut self, new_size: Size<u32>) -> Result<(), WindowlessRendererError> {
         if new_size.width() == 0 || new_size.height() == 0 {
-            return Err(WindowlessRendererError::InvalidSize(new_size.width(), new_size.height()));
+            return Err(WindowlessRendererError::InvalidSize(
+                new_size.width(),
+                new_size.height(),
+            ));
         }
 
         if self.size == new_size {
@@ -202,10 +209,14 @@ impl WindowlessRenderer {
 
     /// Renders the given Galileo map to the target texture.
     pub fn render_map(&mut self, map: &galileo::Map) -> Result<(), WindowlessRendererError> {
-        let galileo_renderer = self.galileo_renderer.as_mut()
+        let galileo_renderer = self
+            .galileo_renderer
+            .as_mut()
             .ok_or(WindowlessRendererError::NotInitialized)?;
 
-        let texture_view = self.target_texture_view.as_ref()
+        let texture_view = self
+            .target_texture_view
+            .as_ref()
             .ok_or(WindowlessRendererError::NotInitialized)?;
 
         galileo_renderer.render_to_texture_view(map, texture_view);
@@ -226,13 +237,20 @@ impl WindowlessRenderer {
     }
 
     /// Copies the rendered texture to a staging buffer for CPU access.
-    pub fn copy_texture_to_buffer(&self, staging_buffer: &wgpu::Buffer) -> Result<(), WindowlessRendererError> {
-        let texture = self.target_texture.as_ref()
+    pub fn copy_texture_to_buffer(
+        &self,
+        staging_buffer: &wgpu::Buffer,
+    ) -> Result<(), WindowlessRendererError> {
+        let texture = self
+            .target_texture
+            .as_ref()
             .ok_or(WindowlessRendererError::NotInitialized)?;
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Galileo Flutter Copy Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Galileo Flutter Copy Encoder"),
+            });
 
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {

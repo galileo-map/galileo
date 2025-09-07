@@ -2,6 +2,7 @@
 //! All types here are used by flutter_rust_bridge_codegen.
 
 use flutter_rust_bridge::frb;
+use galileo::galileo_types;
 
 /// Geographic position with latitude and longitude coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,9 +26,17 @@ pub struct MapSize {
     pub height: u32,
 }
 
-/// Configuration for the rendering system.
+impl MapSize {
+    pub fn as_galileo(&self) -> galileo_types::cartesian::Size<u32> {
+        galileo_types::cartesian::Size::new(self.width, self.height)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RenderConfig {
+pub struct MapInitConfig {
+    pub latlon: (f64, f64),
+    pub zoom_level: u32,
+    pub map_size: MapSize,
     /// Frames per second for the render loop (default: 30)
     pub fps: u32,
     /// Enable multisampling anti-aliasing
@@ -36,9 +45,15 @@ pub struct RenderConfig {
     pub background_color: (f32, f32, f32, f32),
 }
 
-impl Default for RenderConfig {
+impl Default for MapInitConfig {
     fn default() -> Self {
         Self {
+            latlon: (0.0, 0.0),
+            zoom_level: 10,
+            map_size: MapSize {
+                width: 800,
+                height: 600,
+            },
             fps: 30,
             enable_multisampling: true,
             background_color: (0.1, 0.2, 0.3, 1.0),
@@ -137,12 +152,9 @@ pub enum LayerConfig {
     },
 }
 
-
-
 /// Opaque handle to a Flutter texture.
 /// This manages the texture that will be displayed in the Flutter widget.
 #[frb(opaque)]
 pub struct TextureHandle {
     // Internal texture management
 }
-
