@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
 use crate::api::dart_types::*;
-use crate::core::map_session::SessionID;
+use crate::core::map_session::{MapSession, SessionID};
 use crate::core::{IS_INITIALIZED, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME};
 
 #[frb(init)]
@@ -38,8 +38,29 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
     IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
 
+#[derive(Clone, Debug)]
+pub struct CreateNewSessionResponse{
+    pub session_id: u32,
+    pub texture_id: i64
+}
+
+pub fn create_new_map_session(engine_handle: i64, config: MapInitConfig) -> anyhow::Result<CreateNewSessionResponse>{
+    let session = TOKIO_RUNTIME.get().unwrap().block_on(
+        MapSession::new(engine_handle, config)
+    )?;
+    Ok(
+        CreateNewSessionResponse{
+            session_id: session.session_id,
+            texture_id: session.get_flutter_texture_id().unwrap()
+        }
+    )
+    
+
+}
+
+
 /// Triggers a map update and re-render.
-fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
+pub fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
     let sessions = SESSIONS.lock();
     let session = sessions
         .get(&session_id)
@@ -122,7 +143,15 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
     Ok(())
 }
 
+pub fn get_map_viewport(session_id: SessionID) -> Option<MapViewport>{
+    if let Some(session) = SESSIONS.lock().get(&session_id){
+            return session.get_viewport();
+
+        }
+        None
+}
+
 
 pub fn handle_event_for_session(session_id: SessionID, event: UserEvent){
-    
+
 }

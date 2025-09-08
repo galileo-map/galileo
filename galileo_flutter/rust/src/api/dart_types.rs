@@ -14,10 +14,24 @@ pub struct MapPosition {
 /// Map viewport configuration including center, zoom, and rotation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MapViewport {
-    pub center: MapPosition,
-    pub zoom: f64,
-    pub rotation: f64,
+    pub x_min: f64,
+    pub x_max: f64,
+    pub y_min: f64,
+    pub y_max: f64,
 }
+
+impl MapViewport{
+    #[frb(ignore)]
+    pub fn from_rect(rect: &galileo_types::cartesian::Rect) -> Self {
+        Self {
+            x_min: rect.x_min(),
+            x_max: rect.x_max(),
+            y_min: rect.y_min(),
+            y_max: rect.y_max(),
+        }
+    }
+}
+
 
 /// Physical size of the map in pixels.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -33,7 +47,6 @@ pub struct MapInitConfig {
     pub zoom_level: u32,
     pub map_size: MapSize,
     /// Frames per second for the render loop (default: 30)
-    pub fps: u32,
     /// Enable multisampling anti-aliasing
     pub enable_multisampling: bool,
     /// Background color as RGBA (0.0-1.0 range)
@@ -49,7 +62,6 @@ impl Default for MapInitConfig {
                 width: 800,
                 height: 600,
             },
-            fps: 30,
             enable_multisampling: true,
             background_color: (0.1, 0.2, 0.3, 1.0),
         }

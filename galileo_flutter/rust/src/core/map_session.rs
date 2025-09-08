@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-use crate::api::dart_types::{LayerConfig, MapInitConfig, MapSize};
+use crate::api::dart_types::{LayerConfig, MapInitConfig, MapSize, MapViewport};
 use crate::core::flutter::pixel_texture::{
     create_flutter_texture, PixelPayloadHolder, SharedPixelPayloadHolder,
     SharedSendablePixelTexture,
@@ -24,7 +24,7 @@ pub type SessionID = u32;
 struct FlutterCtx {
     payload_holder: SharedPixelPayloadHolder,
     sendable_texture: SharedSendablePixelTexture,
-    texture_id: i64,
+    pub texture_id: i64,
 }
 
 impl FlutterCtx {
@@ -42,7 +42,7 @@ impl FlutterCtx {
 }
 /// Internal map session that manages the Galileo map with rendering.
 pub struct MapSession {
-    session_id: SessionID,
+    pub session_id: SessionID,
     map: Arc<Mutex<galileo::Map>>,
     renderer: Arc<Mutex<WindowlessRenderer>>,
     wgpu_pixel_buffer: Arc<Mutex<PixelBuffer>>,
@@ -135,7 +135,11 @@ impl MapSession {
             .as_ref()
             .ok_or(anyhow::anyhow!("Flutter context not available"))
     }
-
+    
+    pub fn get_flutter_texture_id(&self) -> Option<i64> {
+        Some(self.flutter_ctx.as_ref()?.texture_id)
+    }
+    
     pub fn add_layer(&self, layer: impl galileo::layer::Layer + 'static) {
         let mut map = self.map.lock();
         map.layers_mut().push(layer);
@@ -178,7 +182,11 @@ impl MapSession {
         flutter_ctx.sendable_texture.mark_frame_available();
         Ok(())
     }
-
+    
+    pub fn get_viewport(&self) -> Option<MapViewport>{
+        self.map.lock().view().get_bbox().as_ref().map(MapViewport::from_rect)
+    }
+    
     /// Resizes the rendering session.
     pub async fn resize(&self, new_size: MapSize) -> anyhow::Result<()> {
         info!(

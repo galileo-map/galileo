@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -124574723;
+  int get rustContentHash => -317408976;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -83,6 +83,11 @@ abstract class RustLibApi extends BaseApi {
     required LayerConfig layerConfig,
   });
 
+  Future<CreateNewSessionResponse> crateApiApiCreateNewMapSession({
+    required PlatformInt64 engineHandle,
+    required MapInitConfig config,
+  });
+
   Future<void> crateApiApiDestroyAllEngineSessions({
     required PlatformInt64 engineId,
   });
@@ -90,6 +95,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiApiDestroySession({required int sessionId});
 
   Future<void> crateApiApiGalileoFlutterInit({required PlatformInt64 ffiPtr});
+
+  Future<MapViewport?> crateApiApiGetMapViewport({required int sessionId});
 
   Future<void> crateApiApiHandleEventForSession({
     required int sessionId,
@@ -101,6 +108,8 @@ abstract class RustLibApi extends BaseApi {
   Future<MapInitConfig> crateApiDartTypesMapInitConfigDefault();
 
   Future<void> crateApiApiMarkSessionAlive({required int sessionId});
+
+  Future<void> crateApiApiRequestMapRedraw({required int sessionId});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -146,6 +155,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<CreateNewSessionResponse> crateApiApiCreateNewMapSession({
+    required PlatformInt64 engineHandle,
+    required MapInitConfig config,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_i_64(engineHandle, serializer);
+          sse_encode_box_autoadd_map_init_config(config, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_create_new_session_response,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiApiCreateNewMapSessionConstMeta,
+        argValues: [engineHandle, config],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiApiCreateNewMapSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_new_map_session",
+        argNames: ["engineHandle", "config"],
+      );
+
+  @override
   Future<void> crateApiApiDestroyAllEngineSessions({
     required PlatformInt64 engineId,
   }) {
@@ -157,7 +201,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 3,
             port: port_,
           );
         },
@@ -188,7 +232,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -218,7 +262,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -240,6 +284,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<MapViewport?> crateApiApiGetMapViewport({required int sessionId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(sessionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_map_viewport,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiApiGetMapViewportConstMeta,
+        argValues: [sessionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiApiGetMapViewportConstMeta => const TaskConstMeta(
+    debugName: "get_map_viewport",
+    argNames: ["sessionId"],
+  );
+
+  @override
   Future<void> crateApiApiHandleEventForSession({
     required int sessionId,
     required UserEvent event,
@@ -253,7 +327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 7,
             port: port_,
           );
         },
@@ -283,7 +357,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -310,7 +384,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 9,
             port: port_,
           );
         },
@@ -338,7 +412,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 10,
             port: port_,
           );
         },
@@ -356,6 +430,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiApiMarkSessionAliveConstMeta =>
       const TaskConstMeta(
         debugName: "mark_session_alive",
+        argNames: ["sessionId"],
+      );
+
+  @override
+  Future<void> crateApiApiRequestMapRedraw({required int sessionId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(sessionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiApiRequestMapRedrawConstMeta,
+        argValues: [sessionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiApiRequestMapRedrawConstMeta =>
+      const TaskConstMeta(
+        debugName: "request_map_redraw",
         argNames: ["sessionId"],
       );
 
@@ -384,6 +489,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MapInitConfig dco_decode_box_autoadd_map_init_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_map_init_config(raw);
+  }
+
+  @protected
+  MapViewport dco_decode_box_autoadd_map_viewport(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_map_viewport(raw);
+  }
+
+  @protected
   MouseEvent dco_decode_box_autoadd_mouse_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_mouse_event(raw);
@@ -405,6 +522,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Vector2 dco_decode_box_autoadd_vector_2(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_vector_2(raw);
+  }
+
+  @protected
+  CreateNewSessionResponse dco_decode_create_new_session_response(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CreateNewSessionResponse(
+      sessionId: dco_decode_u_32(arr[0]),
+      textureId: dco_decode_i_64(arr[1]),
+    );
   }
 
   @protected
@@ -457,15 +586,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MapInitConfig dco_decode_map_init_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return MapInitConfig(
       latlon: dco_decode_record_f_64_f_64(arr[0]),
       zoomLevel: dco_decode_u_32(arr[1]),
       mapSize: dco_decode_map_size(arr[2]),
-      fps: dco_decode_u_32(arr[3]),
-      enableMultisampling: dco_decode_bool(arr[4]),
-      backgroundColor: dco_decode_record_f_32_f_32_f_32_f_32(arr[5]),
+      enableMultisampling: dco_decode_bool(arr[3]),
+      backgroundColor: dco_decode_record_f_32_f_32_f_32_f_32(arr[4]),
     );
   }
 
@@ -478,6 +606,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return MapSize(
       width: dco_decode_u_32(arr[0]),
       height: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  MapViewport dco_decode_map_viewport(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return MapViewport(
+      xMin: dco_decode_f_64(arr[0]),
+      xMax: dco_decode_f_64(arr[1]),
+      yMin: dco_decode_f_64(arr[2]),
+      yMax: dco_decode_f_64(arr[3]),
     );
   }
 
@@ -522,6 +664,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  MapViewport? dco_decode_opt_box_autoadd_map_viewport(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_map_viewport(raw);
   }
 
   @protected
@@ -675,6 +823,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MapInitConfig sse_decode_box_autoadd_map_init_config(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_map_init_config(deserializer));
+  }
+
+  @protected
+  MapViewport sse_decode_box_autoadd_map_viewport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_map_viewport(deserializer));
+  }
+
+  @protected
   MouseEvent sse_decode_box_autoadd_mouse_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_mouse_event(deserializer));
@@ -696,6 +860,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Vector2 sse_decode_box_autoadd_vector_2(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_vector_2(deserializer));
+  }
+
+  @protected
+  CreateNewSessionResponse sse_decode_create_new_session_response(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessionId = sse_decode_u_32(deserializer);
+    var var_textureId = sse_decode_i_64(deserializer);
+    return CreateNewSessionResponse(
+      sessionId: var_sessionId,
+      textureId: var_textureId,
+    );
   }
 
   @protected
@@ -755,7 +932,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_latlon = sse_decode_record_f_64_f_64(deserializer);
     var var_zoomLevel = sse_decode_u_32(deserializer);
     var var_mapSize = sse_decode_map_size(deserializer);
-    var var_fps = sse_decode_u_32(deserializer);
     var var_enableMultisampling = sse_decode_bool(deserializer);
     var var_backgroundColor = sse_decode_record_f_32_f_32_f_32_f_32(
       deserializer,
@@ -764,7 +940,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       latlon: var_latlon,
       zoomLevel: var_zoomLevel,
       mapSize: var_mapSize,
-      fps: var_fps,
       enableMultisampling: var_enableMultisampling,
       backgroundColor: var_backgroundColor,
     );
@@ -776,6 +951,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_width = sse_decode_u_32(deserializer);
     var var_height = sse_decode_u_32(deserializer);
     return MapSize(width: var_width, height: var_height);
+  }
+
+  @protected
+  MapViewport sse_decode_map_viewport(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_xMin = sse_decode_f_64(deserializer);
+    var var_xMax = sse_decode_f_64(deserializer);
+    var var_yMin = sse_decode_f_64(deserializer);
+    var var_yMax = sse_decode_f_64(deserializer);
+    return MapViewport(
+      xMin: var_xMin,
+      xMax: var_xMax,
+      yMin: var_yMin,
+      yMax: var_yMax,
+    );
   }
 
   @protected
@@ -824,6 +1014,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MapViewport? sse_decode_opt_box_autoadd_map_viewport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_map_viewport(deserializer));
     } else {
       return null;
     }
@@ -964,6 +1167,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_map_init_config(
+    MapInitConfig self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_map_init_config(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_map_viewport(
+    MapViewport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_map_viewport(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_mouse_event(
     MouseEvent self,
     SseSerializer serializer,
@@ -991,6 +1212,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_vector_2(Vector2 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_vector_2(self, serializer);
+  }
+
+  @protected
+  void sse_encode_create_new_session_response(
+    CreateNewSessionResponse self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.sessionId, serializer);
+    sse_encode_i_64(self.textureId, serializer);
   }
 
   @protected
@@ -1052,7 +1283,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_record_f_64_f_64(self.latlon, serializer);
     sse_encode_u_32(self.zoomLevel, serializer);
     sse_encode_map_size(self.mapSize, serializer);
-    sse_encode_u_32(self.fps, serializer);
     sse_encode_bool(self.enableMultisampling, serializer);
     sse_encode_record_f_32_f_32_f_32_f_32(self.backgroundColor, serializer);
   }
@@ -1062,6 +1292,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.width, serializer);
     sse_encode_u_32(self.height, serializer);
+  }
+
+  @protected
+  void sse_encode_map_viewport(MapViewport self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.xMin, serializer);
+    sse_encode_f_64(self.xMax, serializer);
+    sse_encode_f_64(self.yMin, serializer);
+    sse_encode_f_64(self.yMax, serializer);
   }
 
   @protected
@@ -1104,6 +1343,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_map_viewport(
+    MapViewport? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_map_viewport(self, serializer);
     }
   }
 

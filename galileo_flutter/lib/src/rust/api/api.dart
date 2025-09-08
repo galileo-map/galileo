@@ -7,11 +7,23 @@ import '../frb_generated.dart';
 import 'dart_types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `request_map_redraw`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash
 Future<void> galileoFlutterInit({required PlatformInt64 ffiPtr}) =>
     RustLib.instance.api.crateApiApiGalileoFlutterInit(ffiPtr: ffiPtr);
+
+Future<CreateNewSessionResponse> createNewMapSession({
+  required PlatformInt64 engineHandle,
+  required MapInitConfig config,
+}) => RustLib.instance.api.crateApiApiCreateNewMapSession(
+  engineHandle: engineHandle,
+  config: config,
+);
+
+/// Triggers a map update and re-render.
+Future<void> requestMapRedraw({required int sessionId}) =>
+    RustLib.instance.api.crateApiApiRequestMapRedraw(sessionId: sessionId);
 
 /// Marks the session as alive (called periodically from Flutter)
 Future<void> markSessionAlive({required int sessionId}) =>
@@ -36,6 +48,9 @@ Future<void> addSessionLayer({
   layerConfig: layerConfig,
 );
 
+Future<MapViewport?> getMapViewport({required int sessionId}) =>
+    RustLib.instance.api.crateApiApiGetMapViewport(sessionId: sessionId);
+
 Future<void> handleEventForSession({
   required int sessionId,
   required UserEvent event,
@@ -43,3 +58,24 @@ Future<void> handleEventForSession({
   sessionId: sessionId,
   event: event,
 );
+
+class CreateNewSessionResponse {
+  final int sessionId;
+  final PlatformInt64 textureId;
+
+  const CreateNewSessionResponse({
+    required this.sessionId,
+    required this.textureId,
+  });
+
+  @override
+  int get hashCode => sessionId.hashCode ^ textureId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CreateNewSessionResponse &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          textureId == other.textureId;
+}

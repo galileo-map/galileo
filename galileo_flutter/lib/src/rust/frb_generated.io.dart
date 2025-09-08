@@ -32,6 +32,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LayerConfig dco_decode_box_autoadd_layer_config(dynamic raw);
 
   @protected
+  MapInitConfig dco_decode_box_autoadd_map_init_config(dynamic raw);
+
+  @protected
+  MapViewport dco_decode_box_autoadd_map_viewport(dynamic raw);
+
+  @protected
   MouseEvent dco_decode_box_autoadd_mouse_event(dynamic raw);
 
   @protected
@@ -42,6 +48,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Vector2 dco_decode_box_autoadd_vector_2(dynamic raw);
+
+  @protected
+  CreateNewSessionResponse dco_decode_create_new_session_response(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -68,6 +77,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MapSize dco_decode_map_size(dynamic raw);
 
   @protected
+  MapViewport dco_decode_map_viewport(dynamic raw);
+
+  @protected
   MouseButton dco_decode_mouse_button(dynamic raw);
 
   @protected
@@ -81,6 +93,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  MapViewport? dco_decode_opt_box_autoadd_map_viewport(dynamic raw);
 
   @protected
   Point2 dco_decode_point_2(dynamic raw);
@@ -121,6 +136,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LayerConfig sse_decode_box_autoadd_layer_config(SseDeserializer deserializer);
 
   @protected
+  MapInitConfig sse_decode_box_autoadd_map_init_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MapViewport sse_decode_box_autoadd_map_viewport(SseDeserializer deserializer);
+
+  @protected
   MouseEvent sse_decode_box_autoadd_mouse_event(SseDeserializer deserializer);
 
   @protected
@@ -131,6 +154,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Vector2 sse_decode_box_autoadd_vector_2(SseDeserializer deserializer);
+
+  @protected
+  CreateNewSessionResponse sse_decode_create_new_session_response(
+    SseDeserializer deserializer,
+  );
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -157,6 +185,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MapSize sse_decode_map_size(SseDeserializer deserializer);
 
   @protected
+  MapViewport sse_decode_map_viewport(SseDeserializer deserializer);
+
+  @protected
   MouseButton sse_decode_mouse_button(SseDeserializer deserializer);
 
   @protected
@@ -172,6 +203,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  MapViewport? sse_decode_opt_box_autoadd_map_viewport(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Point2 sse_decode_point_2(SseDeserializer deserializer);
@@ -218,6 +254,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_map_init_config(
+    MapInitConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_map_viewport(
+    MapViewport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_mouse_event(
     MouseEvent self,
     SseSerializer serializer,
@@ -234,6 +282,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_vector_2(Vector2 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_create_new_session_response(
+    CreateNewSessionResponse self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
@@ -263,6 +317,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_map_size(MapSize self, SseSerializer serializer);
 
   @protected
+  void sse_encode_map_viewport(MapViewport self, SseSerializer serializer);
+
+  @protected
   void sse_encode_mouse_button(MouseButton self, SseSerializer serializer);
 
   @protected
@@ -282,6 +339,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_map_viewport(
+    MapViewport? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_point_2(Point2 self, SseSerializer serializer);

@@ -59,25 +59,17 @@ class GalileoMapController {
   /// Create a new Galileo map controller
   static Future<(GalileoMapController?, String?)> create({
     required MapSize size,
-    MapInitConfig? config,
+    required MapInitConfig config,
     List<LayerConfig> layers = const [LayerConfig.osm()],
   }) async {
     try {
       // Get Flutter engine handle for texture registration
       final handle = await EngineContext.instance.getEngineHandle();
 
-      // Create new session
-      final sessionId = await rlib.createNewSession();
-
-      // Use default config if none provided
-      final MapInitConfig = config ?? await MapInitConfig.default_();
-
       // Create the map instance
-      final textureId = await rlib.createNewGalileoMap(
-        sessionId: sessionId,
+      final newSessionResp = await rlib.createNewMapSession(
         engineHandle: handle,
-        size: size,
-        config: MapInitConfig,
+        config: config,
       );
 
       // Create state broadcast
@@ -87,14 +79,14 @@ class GalileoMapController {
 
       final controller = GalileoMapController._(
         size: size,
-        config: MapInitConfig,
+        config: config,
         layers: layers,
-        sessionId: sessionId,
+        sessionId: newSessionResp.sessionId,
         stateBroadcast: stateBroadcast,
         originalSub: null,
       );
 
-      controller._textureId = textureId;
+      controller._textureId = newSessionResp.textureId;
       controller._running = true;
 
       // Start session keep-alive task
@@ -148,29 +140,13 @@ class GalileoMapController {
 
   /// Get the current map viewport
   Future<MapViewport?> getViewport() async {
-    if (!_running) return null;
 
-    try {
-      return await rlib.getSessionViewport(sessionId: sessionId);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error getting viewport: $e');
-      }
-      return null;
-    }
   }
 
   /// Set the map viewport
   Future<void> setViewport(MapViewport viewport) async {
     if (!_running) return;
 
-    try {
-      await rlib.setSessionViewport(sessionId: sessionId, viewport: viewport);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error setting viewport: $e');
-      }
-    }
   }
 
   /// Add a layer to the map
@@ -190,13 +166,7 @@ class GalileoMapController {
   Future<void> resize(MapSize newSize) async {
     if (!_running) return;
 
-    try {
-      await rlib.resizeSessionSize(sessionId: sessionId, size: newSize);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error resizing map: $e');
-      }
-    }
+
   }
 
   /// Dispose of the controller and clean up resources

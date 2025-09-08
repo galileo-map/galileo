@@ -7,9 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:galileo_flutter/src/galileo_map_controller.dart';
 import 'package:galileo_flutter/src/rust/api/dart_types.dart';
 
-class MapViewport{
-// placeholder
-}
 
 /// A widget that displays a Galileo map with interactive controls
 class GalileoMapWidget extends StatefulWidget {
@@ -63,7 +60,7 @@ class GalileoMapWidget extends StatefulWidget {
   static Widget fromConfig({
     Key? key,
     required MapSize size,
-    MapInitConfig? config,
+    required MapInitConfig config,
     List<LayerConfig> layers = const [LayerConfig.osm()],
     bool autoDispose = true,
     bool enableKeyboard = true,

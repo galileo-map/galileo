@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:galileo_flutter/galileo_flutter.dart';
-import 'package:irondash_engine_context/irondash_engine_context.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Galileo FFI with the real pointer
   await initGalileo();
 
@@ -38,10 +37,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
   void _onViewportChanged(MapViewport viewport) {
     setState(() {
       currentViewport = viewport;
-      statusMessage =
-          'Lat: ${viewport.center.latitude.toStringAsFixed(4)}, '
-          'Lon: ${viewport.center.longitude.toStringAsFixed(4)}, '
-          'Zoom: ${viewport.zoom.toStringAsFixed(2)}';
+      statusMessage = "viewport: ${viewport.toString()}";
     });
   }
 
@@ -56,11 +52,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
       if (mounted) {
         setState(() {
           statusMessage =
-              currentViewport != null
-                  ? 'Lat: ${currentViewport!.center.latitude.toStringAsFixed(4)}, '
-                      'Lon: ${currentViewport!.center.longitude.toStringAsFixed(4)}, '
-                      'Zoom: ${currentViewport!.zoom.toStringAsFixed(2)}'
-                  : 'Map is ready';
+              currentViewport != null ? "viewport: ${currentViewport}" : 'Map is ready';
         });
       }
     });
@@ -107,6 +99,13 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                 layers: const [
                   LayerConfig.osm(), // OpenStreetMap layer
                 ],
+                config:  MapInitConfig(
+                    backgroundColor: (0.1, 0.1,0 ,0.5),
+                    enableMultisampling:true,
+                    latlon: (0.0, 0.0),
+                    mapSize: MapSize(width: 800, height: 600),
+                    zoomLevel:10
+                ),
                 enableKeyboard: true,
                 onTap: _onMapTap,
                 onViewportChanged: _onViewportChanged,

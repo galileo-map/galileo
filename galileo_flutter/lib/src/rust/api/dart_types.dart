@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_types.freezed.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapPosition`, `MapViewport`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MapPosition`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `from_rect`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`, `to_galileo`
 
 @freezed
 sealed class LayerConfig with _$LayerConfig {
@@ -32,8 +32,6 @@ class MapInitConfig {
   final MapSize mapSize;
 
   /// Frames per second for the render loop (default: 30)
-  final int fps;
-
   /// Enable multisampling anti-aliasing
   final bool enableMultisampling;
 
@@ -44,7 +42,6 @@ class MapInitConfig {
     required this.latlon,
     required this.zoomLevel,
     required this.mapSize,
-    required this.fps,
     required this.enableMultisampling,
     required this.backgroundColor,
   });
@@ -57,7 +54,6 @@ class MapInitConfig {
       latlon.hashCode ^
       zoomLevel.hashCode ^
       mapSize.hashCode ^
-      fps.hashCode ^
       enableMultisampling.hashCode ^
       backgroundColor.hashCode;
 
@@ -69,7 +65,6 @@ class MapInitConfig {
           latlon == other.latlon &&
           zoomLevel == other.zoomLevel &&
           mapSize == other.mapSize &&
-          fps == other.fps &&
           enableMultisampling == other.enableMultisampling &&
           backgroundColor == other.backgroundColor;
 }
@@ -91,6 +86,35 @@ class MapSize {
           runtimeType == other.runtimeType &&
           width == other.width &&
           height == other.height;
+}
+
+/// Map viewport configuration including center, zoom, and rotation.
+class MapViewport {
+  final double xMin;
+  final double xMax;
+  final double yMin;
+  final double yMax;
+
+  const MapViewport({
+    required this.xMin,
+    required this.xMax,
+    required this.yMin,
+    required this.yMax,
+  });
+
+  @override
+  int get hashCode =>
+      xMin.hashCode ^ xMax.hashCode ^ yMin.hashCode ^ yMax.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MapViewport &&
+          runtimeType == other.runtimeType &&
+          xMin == other.xMin &&
+          xMax == other.xMax &&
+          yMin == other.yMin &&
+          yMax == other.yMax;
 }
 
 /// Mouse button enum.

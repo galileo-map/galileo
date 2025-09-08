@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -124574723;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -317408976;
 
 // Section: executor
 
@@ -76,6 +76,43 @@ fn wire__crate__api__api__add_session_layer_impl(
                     (move || {
                         let output_ok =
                             crate::api::api::add_session_layer(api_session_id, api_layer_config)?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__api__create_new_map_session_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_new_map_session",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_engine_handle = <i64>::sse_decode(&mut deserializer);
+            let api_config = <crate::api::dart_types::MapInitConfig>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::api::create_new_map_session(api_engine_handle, api_config)?;
                         Ok(output_ok)
                     })(),
                 )
@@ -182,6 +219,40 @@ fn wire__crate__api__api__galileo_flutter_init_impl(
                     let output_ok = Result::<_, ()>::Ok({
                         crate::api::api::galileo_flutter_init(api_ffi_ptr);
                     })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__api__get_map_viewport_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_map_viewport",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::api::get_map_viewport(api_session_id))?;
                     Ok(output_ok)
                 })())
             }
@@ -326,6 +397,41 @@ fn wire__crate__api__api__mark_session_alive_impl(
         },
     )
 }
+fn wire__crate__api__api__request_map_redraw_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "request_map_redraw",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_session_id = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::api::request_map_redraw(api_session_id)?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -349,6 +455,18 @@ impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for crate::api::api::CreateNewSessionResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sessionId = <u32>::sse_decode(deserializer);
+        let mut var_textureId = <i64>::sse_decode(deserializer);
+        return crate::api::api::CreateNewSessionResponse {
+            session_id: var_sessionId,
+            texture_id: var_textureId,
+        };
     }
 }
 
@@ -421,14 +539,12 @@ impl SseDecode for crate::api::dart_types::MapInitConfig {
         let mut var_latlon = <(f64, f64)>::sse_decode(deserializer);
         let mut var_zoomLevel = <u32>::sse_decode(deserializer);
         let mut var_mapSize = <crate::api::dart_types::MapSize>::sse_decode(deserializer);
-        let mut var_fps = <u32>::sse_decode(deserializer);
         let mut var_enableMultisampling = <bool>::sse_decode(deserializer);
         let mut var_backgroundColor = <(f32, f32, f32, f32)>::sse_decode(deserializer);
         return crate::api::dart_types::MapInitConfig {
             latlon: var_latlon,
             zoom_level: var_zoomLevel,
             map_size: var_mapSize,
-            fps: var_fps,
             enable_multisampling: var_enableMultisampling,
             background_color: var_backgroundColor,
         };
@@ -443,6 +559,22 @@ impl SseDecode for crate::api::dart_types::MapSize {
         return crate::api::dart_types::MapSize {
             width: var_width,
             height: var_height,
+        };
+    }
+}
+
+impl SseDecode for crate::api::dart_types::MapViewport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_xMin = <f64>::sse_decode(deserializer);
+        let mut var_xMax = <f64>::sse_decode(deserializer);
+        let mut var_yMin = <f64>::sse_decode(deserializer);
+        let mut var_yMax = <f64>::sse_decode(deserializer);
+        return crate::api::dart_types::MapViewport {
+            x_min: var_xMin,
+            x_max: var_xMax,
+            y_min: var_yMin,
+            y_max: var_yMax,
         };
     }
 }
@@ -505,6 +637,19 @@ impl SseDecode for Option<String> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::dart_types::MapViewport> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::dart_types::MapViewport>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -650,25 +795,28 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__api__add_session_layer_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__api__destroy_all_engine_sessions_impl(
+        2 => wire__crate__api__api__create_new_map_session_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__api__destroy_all_engine_sessions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        3 => wire__crate__api__api__destroy_session_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__api__galileo_flutter_init_impl(port, ptr, rust_vec_len, data_len),
-        5 => {
+        4 => wire__crate__api__api__destroy_session_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__api__galileo_flutter_init_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__api__get_map_viewport_impl(port, ptr, rust_vec_len, data_len),
+        7 => {
             wire__crate__api__api__handle_event_for_session_impl(port, ptr, rust_vec_len, data_len)
         }
-        6 => wire__crate__api__api__init_galileo_flutter_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__dart_types__map_init_config_default_impl(
+        8 => wire__crate__api__api__init_galileo_flutter_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__dart_types__map_init_config_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__api__mark_session_alive_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__api__mark_session_alive_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__api__request_map_redraw_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -687,6 +835,27 @@ fn pde_ffi_dispatcher_sync_impl(
 
 // Section: rust2dart
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::api::CreateNewSessionResponse {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.session_id.into_into_dart().into_dart(),
+            self.texture_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::api::CreateNewSessionResponse
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::api::CreateNewSessionResponse>
+    for crate::api::api::CreateNewSessionResponse
+{
+    fn into_into_dart(self) -> crate::api::api::CreateNewSessionResponse {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::dart_types::LayerConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -725,7 +894,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::dart_types::MapInitConfig {
             self.latlon.into_into_dart().into_dart(),
             self.zoom_level.into_into_dart().into_dart(),
             self.map_size.into_into_dart().into_dart(),
-            self.fps.into_into_dart().into_dart(),
             self.enable_multisampling.into_into_dart().into_dart(),
             self.background_color.into_into_dart().into_dart(),
         ]
@@ -761,6 +929,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dart_types::MapSize>
     for crate::api::dart_types::MapSize
 {
     fn into_into_dart(self) -> crate::api::dart_types::MapSize {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dart_types::MapViewport {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.x_min.into_into_dart().into_dart(),
+            self.x_max.into_into_dart().into_dart(),
+            self.y_min.into_into_dart().into_dart(),
+            self.y_max.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dart_types::MapViewport
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dart_types::MapViewport>
+    for crate::api::dart_types::MapViewport
+{
+    fn into_into_dart(self) -> crate::api::dart_types::MapViewport {
         self
     }
 }
@@ -994,6 +1185,14 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::api::CreateNewSessionResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.session_id, serializer);
+        <i64>::sse_encode(self.texture_id, serializer);
+    }
+}
+
 impl SseEncode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1060,7 +1259,6 @@ impl SseEncode for crate::api::dart_types::MapInitConfig {
         <(f64, f64)>::sse_encode(self.latlon, serializer);
         <u32>::sse_encode(self.zoom_level, serializer);
         <crate::api::dart_types::MapSize>::sse_encode(self.map_size, serializer);
-        <u32>::sse_encode(self.fps, serializer);
         <bool>::sse_encode(self.enable_multisampling, serializer);
         <(f32, f32, f32, f32)>::sse_encode(self.background_color, serializer);
     }
@@ -1071,6 +1269,16 @@ impl SseEncode for crate::api::dart_types::MapSize {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.width, serializer);
         <u32>::sse_encode(self.height, serializer);
+    }
+}
+
+impl SseEncode for crate::api::dart_types::MapViewport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.x_min, serializer);
+        <f64>::sse_encode(self.x_max, serializer);
+        <f64>::sse_encode(self.y_min, serializer);
+        <f64>::sse_encode(self.y_max, serializer);
     }
 }
 
@@ -1131,6 +1339,16 @@ impl SseEncode for Option<String> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::dart_types::MapViewport> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::dart_types::MapViewport>::sse_encode(value, serializer);
         }
     }
 }
