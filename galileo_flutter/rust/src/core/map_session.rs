@@ -1,10 +1,13 @@
 use crate::core::galileo_ref::create_galileo_map;
 pub use crate::core::pixel_buffer::PixelBuffer;
 use crate::core::{WindowlessRenderer, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME};
+use crate::utils::invoke_on_platform_main_thread;
+use anyhow::anyhow;
 use galileo::galileo_types;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use log::{debug, error, info, warn};
 use parking_lot::Mutex;
+use parking_lot::{RwLock, RwLockReadGuard};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -47,7 +50,7 @@ pub struct MapSession {
     renderer: Arc<Mutex<WindowlessRenderer>>,
     wgpu_pixel_buffer: Arc<Mutex<PixelBuffer>>,
     /// this is optional because we wanna drop this on the platform thread.
-    flutter_ctx: Option<FlutterCtx>,
+    flutter_ctx: RwLock<Option<FlutterCtx>>,
     pub engine_handle: i64,
     is_alive: AtomicBool,
 }
@@ -97,7 +100,7 @@ impl MapSession {
             session_id,
             map: map.clone(),
             renderer: renderer.clone(),
-            flutter_ctx: Some(flutter_ctx),
+            flutter_ctx: RwLock::new(Some(flutter_ctx)),
             wgpu_pixel_buffer: wgpu_pixel_buffer.clone(),
             engine_handle,
             is_alive: AtomicBool::new(true),
@@ -130,16 +133,10 @@ impl MapSession {
         self.is_alive.store(true, Ordering::SeqCst);
     }
 
-    fn get_flutter_ctx(&self) -> anyhow::Result<&FlutterCtx> {
-        self.flutter_ctx
-            .as_ref()
-            .ok_or(anyhow::anyhow!("Flutter context not available"))
-    }
-    
     pub fn get_flutter_texture_id(&self) -> Option<i64> {
-        Some(self.flutter_ctx.as_ref()?.texture_id)
+        Some(self.flutter_ctx.read().as_ref()?.texture_id)
     }
-    
+
     pub fn add_layer(&self, layer: impl galileo::layer::Layer + 'static) {
         let mut map = self.map.lock();
         map.layers_mut().push(layer);
@@ -149,7 +146,12 @@ impl MapSession {
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {
         // Render the map to wgpu texture
-        let flutter_ctx = self.get_flutter_ctx()?;
+
+        let flctx = self.flutter_ctx.read();
+        let flutter_ctx = flctx
+            .as_ref()
+            .ok_or(anyhow!("flutter context not available"))?;
+
         {
             let mut renderer = self.renderer.lock();
             let map = self.map.lock();
@@ -182,18 +184,22 @@ impl MapSession {
         flutter_ctx.sendable_texture.mark_frame_available();
         Ok(())
     }
-    
-    pub fn get_viewport(&self) -> Option<MapViewport>{
-        self.map.lock().view().get_bbox().as_ref().map(MapViewport::from_rect)
+
+    pub fn get_viewport(&self) -> Option<MapViewport> {
+        self.map
+            .lock()
+            .view()
+            .get_bbox()
+            .as_ref()
+            .map(MapViewport::from_rect)
     }
-    
+
     /// Resizes the rendering session.
     pub async fn resize(&self, new_size: MapSize) -> anyhow::Result<()> {
         info!(
             "Resizing session {} to {}x{}",
             self.session_id, new_size.width, new_size.height
         );
-        let flutter_ctx = self.get_flutter_ctx()?;
 
         // Resize renderer
         {
@@ -211,6 +217,10 @@ impl MapSession {
                 .resize(new_size)
                 .map_err(|e| anyhow::anyhow!("Failed to resize pixel buffer: {}", e))?;
         }
+        let flctx = self.flutter_ctx.read();
+        let flutter_ctx = flctx
+            .as_ref()
+            .ok_or(anyhow!("flutter context not available"))?;
 
         // Resize texture provider
         flutter_ctx.payload_holder.resize(new_size);
@@ -223,11 +233,36 @@ impl MapSession {
     async fn _draw_no_res(&self) {
         self.redraw().await.inspect_err(|err| error!("{err}"));
     }
-    pub fn terminate(&self) {
+    pub async fn terminate(self: Arc<Self>) {
         self.is_alive.store(false, Ordering::SeqCst);
+        let max_retries = 10;
+        let mut retries = 0;
+
+        while retries < max_retries {
+            let self_clone = self.clone();
+            if invoke_on_platform_main_thread(move || {
+                // drop the flutter texture in the platform thread
+                let mut flctx = self_clone.flutter_ctx.write();
+                if let Some(ctx) = flctx.take() {
+                    let mut ref_count = Arc::strong_count(&ctx.payload_holder);
+                    ref_count += Arc::strong_count(&ctx.sendable_texture);
+                    info!("flutter ref count sum: {}", ref_count);
+                    if ref_count == 2 {
+                        drop(ctx);
+                    }
+                    return true;
+                }
+
+                return false;
+            }) {
+                return;
+            } else {
+                retries += 1;
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+        }
     }
 }
-
 /// Updates the session counter and returns a new session ID
 fn create_new_session() -> SessionID {
     SESSION_COUNTER.fetch_add(1, Ordering::SeqCst) + 1

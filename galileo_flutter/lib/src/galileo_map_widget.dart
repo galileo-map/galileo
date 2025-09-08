@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:galileo_flutter/src/galileo_map_controller.dart';
 import 'package:galileo_flutter/src/rust/api/dart_types.dart';
 
-
 /// A widget that displays a Galileo map with interactive controls
 class GalileoMapWidget extends StatefulWidget {
   final GalileoMapController controller;
@@ -120,14 +119,17 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
   GalileoMapState? currentState;
   StreamSubscription<GalileoMapState>? streamSubscription;
   late FocusNode _focusNode;
-  bool _isDragging = false;
-  Offset? _lastPanPosition;
+  Set<LogicalKeyboardKey> _pressedKeys = {};
 
   @override
   void initState() {
     super.initState();
 
     _focusNode = widget.focusNode ?? FocusNode();
+
+    if (widget.enableKeyboard) {
+      HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    }
 
     streamSubscription = widget.controller.stateStream.listen((state) {
       if (mounted) {
@@ -238,76 +240,6 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         );
         widget.controller.handleEvent(event);
       },
-      onPanStart: (details) {
-        _isDragging = true;
-        _lastPanPosition = details.localPosition;
-
-        // Handle drag start event
-        final event = UserEvent.dragStarted(
-          MouseButton.left,
-          MouseEvent(
-            screenPointerPosition: Point2(
-              x: details.localPosition.dx,
-              y: details.localPosition.dy,
-            ),
-            buttons: const MouseButtonsState(
-              left: MouseButtonState.pressed,
-              middle: MouseButtonState.released,
-              right: MouseButtonState.released,
-            ),
-          ),
-        );
-        widget.controller.handleEvent(event);
-      },
-      onPanUpdate: (details) {
-        if (_isDragging && _lastPanPosition != null) {
-          final currentPosition = details.localPosition;
-          final delta = currentPosition - _lastPanPosition!;
-
-          // Handle drag event
-          final event = UserEvent.drag(
-            MouseButton.left,
-            Vector2(dx: delta.dx, dy: delta.dy),
-            MouseEvent(
-              screenPointerPosition: Point2(
-                x: currentPosition.dx,
-                y: currentPosition.dy,
-              ),
-              buttons: const MouseButtonsState(
-                left: MouseButtonState.pressed,
-                middle: MouseButtonState.released,
-                right: MouseButtonState.released,
-              ),
-            ),
-          );
-          widget.controller.handleEvent(event);
-
-          _lastPanPosition = currentPosition;
-        }
-      },
-      onPanEnd: (details) {
-        if (_isDragging && _lastPanPosition != null) {
-          // Handle drag end event
-          final event = UserEvent.dragEnded(
-            MouseButton.left,
-            MouseEvent(
-              screenPointerPosition: Point2(
-                x: _lastPanPosition!.dx,
-                y: _lastPanPosition!.dy,
-              ),
-              buttons: const MouseButtonsState(
-                left: MouseButtonState.released,
-                middle: MouseButtonState.released,
-                right: MouseButtonState.released,
-              ),
-            ),
-          );
-          widget.controller.handleEvent(event);
-        }
-
-        _isDragging = false;
-        _lastPanPosition = null;
-      },
       onScaleStart: (details) {
         // Zoom event at focal point
         final event = UserEvent.zoom(
@@ -317,12 +249,36 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         widget.controller.handleEvent(event);
       },
       onScaleUpdate: (details) {
-        // Zoom event with scale factor
-        final event = UserEvent.zoom(
+        // Handle zoom
+        final zoomEvent = UserEvent.zoom(
           details.scale,
           Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
         );
-        widget.controller.handleEvent(event);
+        widget.controller.handleEvent(zoomEvent);
+
+        // Handle pan
+        if (details.focalPointDelta.dx != 0.0 ||
+            details.focalPointDelta.dy != 0.0) {
+          final panEvent = UserEvent.drag(
+            MouseButton.left,
+            Vector2(
+              dx: details.focalPointDelta.dx,
+              dy: details.focalPointDelta.dy,
+            ),
+            MouseEvent(
+              screenPointerPosition: Point2(
+                x: details.focalPoint.dx,
+                y: details.focalPoint.dy,
+              ),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
+          );
+          widget.controller.handleEvent(panEvent);
+        }
       },
       onScaleEnd: (details) {
         // No specific end event needed for zoom
@@ -444,12 +400,9 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
 
     // Add keyboard support if enabled
     if (widget.enableKeyboard) {
-      mapContent = KeyboardListener(
+      mapContent = Focus(
         focusNode: _focusNode,
         autofocus: true,
-        onKeyEvent: (event) {
-          _handleKeyEvent(event);
-        },
         child: mapContent,
       );
     }
@@ -457,15 +410,18 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     return mapContent;
   }
 
-  void _handleKeyEvent(KeyEvent event) {
-    // Handle keyboard events for map navigation
-    if (event is KeyDownEvent) {
+  bool _handleKeyEvent(KeyEvent event) {
+    // Handle keyboard events for map navigation only if focused
+    if (!_focusNode.hasFocus) return false;
+
+    if (event is KeyDownEvent && !_pressedKeys.contains(event.logicalKey)) {
+      _pressedKeys.add(event.logicalKey);
       switch (event.logicalKey) {
         case LogicalKeyboardKey.arrowUp:
           // Pan up using drag event
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final event = UserEvent.drag(
+          final userEvent = UserEvent.drag(
             MouseButton.left,
             const Vector2(dx: 0, dy: -20),
             MouseEvent(
@@ -477,13 +433,13 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
               ),
             ),
           );
-          widget.controller.handleEvent(event);
+          widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.arrowDown:
           // Pan down using drag event
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final event = UserEvent.drag(
+          final userEvent = UserEvent.drag(
             MouseButton.left,
             const Vector2(dx: 0, dy: 20),
             MouseEvent(
@@ -495,13 +451,13 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
               ),
             ),
           );
-          widget.controller.handleEvent(event);
+          widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.arrowLeft:
           // Pan left using drag event
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final event = UserEvent.drag(
+          final userEvent = UserEvent.drag(
             MouseButton.left,
             const Vector2(dx: -20, dy: 0),
             MouseEvent(
@@ -513,13 +469,13 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
               ),
             ),
           );
-          widget.controller.handleEvent(event);
+          widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.arrowRight:
           // Pan right using drag event
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final event = UserEvent.drag(
+          final userEvent = UserEvent.drag(
             MouseButton.left,
             const Vector2(dx: 20, dy: 0),
             MouseEvent(
@@ -531,26 +487,122 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
               ),
             ),
           );
-          widget.controller.handleEvent(event);
+          widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.equal:
         case LogicalKeyboardKey.numpadAdd:
           // Zoom in
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final event = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
-          widget.controller.handleEvent(event);
+          final userEvent = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
+          widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.minus:
         case LogicalKeyboardKey.numpadSubtract:
           // Zoom out
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final event = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
-          widget.controller.handleEvent(event);
+          final userEvent = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
+          widget.controller.handleEvent(userEvent);
           break;
       }
+    } else if (event is KeyRepeatEvent &&
+        _pressedKeys.contains(event.logicalKey)) {
+      // Handle repeat events for continuous panning/zooming
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.arrowUp:
+          // Pan up using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final userEvent = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: 0, dy: -20),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
+          );
+          widget.controller.handleEvent(userEvent);
+          break;
+        case LogicalKeyboardKey.arrowDown:
+          // Pan down using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final userEvent = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: 0, dy: 20),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
+          );
+          widget.controller.handleEvent(userEvent);
+          break;
+        case LogicalKeyboardKey.arrowLeft:
+          // Pan left using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final userEvent = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: -20, dy: 0),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
+          );
+          widget.controller.handleEvent(userEvent);
+          break;
+        case LogicalKeyboardKey.arrowRight:
+          // Pan right using drag event
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final userEvent = UserEvent.drag(
+            MouseButton.left,
+            const Vector2(dx: 20, dy: 0),
+            MouseEvent(
+              screenPointerPosition: Point2(x: centerX, y: centerY),
+              buttons: const MouseButtonsState(
+                left: MouseButtonState.pressed,
+                middle: MouseButtonState.released,
+                right: MouseButtonState.released,
+              ),
+            ),
+          );
+          widget.controller.handleEvent(userEvent);
+          break;
+        case LogicalKeyboardKey.equal:
+        case LogicalKeyboardKey.numpadAdd:
+          // Zoom in
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final userEvent = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
+          widget.controller.handleEvent(userEvent);
+          break;
+        case LogicalKeyboardKey.minus:
+        case LogicalKeyboardKey.numpadSubtract:
+          // Zoom out
+          final centerX = widget.controller.size.width / 2;
+          final centerY = widget.controller.size.height / 2;
+          final userEvent = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
+          widget.controller.handleEvent(userEvent);
+          break;
+      }
+    } else if (event is KeyUpEvent && _pressedKeys.contains(event.logicalKey)) {
+      _pressedKeys.remove(event.logicalKey);
     }
+    return false;
   }
 
   @override
@@ -583,6 +635,10 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
 
   @override
   void dispose() {
+    if (widget.enableKeyboard) {
+      HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    }
+
     super.dispose();
 
     Future.microtask(() async {

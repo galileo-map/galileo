@@ -45,9 +45,12 @@ pub struct CreateNewSessionResponse{
 }
 
 pub fn create_new_map_session(engine_handle: i64, config: MapInitConfig) -> anyhow::Result<CreateNewSessionResponse>{
+    info!("create_new_map_session was called");
+
     let session = TOKIO_RUNTIME.get().unwrap().block_on(
         MapSession::new(engine_handle, config)
     )?;
+    info!("New map session created with ID {}", session.session_id);
     Ok(
         CreateNewSessionResponse{
             session_id: session.session_id,
@@ -108,7 +111,10 @@ pub fn destroy_all_engine_sessions(engine_id: i64) {
 pub fn destroy_session(session_id: SessionID) {
     debug!("destroy_session called for session {}", session_id);
     if let Some(session) = SESSIONS.lock().remove(&session_id) {
-        session.terminate();
+        TOKIO_RUNTIME.get().unwrap().block_on(
+            session.terminate()
+        );
+
         info!("Session {} destroyed with full cleanup", session_id);
         ()
     }

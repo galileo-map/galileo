@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
+
 import 'package:galileo_flutter/galileo_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Handle the key assertion error
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (details.exception is AssertionError &&
+        details.exception.toString().contains('KeyDownEvent is dispatched')) {
+      // Ignore this known Flutter issue in debug mode
+      return;
+    }
+    FlutterError.dumpErrorToConsole(details);
+  };
 
   // Initialize Galileo FFI with the real pointer
   await initGalileo();
@@ -52,7 +63,9 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
       if (mounted) {
         setState(() {
           statusMessage =
-              currentViewport != null ? "viewport: ${currentViewport}" : 'Map is ready';
+              currentViewport != null
+                  ? "viewport: ${currentViewport}"
+                  : 'Map is ready';
         });
       }
     });
@@ -99,12 +112,12 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                 layers: const [
                   LayerConfig.osm(), // OpenStreetMap layer
                 ],
-                config:  MapInitConfig(
-                    backgroundColor: (0.1, 0.1,0 ,0.5),
-                    enableMultisampling:true,
-                    latlon: (0.0, 0.0),
-                    mapSize: MapSize(width: 800, height: 600),
-                    zoomLevel:10
+                config: MapInitConfig(
+                  backgroundColor: (0.1, 0.1, 0, 0.5),
+                  enableMultisampling: true,
+                  latlon: (0.0, 0.0),
+                  mapSize: MapSize(width: 800, height: 600),
+                  zoomLevel: 10,
                 ),
                 enableKeyboard: true,
                 onTap: _onMapTap,
@@ -209,15 +222,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                 (context) => AlertDialog(
                   title: const Text('About'),
                   content: const Text(
-                    'This is a Galileo Flutter integration demo.\n\n'
-                    'Phase 1: ✅ Complete\n'
-                    '• FRB Integration\n'
-                    '• Widget Structure\n'
-                    '• Event Handling\n\n'
-                    'Phase 2: 🚧 Coming Soon\n'
-                    '• Actual Map Rendering\n'
-                    '• Real Texture Integration\n'
-                    '• Layer Management',
+                    'This is a Galileo Flutter integration demo.\n'
                   ),
                   actions: [
                     TextButton(
