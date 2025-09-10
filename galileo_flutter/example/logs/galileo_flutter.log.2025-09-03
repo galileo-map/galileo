@@ -1,2 +1,0 @@
-2025-09-03T06:15:04.248021Z  INFO ThreadId(06) galileo_flutter::api::galileo_map: galileo_flutter/rust/src/api/galileo_map.rs:136: Creating Galileo map with full rendering for session 1, engine 1125899906842625, size 800x600    
-2025-09-03T06:19:56.802006Z  INFO ThreadId(06) galileo_flutter::api::galileo_map: galileo_flutter/rust/src/api/galileo_map.rs:136: Creating Galileo map with full rendering for session 1, engine 1125899906842625, size 800x600    

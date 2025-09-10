@@ -18,7 +18,7 @@ use tokio::sync::mpsc;
 
 use crate::api::dart_types::*;
 use crate::core::map_session::{MapSession, SessionID};
-use crate::core::{IS_INITIALIZED, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME};
+use crate::core::{IS_INITIALIZED, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME, init_logger};
 
 #[frb(init)]
 pub fn init_galileo_flutter() {
@@ -33,7 +33,7 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
 
     // Initialize irondash FFI
     irondash_dart_ffi::irondash_init_ffi(ffi_ptr as *mut std::ffi::c_void);
-
+    init_logger();
     info!("Galileo Flutter plugin initialized with FFI and texture support");
     IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
@@ -57,7 +57,7 @@ pub fn create_new_map_session(engine_handle: i64, config: MapInitConfig) -> anyh
             texture_id: session.get_flutter_texture_id().unwrap()
         }
     )
-    
+
 
 }
 
