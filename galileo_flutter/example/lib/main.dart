@@ -8,6 +8,7 @@ Future<void> main() async {
   // Handle the key assertion error
   FlutterError.onError = (FlutterErrorDetails details) {
     if (details.exception is AssertionError &&
+        
         details.exception.toString().contains('KeyDownEvent is dispatched')) {
       // Ignore this known Flutter issue in debug mode
       return;

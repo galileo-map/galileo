@@ -48,7 +48,6 @@ pub struct MapSession {
     pub session_id: SessionID,
     map: Arc<Mutex<galileo::Map>>,
     renderer: Arc<Mutex<WindowlessRenderer>>,
-    wgpu_pixel_buffer: Arc<Mutex<PixelBuffer>>,
     /// this is optional because we wanna drop this on the platform thread.
     flutter_ctx: RwLock<Option<FlutterCtx>>,
     pub engine_handle: i64,
@@ -82,18 +81,6 @@ impl MapSession {
         let map = create_galileo_map(&config, osm)?;
         let map = Arc::new(Mutex::new(map));
 
-        // Create pixel buffer for GPU-CPU data transfer
-        let device = {
-            let renderer_guard = renderer.lock();
-            Arc::new(renderer_guard.device().clone())
-        };
-        let queue = {
-            let renderer_guard = renderer.lock();
-            Arc::new(renderer_guard.queue().clone())
-        };
-
-        let wgpu_pixel_buffer = Arc::new(Mutex::new(PixelBuffer::new(device, queue, size)));
-
         let flutter_ctx = FlutterCtx::new(engine_handle, size)?;
 
         let session = Arc::new(MapSession {
@@ -101,7 +88,6 @@ impl MapSession {
             map: map.clone(),
             renderer: renderer.clone(),
             flutter_ctx: RwLock::new(Some(flutter_ctx)),
-            wgpu_pixel_buffer: wgpu_pixel_buffer.clone(),
             engine_handle,
             is_alive: AtomicBool::new(true),
         });
@@ -152,31 +138,15 @@ impl MapSession {
             .as_ref()
             .ok_or(anyhow!("flutter context not available"))?;
 
-        {
+        let pixels =  {
             let mut renderer = self.renderer.lock();
             let map = self.map.lock();
-
-            renderer
-                .render_map(&map)
-                .map_err(|e| anyhow::anyhow!("Failed to render map: {}", e))?;
-        }
-
-        // Copy texture to staging buffer
-        let wgpu_texture = {
-            let renderer = self.renderer.lock();
-            renderer
-                .target_texture()
-                .ok_or_else(|| anyhow::anyhow!("No target texture available"))?
-                .clone()
+            map.load_layers();
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            renderer.render(&map).await
         };
 
-        let pixels = {
-            let mut pixel_buffer = self.wgpu_pixel_buffer.lock();
-            pixel_buffer
-                .copy_from_texture(&wgpu_texture)
-                .map_err(|e| anyhow::anyhow!("Failed to copy texture to buffer: {}", e))?;
-            pixel_buffer.read_pixels().await.map(|px| px.to_vec())?
-        };
+
 
         // Update texture provider
         flutter_ctx.payload_holder.update_pixels(pixels);
@@ -212,10 +182,7 @@ impl MapSession {
 
         // Resize pixel buffer
         {
-            let mut pixel_buffer = self.wgpu_pixel_buffer.lock();
-            pixel_buffer
-                .resize(new_size)
-                .map_err(|e| anyhow::anyhow!("Failed to resize pixel buffer: {}", e))?;
+            todo!("resize")
         }
         let flctx = self.flutter_ctx.read();
         let flutter_ctx = flctx
