@@ -621,6 +621,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
       case GalileoMapState.ready:
         final textureId = widget.controller.textureId;
         if (textureId != null) {
+            Future.microtask(() async => await widget.controller.requestRedraw());
           return _buildMapWidget(textureId);
         } else {
           return _buildLoadingWidget('Preparing texture...');

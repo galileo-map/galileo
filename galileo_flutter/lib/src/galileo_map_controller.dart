@@ -137,7 +137,10 @@ class GalileoMapController {
       }
     }
   }
-
+  
+  Future<void> requestRedraw() async {
+      await rlib.requestMapRedraw(sessionId: sessionId);
+  }
   /// Get the current map viewport
   Future<MapViewport?> getViewport() async {
 

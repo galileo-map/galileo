@@ -5,7 +5,7 @@ use crate::utils::invoke_on_platform_main_thread;
 use anyhow::anyhow;
 use galileo::galileo_types;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 use parking_lot::Mutex;
 use parking_lot::{RwLock, RwLockReadGuard};
 use std::collections::HashMap;
@@ -132,7 +132,7 @@ impl MapSession {
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {
         // Render the map to wgpu texture
-
+        trace!("map session request redraw was called");
         let flctx = self.flutter_ctx.read();
         let flutter_ctx = flctx
             .as_ref()
