@@ -76,7 +76,7 @@ impl BundleStore {
         self.required_update.updated();
     }
 
-    pub(super) fn packed(&self) -> Vec<BundleToDraw> {
+    pub(super) fn packed(&self) -> Vec<BundleToDraw<'_>> {
         self.packed
             .values()
             .map(|v| BundleToDraw::with_opacity(&**v, 1.0))

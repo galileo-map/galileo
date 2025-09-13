@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
         .expect("cannot project extent");
     let center = extent.center();
 
-    let image_size = Size::new(512, 512);
+    let image_size = Size::new(400, 400);
 
     let width_resolution = extent.width() / image_size.width() as f64;
     let height_resolution = extent.height() / image_size.height() as f64;
