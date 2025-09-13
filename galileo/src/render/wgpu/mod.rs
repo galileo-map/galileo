@@ -18,7 +18,7 @@ use wgpu::{
     Origin3d, Queue, RenderPassDepthStencilAttachment, StoreOp, Surface, SurfaceConfiguration,
     SurfaceError, SurfaceTexture, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo,
     Texture, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-    TextureView, TextureViewDescriptor, WasmNotSendSync,
+    TextureView, TextureViewDescriptor, WasmNotSendSync, COPY_BYTES_PER_ROW_ALIGNMENT,
 };
 
 use super::render_bundle::screen_set::{RenderSetState, ScreenSetData};
@@ -543,8 +543,16 @@ impl WgpuRenderer {
             return Err(SurfaceError::Lost);
         };
 
-        let size = renderer_targets.render_target.size();
-        let buffer_size = (size.width() * size.height() * size_of::<u32>() as u32) as BufferAddress;
+        let render_target_size = renderer_targets.render_target.size();
+
+        const RGBA_BYTES_PER_PIXEL: u32 = 4;
+        let bytes_per_row = render_target_size.width() * RGBA_BYTES_PER_PIXEL;
+        let bytes_per_row_aligned = match bytes_per_row / COPY_BYTES_PER_ROW_ALIGNMENT {
+            0 => bytes_per_row,
+            v => (v + 1) * COPY_BYTES_PER_ROW_ALIGNMENT,
+        };
+
+        let buffer_size = (bytes_per_row_aligned * render_target_size.height()) as BufferAddress;
         let buffer_desc = BufferDescriptor {
             size: buffer_size,
             usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
@@ -569,13 +577,13 @@ impl WgpuRenderer {
                 buffer: &buffer,
                 layout: TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(size_of::<u32>() as u32 * size.width()),
-                    rows_per_image: Some(size.height()),
+                    bytes_per_row: Some(bytes_per_row_aligned),
+                    rows_per_image: Some(render_target_size.height()),
                 },
             },
             Extent3d {
-                width: size.width(),
-                height: size.height(),
+                width: render_target_size.width(),
+                height: render_target_size.height(),
                 depth_or_array_layers: 1,
             },
         );
@@ -609,7 +617,24 @@ impl WgpuRenderer {
         }
 
         let data = buffer_slice.get_mapped_range();
-        Ok(data.to_vec())
+        let mut pixels = vec![
+            0u8;
+            (render_target_size.width() * render_target_size.height() * RGBA_BYTES_PER_PIXEL)
+                as usize
+        ];
+
+        for row_index in 0..render_target_size.height() {
+            let first_byte_index_buf = (row_index * bytes_per_row_aligned) as usize;
+            let last_byte_index_buf = first_byte_index_buf + bytes_per_row as usize;
+
+            let first_byte_index_pix = (row_index * bytes_per_row) as usize;
+            let last_byte_index_pix = first_byte_index_pix + bytes_per_row as usize;
+
+            pixels[first_byte_index_pix..last_byte_index_pix]
+                .copy_from_slice(&data[first_byte_index_buf..last_byte_index_buf]);
+        }
+
+        Ok(pixels)
     }
 
     /// Renders the map to the given texture.
