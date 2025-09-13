@@ -1,6 +1,7 @@
 
 use galileo::galileo_types::cartesian::Size;
 use galileo::render::WgpuRenderer;
+use log::debug;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use galileo::Map;
@@ -36,8 +37,9 @@ pub struct WindowlessRenderer {
 }
 
 impl WindowlessRenderer {
-
     pub async fn new(size: Size<u32>) -> Result<Self, WindowlessRendererError> {
+        debug!("Initializing renderer with size {size:?}");
+
         if size.width() == 0 || size.height() == 0 {
             return Err(WindowlessRendererError::InvalidSize(
                 size.width(),
@@ -48,7 +50,7 @@ impl WindowlessRenderer {
             .await
             .expect("failed to create renderer");
 
-
+        debug!("Renderer initialized");
 
         Ok( Self {
             galileo_renderer: renderer,
@@ -68,7 +70,7 @@ impl WindowlessRenderer {
     }
 
     pub async fn render(&self, map: &Map) -> Vec<u8>{
-        
+        debug!("Redner is called for galileo map");
         self.galileo_renderer.render(&map).expect("failed to render the map");
     
         self.galileo_renderer.get_image()

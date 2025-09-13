@@ -75,6 +75,8 @@ pub fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
 pub fn mark_session_alive(session_id: SessionID) {
     if let Some(session) = SESSIONS.lock().get(&session_id) {
         session.mark_alive();
+        // request rendering of the map just to check that things get drawn after some time
+        TOKIO_RUNTIME.get().unwrap().block_on(session.redraw()).unwrap();
         debug!("Session {} marked as alive", session_id);
     }
 }

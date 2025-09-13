@@ -93,16 +93,24 @@ impl MapSession {
         });
         // set session as message callback for galileo
         {
+            #[derive(Clone)]
             struct _SessionWrapper(Arc<MapSession>);
 
             impl galileo::Messenger for _SessionWrapper {
                 fn request_redraw(&self) {
-                    TOKIO_RUNTIME.get().unwrap().block_on(self.0._draw_no_res())
+                    // this doesn't work
+                    // TOKIO_RUNTIME.get().unwrap().block_on(self.0._draw_no_res())
                 }
             }
 
+            let messenger = _SessionWrapper(session.clone());
+
             let mut map = map.lock();
-            map.set_messenger(Some(_SessionWrapper(session.clone())));
+            for layer in map.layers_mut().iter_mut() {
+                layer.set_messenger(Box::new(messenger.clone()));
+            }
+
+            map.set_messenger(Some(messenger));
         }
 
         {
@@ -140,7 +148,12 @@ impl MapSession {
 
         let pixels =  {
             let mut renderer = self.renderer.lock();
-            let map = self.map.lock();
+            let mut map = self.map.lock();
+            let new_view = map.view().with_size(renderer.size().cast()); 
+            map.set_view(new_view);
+
+            debug!("Rendering map size: {:?} to surface size: {:?}", map.view().size(), renderer.size());
+            debug!("Map view is: {:?}", map.view());
             map.load_layers();
             tokio::time::sleep(Duration::from_millis(1000)).await;
             renderer.render(&map).await
