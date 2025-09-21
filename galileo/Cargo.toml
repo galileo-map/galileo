@@ -18,6 +18,12 @@ geojson = ["dep:geojson", "galileo-types/geojson"]
 rustybuzz = ["dep:rustybuzz"]
 image = ["dep:image"]
 fontconfig-dlopen = ["font-kit/source-fontconfig-dlopen"]
+pmtiles = [
+    "dep:pmtiles",
+    "dep:flate2",
+    "dep:sled",
+    "pmtiles/reqwest-rustls-tls-native-roots",
+]
 
 # Used to provide some fixtures for doctests
 _tests = []
@@ -40,6 +46,9 @@ lyon = { workspace = true, features = ["serialization"] }
 nalgebra = { workspace = true }
 num-traits = { workspace = true }
 parking_lot = { workspace = true }
+pmtiles = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+sled = { version = "0.34", optional = true }
 quick_cache = { workspace = true }
 raw-window-handle = { workspace = true, optional = true }
 regex = { workspace = true }
@@ -123,6 +132,9 @@ winit = { workspace = true, features = ["android-native-activity"] }
 name = "render_to_file"
 required-features = ["geojson"]
 
+[[example]]
+name = "pmtiles"
+required-features = ["pmtiles"]
+
 [lints]
 workspace = true
-

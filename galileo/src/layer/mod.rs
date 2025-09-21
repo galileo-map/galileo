@@ -19,6 +19,14 @@ pub mod raster_tile_layer;
 pub(crate) mod tiles;
 pub mod vector_tile_layer;
 
+#[cfg(feature = "pmtiles")]
+pub mod pmtiles;
+#[cfg(feature = "pmtiles")]
+/// Optional module that provides a simple HTTP range request cache backend for PMTiles.
+///
+/// Enable the `pmtiles` feature to use it.
+pub mod pmtiles_http_cache;
+
 pub use feature_layer::{FeatureId, FeatureLayer};
 pub use raster_tile_layer::RasterTileLayer;
 pub use vector_tile_layer::VectorTileLayer;

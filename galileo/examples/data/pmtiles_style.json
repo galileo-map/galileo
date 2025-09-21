@@ -1,0 +1,207 @@
+{
+  "rules": [
+    {
+      "layer_name": "landuse",
+      "symbol": {
+        "polygon": {
+          "fill_color": "#f2efe9"
+        }
+      }
+    },
+    {
+      "layer_name": "landcover",
+      "symbol": {
+        "polygon": {
+          "fill_color": "#c1e3c4"
+        }
+      },
+      "properties": {
+        "class": "wood"
+      }
+    },
+    {
+      "layer_name": "landcover",
+      "symbol": {
+        "polygon": {
+          "fill_color": "#d8e8d8"
+        }
+      },
+      "properties": {
+        "class": "grass"
+      }
+    },
+    {
+      "layer_name": "water",
+      "symbol": {
+        "polygon": {
+          "fill_color": "#81c4ec"
+        }
+      }
+    },
+    {
+      "layer_name": "transportation",
+      "symbol": {
+        "line": {
+          "stroke_color": "#f7dad9",
+          "width": 1.0
+        }
+      },
+      "properties": {
+        "class": "service"
+      }
+    },
+    {
+      "layer_name": "transportation",
+      "symbol": {
+        "line": {
+          "stroke_color": "#f7c6a5",
+          "width": 1.2
+        }
+      },
+      "properties": {
+        "class": "tertiary"
+      }
+    },
+    {
+      "layer_name": "transportation",
+      "symbol": {
+        "line": {
+          "stroke_color": "#f9b784",
+          "width": 1.5
+        }
+      },
+      "properties": {
+        "class": "secondary"
+      }
+    },
+    {
+      "layer_name": "transportation",
+      "symbol": {
+        "line": {
+          "stroke_color": "#f39848",
+          "width": 2.0
+        }
+      },
+      "properties": {
+        "class": "primary"
+      }
+    },
+    {
+      "layer_name": "transportation",
+      "symbol": {
+        "line": {
+          "stroke_color": "#e57233",
+          "width": 2.5
+        }
+      },
+      "properties": {
+        "class": "trunk"
+      }
+    },
+    {
+      "layer_name": "transportation",
+      "symbol": {
+        "line": {
+          "stroke_color": "#d35426",
+          "width": 3.0
+        }
+      },
+      "properties": {
+        "class": "motorway"
+      }
+    },
+    {
+      "layer_name": "railway",
+      "symbol": {
+        "line": {
+          "stroke_color": "#aaaaaa",
+          "width": 1.0
+        }
+      }
+    },
+    {
+      "layer_name": "building",
+      "symbol": {
+        "polygon": {
+          "fill_color": "#e0d5c7"
+        }
+      }
+    },
+    {
+      "layer_name": "park",
+      "symbol": {
+        "polygon": {
+          "fill_color": "#d8e8c8"
+        }
+      }
+    },
+    {
+      "layer_name": "boundary",
+      "symbol": {
+        "line": {
+          "stroke_color": "#9e9e9e",
+          "width": 1.0
+        }
+      },
+      "properties": {
+        "admin_level": "2"
+      }
+    },
+    {
+      "layer_name": "boundary",
+      "symbol": {
+        "line": {
+          "stroke_color": "#cccccc",
+          "width": 0.8
+        }
+      },
+      "properties": {
+        "admin_level": "4"
+      }
+    },
+    {
+      "layer_name": "aerodrome_label",
+      "symbol": {
+        "point": {
+          "size": 3.0,
+          "color": "#0066cc"
+        }
+      }
+    },
+    {
+      "layer_name": "place",
+      "symbol": {
+        "label": {
+          "pattern": "{name:latin}",
+          "text_style": {
+            "font_family": ["Noto Sans"],
+            "font_size": 12,
+            "font_color": "#333333",
+            "weight": 500,
+            "outline_width": 2,
+            "outline_color": "#ffffff"
+          }
+        }
+      },
+      "properties": {
+        "rank": "1"
+      }
+    },
+    {
+      "layer_name": "water_name",
+      "symbol": {
+        "label": {
+          "pattern": "{name:latin}",
+          "text_style": {
+            "font_family": ["Noto Sans"],
+            "font_size": 10,
+            "font_color": "#3366cc",
+            "weight": 400,
+            "style": "Italic"
+          }
+        }
+      }
+    }
+  ],
+  "background": "#f8f5f0"
+}

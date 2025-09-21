@@ -15,6 +15,8 @@ use crate::layer::attribution::Attribution;
 use crate::layer::data_provider::{
     FileCacheController, FileCachePathModifier, PersistentCacheController, UrlSource,
 };
+#[cfg(feature = "pmtiles")]
+use crate::layer::pmtiles::PmtilesTileLoader;
 use crate::layer::Layer;
 use crate::tile_schema::TileIndex;
 use crate::{Color, Messenger, TileSchema};
@@ -113,6 +115,34 @@ impl VectorTileLayerBuilder {
             provider_type: ProviderType::Custom(provider),
             style: None,
             tile_schema: None,
+            messenger: None,
+            cache: CacheType::None,
+            offline_mode: false,
+            attribution: None,
+        }
+    }
+
+    #[cfg(feature = "pmtiles")]
+    /// Initializes a builder for a layer that loads tiles from a pmtiles file.
+    pub fn new_pmtiles<B, C>(loader: PmtilesTileLoader<B, C>, tile_schema: TileSchema) -> Self
+    where
+        B: pmtiles::AsyncBackend + Send + Sync + 'static,
+        C: pmtiles::DirectoryCache
+            + Send
+            + Sync
+            + maybe_sync::MaybeSend
+            + maybe_sync::MaybeSync
+            + 'static,
+    {
+        let provider = VectorTileProvider::new(
+            Arc::new(loader),
+            Arc::new(Self::create_processor(tile_schema.clone())),
+        );
+
+        Self {
+            provider_type: ProviderType::Custom(provider),
+            style: None,
+            tile_schema: Some(tile_schema),
             messenger: None,
             cache: CacheType::None,
             offline_mode: false,
