@@ -24,7 +24,7 @@ eframe = { workspace = true, optional = true, default-features = false, features
     "persistence",
 ] }
 env_logger = { workspace = true, optional = true }
-galileo = { workspace = true }
+galileo = { workspace = true, default-features = false, features = ["wgpu"] }
 log = { workspace = true }
 tokio = { workspace = true, optional = true }
 

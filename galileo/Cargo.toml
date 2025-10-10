@@ -12,12 +12,13 @@ readme = "../README.md"
 exclude = ["examples"]
 
 [features]
-default = ["wgpu", "serde", "winit", "_tests", "rustybuzz", "image"]
+default = ["wgpu", "serde", "winit", "_tests", "rustybuzz", "image", "reqwest-default-tls"]
 wgpu = ["dep:wgpu", "raw-window-handle"]
 geojson = ["dep:geojson", "galileo-types/geojson"]
 rustybuzz = ["dep:rustybuzz"]
 image = ["dep:image"]
 fontconfig-dlopen = ["font-kit/source-fontconfig-dlopen"]
+reqwest-default-tls = ["reqwest/default-tls"]
 
 # Used to provide some fixtures for doctests
 _tests = []
@@ -73,7 +74,7 @@ doctest = false
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 font-kit = { workspace = true }
 maybe-sync = { workspace = true, features = ["sync"] }
-reqwest = { workspace = true }
+reqwest = { workspace = true, default-features = false }
 tokio = { workspace = true, default-features = true, features = ["macros", "rt", "rt-multi-thread"] }
 wgpu = { workspace = true, default-features = true, optional = true }
 

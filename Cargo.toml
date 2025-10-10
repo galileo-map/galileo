@@ -54,7 +54,7 @@ font-kit = "0.14"
 font-query = { git = "https://github.com/Maximkaaa/font-query" }
 futures = "0.3"
 futures-intrusive = "0.5"
-galileo = { path = "galileo", version = "0.2.1" }
+galileo = { path = "galileo", version = "0.2.1", default-features = false }
 galileo-egui = { path = "galileo-egui", version = "0.2.1" }
 galileo-mvt = { path = "galileo-mvt", version = "0.2.1" }
 galileo-types = { path = "galileo-types", version = "0.2.1" }
@@ -78,7 +78,7 @@ prost-build = "0.12"
 quick_cache = "0.4"
 raw-window-handle = "0.6"
 regex = "1.11"
-reqwest = "0.11"
+reqwest = { version = "0.12", default-features = false }
 rustybuzz = "0.20"
 serde = "1"
 serde-wasm-bindgen = "0.6"
