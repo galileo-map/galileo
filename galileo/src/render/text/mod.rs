@@ -143,20 +143,15 @@ impl Default for FontWeight {
 }
 
 /// Font style.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FontStyle {
     /// Normal font.
+    #[default]
     Normal,
     /// Italic font.
     Italic,
     /// Oblique font.
     Oblique,
-}
-
-impl Default for FontStyle {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// Queryable properties of a font

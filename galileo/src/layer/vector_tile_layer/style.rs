@@ -79,9 +79,10 @@ pub struct StyleRule {
 /// Symbol of an object in a vector tile.
 ///
 /// An the object has incompatible type with the symbol, the object is not renderred.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum VectorTileSymbol {
     /// Do not render object.
+    #[default]
     None,
     /// Symbol for a point object.
     #[serde(rename = "point")]
@@ -95,12 +96,6 @@ pub enum VectorTileSymbol {
     /// Symbol for a point object that is renderred as a text label.
     #[serde(rename = "label")]
     Label(VectorTileLabelSymbol),
-}
-
-impl Default for VectorTileSymbol {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl VectorTileSymbol {
