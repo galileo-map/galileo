@@ -46,12 +46,14 @@ impl FlutterCtx {
 /// Internal map session that manages the Galileo map with rendering.
 pub struct MapSession {
     pub session_id: SessionID,
-    map: Arc<Mutex<galileo::Map>>,
+    pub map: Arc<Mutex<galileo::Map>>,
     renderer: Arc<Mutex<WindowlessRenderer>>,
     /// this is optional because we wanna drop this on the platform thread.
     flutter_ctx: RwLock<Option<FlutterCtx>>,
     pub engine_handle: i64,
     is_alive: AtomicBool,
+    pub controller: galileo::control::MapController,
+    is_first_render: AtomicBool,
 }
 
 // Ensure MapSession is Send + Sync for thread safety
@@ -90,6 +92,8 @@ impl MapSession {
             flutter_ctx: RwLock::new(Some(flutter_ctx)),
             engine_handle,
             is_alive: AtomicBool::new(true),
+            controller: galileo::control::MapController::default(),
+            is_first_render: AtomicBool::new(true),
         });
         // set session as message callback for galileo
         {
@@ -146,6 +150,8 @@ impl MapSession {
             .as_ref()
             .ok_or(anyhow!("flutter context not available"))?;
 
+        let is_first_render = self.is_first_render.swap(false, Ordering::Relaxed);
+
         let pixels =  {
             let mut renderer = self.renderer.lock();
             let mut map = self.map.lock();
@@ -155,7 +161,9 @@ impl MapSession {
             debug!("Rendering map size: {:?} to surface size: {:?}", map.view().size(), renderer.size());
             debug!("Map view is: {:?}", map.view());
             map.load_layers();
-            tokio::time::sleep(Duration::from_millis(1000)).await;
+            if is_first_render {
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+            }
             renderer.render(&map).await
         };
 

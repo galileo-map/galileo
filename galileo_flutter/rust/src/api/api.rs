@@ -4,6 +4,7 @@
 //! managing Galileo maps in Flutter applications with real texture rendering.
 
 use flutter_rust_bridge::frb;
+use galileo::control::UserEventHandler;
 use galileo::galileo_types::cartesian::Size;
 use galileo::galileo_types::geo::impls::GeoPoint2d;
 use galileo::galileo_types::geo::{GeoPoint, NewGeoPoint};
@@ -160,6 +161,14 @@ pub fn get_map_viewport(session_id: SessionID) -> Option<MapViewport>{
 }
 
 
-pub fn handle_event_for_session(session_id: SessionID, event: UserEvent){
+pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
+    let galileo_event = event.to_galileo();
+    
+    if let Some(session) = SESSIONS.lock().get(&session_id) {
+        let mut map = session.map.lock();
+        session.controller.handle(&galileo_event, &mut map);
+        drop(map);
 
+        TOKIO_RUNTIME.get().unwrap().block_on(session.redraw());
+    }
 }

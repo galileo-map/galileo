@@ -54,22 +54,22 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
   }
 
   void _onMapTap(double x, double y) {
-    setState(() {
-      statusMessage =
-          'Tapped at: (${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})';
-    });
+    // setState(() {
+    //   statusMessage =
+    //       'Tapped at: (${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)})';
+    // });
 
-    // Clear the message after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          statusMessage =
-              currentViewport != null
-                  ? "viewport: ${currentViewport}"
-                  : 'Map is ready';
-        });
-      }
-    });
+    // // Clear the message after 2 seconds
+    // Future.delayed(const Duration(seconds: 2), () {
+    //   if (mounted) {
+    //     setState(() {
+    //       statusMessage =
+    //           currentViewport != null
+    //               ? "viewport: ${currentViewport}"
+    //               : 'Map is ready';
+    //     });
+    //   }
+    // });
   }
 
   @override
