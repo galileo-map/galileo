@@ -11,7 +11,7 @@ use parking_lot::{RwLock, RwLockReadGuard};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -54,6 +54,7 @@ pub struct MapSession {
     is_alive: AtomicBool,
     pub controller: galileo::control::MapController,
     is_first_render: AtomicBool,
+    last_rendered_time: Mutex<Option<Instant>>,
 }
 
 // Ensure MapSession is Send + Sync for thread safety
@@ -94,6 +95,7 @@ impl MapSession {
             is_alive: AtomicBool::new(true),
             controller: galileo::control::MapController::default(),
             is_first_render: AtomicBool::new(true),
+            last_rendered_time: Mutex::new(None),
         });
         // set session as message callback for galileo
         {
@@ -102,8 +104,14 @@ impl MapSession {
 
             impl galileo::Messenger for _SessionWrapper {
                 fn request_redraw(&self) {
-                    // this doesn't work
-                    // TOKIO_RUNTIME.get().unwrap().block_on(self.0._draw_no_res())
+                    let session = self.0.clone();
+
+                    // spawn in a separate thread
+                    std::thread::spawn(move || {
+                        TOKIO_RUNTIME.get().unwrap().block_on(async move {
+                            session._draw_no_res().await;
+                        });
+                    });
                 }
             }
 
@@ -131,6 +139,28 @@ impl MapSession {
         self.is_alive.store(true, Ordering::SeqCst);
     }
 
+    /// Checks if we can render the map to avoid unnecessary re-renders.
+    pub fn can_render(&self) -> bool {
+        const SKIP_RENDER_INTERVAL: Duration = Duration::from_millis(16); // ~60fps
+        
+        let mut last_time = self.last_rendered_time.lock();
+        match *last_time {
+            None => {
+                *last_time = Some(Instant::now());
+                true
+            }
+            Some(last) => {
+                let elapsed = last.elapsed();
+                if elapsed >= SKIP_RENDER_INTERVAL {
+                    *last_time = Some(Instant::now());
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
     pub fn get_flutter_texture_id(&self) -> Option<i64> {
         Some(self.flutter_ctx.read().as_ref()?.texture_id)
     }
@@ -152,7 +182,7 @@ impl MapSession {
 
         let is_first_render = self.is_first_render.swap(false, Ordering::Relaxed);
 
-        let pixels =  {
+        let pixels = {
             let mut renderer = self.renderer.lock();
             let mut map = self.map.lock();
             let new_view = map.view().with_size(renderer.size().cast()); 
@@ -166,8 +196,6 @@ impl MapSession {
             }
             renderer.render(&map).await
         };
-
-
 
         // Update texture provider
         flutter_ctx.payload_holder.update_pixels(pixels);

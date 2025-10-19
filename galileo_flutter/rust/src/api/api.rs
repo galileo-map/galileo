@@ -77,7 +77,14 @@ pub fn mark_session_alive(session_id: SessionID) {
     if let Some(session) = SESSIONS.lock().get(&session_id) {
         session.mark_alive();
         // request rendering of the map just to check that things get drawn after some time
-        TOKIO_RUNTIME.get().unwrap().block_on(session.redraw()).unwrap();
+
+        if session.can_render() {
+            let session_clone = session.clone();
+
+            std::thread::spawn(move || {
+                TOKIO_RUNTIME.get().unwrap().block_on(session_clone.redraw()).unwrap();
+            });
+        }
         debug!("Session {} marked as alive", session_id);
     }
 }
@@ -164,11 +171,20 @@ pub fn get_map_viewport(session_id: SessionID) -> Option<MapViewport>{
 pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     let galileo_event = event.to_galileo();
     
-    if let Some(session) = SESSIONS.lock().get(&session_id) {
+    let session = {
+        let sessions = SESSIONS.lock();
+        sessions.get(&session_id).cloned()
+    };
+    
+    if let Some(session) = session {
         let mut map = session.map.lock();
         session.controller.handle(&galileo_event, &mut map);
         drop(map);
 
-        TOKIO_RUNTIME.get().unwrap().block_on(session.redraw());
-    }
+    //     if session.can_render() {
+    //         std::thread::spawn(move || {
+    //             TOKIO_RUNTIME.get().unwrap().block_on(session.redraw()).unwrap();
+    //         });
+    //     }
+    // }
 }
