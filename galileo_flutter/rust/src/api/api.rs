@@ -76,15 +76,6 @@ pub fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
 pub fn mark_session_alive(session_id: SessionID) {
     if let Some(session) = SESSIONS.lock().get(&session_id) {
         session.mark_alive();
-        // request rendering of the map just to check that things get drawn after some time
-
-        if session.can_render() {
-            let session_clone = session.clone();
-
-            std::thread::spawn(move || {
-                TOKIO_RUNTIME.get().unwrap().block_on(session_clone.redraw()).unwrap();
-            });
-        }
         debug!("Session {} marked as alive", session_id);
     }
 }
@@ -178,13 +169,7 @@ pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     
     if let Some(session) = session {
         let mut map = session.map.lock();
-        session.controller.handle(&galileo_event, &mut map);
+            session.controller.handle(&galileo_event, &mut map);
         drop(map);
-
-    //     if session.can_render() {
-    //         std::thread::spawn(move || {
-    //             TOKIO_RUNTIME.get().unwrap().block_on(session.redraw()).unwrap();
-    //         });
-    //     }
-    // }
+    }
 }
