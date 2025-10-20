@@ -423,7 +423,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: 0, dy: -20),
+            const Vector2(dx: 0, dy: 20),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -441,7 +441,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: 0, dy: 20),
+            const Vector2(dx: 0, dy: -20),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -459,7 +459,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: -20, dy: 0),
+            const Vector2(dx: 20, dy: 0),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -477,7 +477,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: 20, dy: 0),
+            const Vector2(dx: -20, dy: 0),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -494,7 +494,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           // Zoom in
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final userEvent = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
+          final userEvent = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
           widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.minus:
@@ -502,7 +502,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           // Zoom out
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final userEvent = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
+          final userEvent = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
           widget.controller.handleEvent(userEvent);
           break;
       }
@@ -516,7 +516,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: 0, dy: -20),
+            const Vector2(dx: 0, dy: 20),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -534,7 +534,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: 0, dy: 20),
+            const Vector2(dx: 0, dy: -20),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -552,7 +552,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: -20, dy: 0),
+            const Vector2(dx: 20, dy: 0),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -570,7 +570,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           final centerY = widget.controller.size.height / 2;
           final userEvent = UserEvent.drag(
             MouseButton.left,
-            const Vector2(dx: 20, dy: 0),
+            const Vector2(dx: -20, dy: 0),
             MouseEvent(
               screenPointerPosition: Point2(x: centerX, y: centerY),
               buttons: const MouseButtonsState(
@@ -587,7 +587,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           // Zoom in
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final userEvent = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
+          final userEvent = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
           widget.controller.handleEvent(userEvent);
           break;
         case LogicalKeyboardKey.minus:
@@ -595,7 +595,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           // Zoom out
           final centerX = widget.controller.size.width / 2;
           final centerY = widget.controller.size.height / 2;
-          final userEvent = UserEvent.zoom(0.9, Point2(x: centerX, y: centerY));
+          final userEvent = UserEvent.zoom(1.1, Point2(x: centerX, y: centerY));
           widget.controller.handleEvent(userEvent);
           break;
       }
