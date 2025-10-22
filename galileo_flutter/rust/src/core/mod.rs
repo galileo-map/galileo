@@ -29,7 +29,7 @@ lazy_static::lazy_static! {
     pub static ref IS_INITIALIZED: AtomicBool = AtomicBool::new(false);
     pub static ref WORKER_GUARD: std::sync::Mutex<Option<tracing_appender::non_blocking::WorkerGuard>> = std::sync::Mutex::new(None);
     pub static ref TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::from(
-        tokio::runtime::Builder::new_current_thread()
+        tokio::runtime::Builder::new_multi_thread()
             .worker_threads(4)
             .enable_all()
             .build().unwrap()

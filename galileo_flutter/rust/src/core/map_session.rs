@@ -72,7 +72,7 @@ impl MapSession {
 
         // Create OSM layer for background
         let mut osm = RasterTileLayerBuilder::new_osm()
-            .with_file_cache_checked(".tile_cache")
+            // .with_file_cache_checked(".tile_cache")
             .build()
             .expect("failed to create layer");
 
@@ -185,8 +185,14 @@ impl MapSession {
         let pixels = {
             let mut renderer = self.renderer.lock();
             let mut map = self.map.lock();
-            let new_view = map.view().with_size(renderer.size().cast()); 
-            map.set_view(new_view);
+            
+            map.animate();
+            
+            // check size changed
+            let renderer_size = renderer.size().cast();
+            if map.view().size() != renderer_size {
+                map.set_size(renderer_size);
+            }
 
             debug!("Rendering map size: {:?} to surface size: {:?}", map.view().size(), renderer.size());
             debug!("Map view is: {:?}", map.view());
