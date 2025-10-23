@@ -169,7 +169,6 @@ pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     
     if let Some(session) = session {
         let mut map = session.map.lock();
-            session.controller.handle(&galileo_event, &mut map);
-        drop(map);
+        session.controller.handle(&galileo_event, &mut map);
     }
 }

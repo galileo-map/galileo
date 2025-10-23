@@ -173,6 +173,13 @@ impl MapSession {
 
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {
+        // throttle to ~60fps
+        // TODO: still need to test this
+        if !self.can_render() {
+            info!("redraw skipped");
+            return Ok(());
+        }
+        
         // Render the map to wgpu texture
         trace!("map session request redraw was called");
         let flctx = self.flutter_ctx.read();

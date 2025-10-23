@@ -211,9 +211,6 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           widget.controller.handleEvent(panEvent);
         }
       },
-      // onScaleEnd: (details) {
-      //   // No specific end event needed for zoom
-      // },
       child: mapContent,
     );
 
@@ -230,20 +227,6 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         // Handle button press for primary pointer
         final mouseEvent = UserEvent.buttonPressed(
           MouseButton.left, // Default to left for touch
-          MouseEvent(
-            screenPointerPosition: Point2(x: event.localPosition.dx, y: event.localPosition.dy),
-            buttons: const MouseButtonsState(
-              left: MouseButtonState.pressed,
-              middle: MouseButtonState.released,
-              right: MouseButtonState.released,
-            ),
-          ),
-        );
-        widget.controller.handleEvent(mouseEvent);
-      },
-      onPointerMove: (event) {
-        // Handle single pointer move
-        final mouseEvent = UserEvent.pointerMoved(
           MouseEvent(
             screenPointerPosition: Point2(x: event.localPosition.dx, y: event.localPosition.dy),
             buttons: const MouseButtonsState(

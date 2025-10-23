@@ -124,6 +124,9 @@ impl Map {
             start_time: SystemTime::now() - FRAME_DURATION,
             duration,
         });
+        // trigger the first frame of animation
+        // TODO: still need to test this
+        self.redraw();
     }
 
     /// Set the size of the map.
