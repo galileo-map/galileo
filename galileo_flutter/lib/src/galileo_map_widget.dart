@@ -121,6 +121,11 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
   late FocusNode _focusNode;
   Set<LogicalKeyboardKey> _pressedKeys = {};
 
+  // Coordinate scaling factors
+  double _scaleX = 1.0;
+  double _scaleY = 1.0;
+  Size? _lastConstraintSize;
+
   @override
   void initState() {
     super.initState();
@@ -181,6 +186,15 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     );
   }
 
+  void _updateScaleFactors(Size constraintSize) {
+    if (_lastConstraintSize != constraintSize) {
+      _lastConstraintSize = constraintSize;
+
+      _scaleX = widget.controller.size.width / constraintSize.width;
+      _scaleY = widget.controller.size.height / constraintSize.height;
+    }
+  }
+
   Widget _buildMapWidget(int textureId) {
     Widget mapContent = Stack(
       children: [
@@ -193,77 +207,32 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
 
     // Wrap with gesture detection
     mapContent = GestureDetector(
-      onTap: () {
-        // Request focus for keyboard events
-        if (widget.enableKeyboard) {
-          _focusNode.requestFocus();
-        }
-      },
-      onTapDown: (details) {
-        final localPosition = details.localPosition;
-        widget.onTap?.call(localPosition.dx, localPosition.dy);
-
-        // Handle button press event
-        final event = UserEvent.buttonPressed(
-          MouseButton.left,
-          MouseEvent(
-            screenPointerPosition: Point2(
-              x: localPosition.dx,
-              y: localPosition.dy,
-            ),
-            buttons: const MouseButtonsState(
-              left: MouseButtonState.pressed,
-              middle: MouseButtonState.released,
-              right: MouseButtonState.released,
-            ),
-          ),
-        );
-        widget.controller.handleEvent(event);
-      },
-      onTapUp: (details) {
-        final localPosition = details.localPosition;
-
-        // Handle button release event
-        final event = UserEvent.buttonReleased(
-          MouseButton.left,
-          MouseEvent(
-            screenPointerPosition: Point2(
-              x: localPosition.dx,
-              y: localPosition.dy,
-            ),
-            buttons: const MouseButtonsState(
-              left: MouseButtonState.released,
-              middle: MouseButtonState.released,
-              right: MouseButtonState.released,
-            ),
-          ),
-        );
-        widget.controller.handleEvent(event);
-      },
-      onScaleStart: (details) {
-        // Zoom event at focal point
-        final event = UserEvent.zoom(
-          1.0,
-          Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
-        );
-        widget.controller.handleEvent(event);
-      },
+      // onScaleStart: (details) {
+      //   // Zoom event at focal point
+      //   final event = UserEvent.zoom(
+      //     1.0,
+      //     Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
+      //   );
+      //   widget.controller.handleEvent(event);
+      // },
       onScaleUpdate: (details) {
         // Handle zoom
-        final zoomEvent = UserEvent.zoom(
-          details.scale,
-          Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
-        );
-        widget.controller.handleEvent(zoomEvent);
+        // final zoomEvent = UserEvent.zoom(
+        //   details.scale,
+        //   Point2(x: details.focalPoint.dx, y: details.focalPoint.dy),
+        // );
+        // widget.controller.handleEvent(zoomEvent);
 
         // Handle pan
-        if (details.focalPointDelta.dx != 0.0 ||
-            details.focalPointDelta.dy != 0.0) {
+        final scaledDeltaX = details.focalPointDelta.dx * _scaleX;
+        final scaledDeltaY = details.focalPointDelta.dy * _scaleY;
+
+        if (details.focalPointDelta.dx.abs() > 0.1 || details.focalPointDelta.dy.abs() > 0.1) {
           final panEvent = UserEvent.drag(
             MouseButton.left,
             Vector2(
-              dx: details.focalPointDelta.dx,
-              dy: details.focalPointDelta.dy,
+              dx: scaledDeltaX,
+              dy: scaledDeltaY,
             ),
             MouseEvent(
               screenPointerPosition: Point2(
@@ -280,23 +249,25 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           widget.controller.handleEvent(panEvent);
         }
       },
-      onScaleEnd: (details) {
-        // No specific end event needed for zoom
-      },
+      // onScaleEnd: (details) {
+      //   // No specific end event needed for zoom
+      // },
       child: mapContent,
     );
 
     // Wrap with low-level pointer events for more control
     mapContent = Listener(
       onPointerDown: (event) {
-        // Handle button press for primary pointer
-        final button =
-            event.kind == PointerDeviceKind.mouse
-                ? MouseButton.left
-                : MouseButton.left; // Default to left for touch
+        // Request focus for keyboard events
+        if (widget.enableKeyboard){
+          _focusNode.requestFocus();
+        }
 
+        widget.onTap?.call(event.localPosition.dx, event.localPosition.dy);
+
+        // Handle button press for primary pointer
         final mouseEvent = UserEvent.buttonPressed(
-          button,
+          MouseButton.left, // Default to left for touch
           MouseEvent(
             screenPointerPosition: Point2(
               x: event.localPosition.dx,
@@ -312,7 +283,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         widget.controller.handleEvent(mouseEvent);
       },
       onPointerMove: (event) {
-        // Handle pointer move
+        // Handle single pointer move
         final mouseEvent = UserEvent.pointerMoved(
           MouseEvent(
             screenPointerPosition: Point2(
@@ -330,13 +301,8 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
       },
       onPointerUp: (event) {
         // Handle button release for primary pointer
-        final button =
-            event.kind == PointerDeviceKind.mouse
-                ? MouseButton.left
-                : MouseButton.left; // Default to left for touch
-
         final mouseEvent = UserEvent.buttonReleased(
-          button,
+          MouseButton.left, // Default to left for touch
           MouseEvent(
             screenPointerPosition: Point2(
               x: event.localPosition.dx,
@@ -407,7 +373,13 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
       );
     }
 
-    return mapContent;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        _updateScaleFactors(size);
+        return mapContent;
+      },
+    );
   }
 
   bool _handleKeyEvent(KeyEvent event) {
