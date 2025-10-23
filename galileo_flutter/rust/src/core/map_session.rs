@@ -5,12 +5,12 @@ use crate::utils::invoke_on_platform_main_thread;
 use anyhow::anyhow;
 use galileo::galileo_types;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use log::{debug, error, info, trace};
+use log::{debug, error, info};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::api::dart_types::{MapInitConfig, MapSize, MapViewport};
 use crate::core::flutter::pixel_texture::{
@@ -50,7 +50,6 @@ pub struct MapSession {
     is_alive: AtomicBool,
     pub controller: galileo::control::MapController,
     is_first_render: AtomicBool,
-    last_rendered_time: Mutex<Option<Instant>>,
 }
 
 // Ensure MapSession is Send + Sync for thread safety
@@ -91,7 +90,6 @@ impl MapSession {
             is_alive: AtomicBool::new(true),
             controller: galileo::control::MapController::default(),
             is_first_render: AtomicBool::new(true),
-            last_rendered_time: Mutex::new(None),
         });
         // set session as message callback for galileo
         {
@@ -102,7 +100,6 @@ impl MapSession {
                 fn request_redraw(&self) {
                     let session = self.0.clone();
 
-                    // spawn in a separate thread
                     std::thread::spawn(move || {
                         TOKIO_RUNTIME.get().unwrap().block_on(async move {
                             session._draw_no_res().await;
@@ -135,28 +132,6 @@ impl MapSession {
         self.is_alive.store(true, Ordering::SeqCst);
     }
 
-    /// Checks if we can render the map to avoid unnecessary re-renders.
-    pub fn can_render(&self) -> bool {
-        const SKIP_RENDER_INTERVAL: Duration = Duration::from_millis(16); // ~60fps
-
-        let mut last_time = self.last_rendered_time.lock();
-        match *last_time {
-            None => {
-                *last_time = Some(Instant::now());
-                true
-            }
-            Some(last) => {
-                let elapsed = last.elapsed();
-                if elapsed >= SKIP_RENDER_INTERVAL {
-                    *last_time = Some(Instant::now());
-                    true
-                } else {
-                    false
-                }
-            }
-        }
-    }
-
     pub fn get_flutter_texture_id(&self) -> Option<i64> {
         Some(self.flutter_ctx.read().as_ref()?.texture_id)
     }
@@ -169,15 +144,6 @@ impl MapSession {
 
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {
-        // throttle to ~60fps
-        // TODO: still need to test this
-        if !self.can_render() {
-            info!("redraw skipped");
-            return Ok(());
-        }
-
-        // Render the map to wgpu texture
-        trace!("map session request redraw was called");
         let flctx = self.flutter_ctx.read();
         let flutter_ctx = flctx
             .as_ref()
