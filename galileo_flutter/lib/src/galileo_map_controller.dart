@@ -67,10 +67,7 @@ class GalileoMapController {
       final handle = await EngineContext.instance.getEngineHandle();
 
       // Create the map instance
-      final newSessionResp = await rlib.createNewMapSession(
-        engineHandle: handle,
-        config: config,
-      );
+      final newSessionResp = await rlib.createNewMapSession(engineHandle: handle, config: config);
 
       // Create state broadcast
       final stateBroadcast = rx.BehaviorSubject<GalileoMapState>.seeded(
@@ -137,19 +134,17 @@ class GalileoMapController {
       }
     }
   }
-  
-  Future<void> requestRedraw() async {
-      await rlib.requestMapRedraw(sessionId: sessionId);
-  }
-  /// Get the current map viewport
-  Future<MapViewport?> getViewport() async {
 
+  Future<void> requestRedraw() async {
+    await rlib.requestMapRedraw(sessionId: sessionId);
   }
+
+  /// Get the current map viewport
+  Future<MapViewport?> getViewport() async {}
 
   /// Set the map viewport
   Future<void> setViewport(MapViewport viewport) async {
     if (!_running) return;
-
   }
 
   /// Add a layer to the map
@@ -168,8 +163,6 @@ class GalileoMapController {
   /// Resize the map
   Future<void> resize(MapSize newSize) async {
     if (!_running) return;
-
-
   }
 
   /// Dispose of the controller and clean up resources

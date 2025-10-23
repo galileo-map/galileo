@@ -5,21 +5,13 @@
 
 use flutter_rust_bridge::frb;
 use galileo::control::UserEventHandler;
-use galileo::galileo_types::cartesian::Size;
-use galileo::galileo_types::geo::impls::GeoPoint2d;
-use galileo::galileo_types::geo::{GeoPoint, NewGeoPoint};
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use galileo::{Map, MapBuilder};
-use irondash_texture::{BoxedPixelData, PayloadProvider, SimplePixelData, Texture};
-use log::{debug, error, info, warn};
-use std::collections::HashMap;
+use log::{debug, info};
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
 
 use crate::api::dart_types::*;
 use crate::core::map_session::{MapSession, SessionID};
-use crate::core::{IS_INITIALIZED, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME, init_logger};
+use crate::core::{init_logger, IS_INITIALIZED, SESSIONS, TOKIO_RUNTIME};
 
 #[frb(init)]
 pub fn init_galileo_flutter() {
@@ -40,28 +32,27 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
 }
 
 #[derive(Clone, Debug)]
-pub struct CreateNewSessionResponse{
+pub struct CreateNewSessionResponse {
     pub session_id: u32,
-    pub texture_id: i64
+    pub texture_id: i64,
 }
 
-pub fn create_new_map_session(engine_handle: i64, config: MapInitConfig) -> anyhow::Result<CreateNewSessionResponse>{
+pub fn create_new_map_session(
+    engine_handle: i64,
+    config: MapInitConfig,
+) -> anyhow::Result<CreateNewSessionResponse> {
     info!("create_new_map_session was called");
 
-    let session = TOKIO_RUNTIME.get().unwrap().block_on(
-        MapSession::new(engine_handle, config)
-    )?;
+    let session = TOKIO_RUNTIME
+        .get()
+        .unwrap()
+        .block_on(MapSession::new(engine_handle, config))?;
     info!("New map session created with ID {}", session.session_id);
-    Ok(
-        CreateNewSessionResponse{
-            session_id: session.session_id,
-            texture_id: session.get_flutter_texture_id().unwrap()
-        }
-    )
-
-
+    Ok(CreateNewSessionResponse {
+        session_id: session.session_id,
+        texture_id: session.get_flutter_texture_id().unwrap(),
+    })
 }
-
 
 /// Triggers a map update and re-render.
 pub fn request_map_redraw(session_id: SessionID) -> anyhow::Result<()> {
@@ -112,9 +103,7 @@ pub fn destroy_all_engine_sessions(engine_id: i64) {
 pub fn destroy_session(session_id: SessionID) {
     debug!("destroy_session called for session {}", session_id);
     if let Some(session) = SESSIONS.lock().remove(&session_id) {
-        TOKIO_RUNTIME.get().unwrap().block_on(
-            session.terminate()
-        );
+        TOKIO_RUNTIME.get().unwrap().block_on(session.terminate());
 
         info!("Session {} destroyed with full cleanup", session_id);
         ()
@@ -150,23 +139,21 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
     Ok(())
 }
 
-pub fn get_map_viewport(session_id: SessionID) -> Option<MapViewport>{
-    if let Some(session) = SESSIONS.lock().get(&session_id){
-            return session.get_viewport();
-
-        }
-        None
+pub fn get_map_viewport(session_id: SessionID) -> Option<MapViewport> {
+    if let Some(session) = SESSIONS.lock().get(&session_id) {
+        return session.get_viewport();
+    }
+    None
 }
-
 
 pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     let galileo_event = event.to_galileo();
-    
+
     let session = {
         let sessions = SESSIONS.lock();
         sessions.get(&session_id).cloned()
     };
-    
+
     if let Some(session) = session {
         let mut map = session.map.lock();
         session.controller.handle(&galileo_event, &mut map);

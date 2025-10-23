@@ -5,18 +5,14 @@ use crate::utils::invoke_on_platform_main_thread;
 use anyhow::anyhow;
 use galileo::galileo_types;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, trace};
 use parking_lot::Mutex;
-use parking_lot::{RwLock, RwLockReadGuard};
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use parking_lot::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::runtime::Runtime;
-use tokio::sync::mpsc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-use crate::api::dart_types::{LayerConfig, MapInitConfig, MapSize, MapViewport};
+use crate::api::dart_types::{MapInitConfig, MapSize, MapViewport};
 use crate::core::flutter::pixel_texture::{
     create_flutter_texture, PixelPayloadHolder, SharedPixelPayloadHolder,
     SharedSendablePixelTexture,
@@ -142,7 +138,7 @@ impl MapSession {
     /// Checks if we can render the map to avoid unnecessary re-renders.
     pub fn can_render(&self) -> bool {
         const SKIP_RENDER_INTERVAL: Duration = Duration::from_millis(16); // ~60fps
-        
+
         let mut last_time = self.last_rendered_time.lock();
         match *last_time {
             None => {
@@ -179,7 +175,7 @@ impl MapSession {
             info!("redraw skipped");
             return Ok(());
         }
-        
+
         // Render the map to wgpu texture
         trace!("map session request redraw was called");
         let flctx = self.flutter_ctx.read();
@@ -192,16 +188,20 @@ impl MapSession {
         let pixels = {
             let mut renderer = self.renderer.lock();
             let mut map = self.map.lock();
-            
+
             map.animate();
-            
+
             // check size changed
             let renderer_size = renderer.size().cast();
             if map.view().size() != renderer_size {
                 map.set_size(renderer_size);
             }
 
-            debug!("Rendering map size: {:?} to surface size: {:?}", map.view().size(), renderer.size());
+            debug!(
+                "Rendering map size: {:?} to surface size: {:?}",
+                map.view().size(),
+                renderer.size()
+            );
             debug!("Map view is: {:?}", map.view());
             map.load_layers();
             if is_first_render {
