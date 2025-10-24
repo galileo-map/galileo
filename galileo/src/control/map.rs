@@ -307,11 +307,16 @@ impl UserEventHandler for MapController {
             },
             UserEvent::Scroll(delta, mouse_event) => {
                 let zoom = self.get_zoom(*delta);
+                let resolution = map.target_view().resolution();
                 let target = map
                     .target_view()
                     .zoom(zoom, mouse_event.screen_pointer_position);
                 let adjusted = self.adjust_target_view(target);
-                map.animate_to(adjusted, self.config.zoom_duration);
+
+                // ignore scroll at zoom limits
+                if (adjusted.resolution() - resolution).abs() > 1e-6 {
+                    map.animate_to(adjusted, self.config.zoom_duration);
+                }
 
                 EventPropagation::Stop
             }
