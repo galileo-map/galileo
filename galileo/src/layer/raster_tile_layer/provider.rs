@@ -4,8 +4,7 @@ use bytes::Bytes;
 use galileo_types::cartesian::Rect;
 use maybe_sync::{MaybeSend, MaybeSync};
 use parking_lot::Mutex;
-use quick_cache::sync::Cache;
-use quick_cache::GuardResult;
+use quick_cache::sync::{Cache, GuardResult};
 
 use crate::decoded_image::DecodedImage;
 use crate::error::GalileoError;

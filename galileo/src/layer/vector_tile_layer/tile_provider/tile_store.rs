@@ -74,10 +74,10 @@ impl Default for TileStore {
 struct TileWeighter;
 
 impl Weighter<(TileIndex, VtStyleId), TileStoreEntry> for TileWeighter {
-    fn weight(&self, _key: &(TileIndex, VtStyleId), val: &TileStoreEntry) -> u32 {
+    fn weight(&self, _key: &(TileIndex, VtStyleId), val: &TileStoreEntry) -> u64 {
         match &val.prepared_tile {
-            PreparedTileState::Loaded(v) => v.world_set.approx_buffer_size() as u32,
-            _ => AVG_TILE_SIZE as u32,
+            PreparedTileState::Loaded(v) => v.world_set.approx_buffer_size() as u64,
+            _ => AVG_TILE_SIZE as u64,
         }
     }
 }
