@@ -60,7 +60,8 @@ impl WindowlessRenderer {
 
     /// Resizes the renderer and recreates the target texture.
     pub fn resize(&mut self, new_size: Size<u32>) -> Result<(), WindowlessRendererError> {
-        todo!("todo resize");
+        self.galileo_renderer.resize(new_size);
+        self.size = new_size;
         Ok(())
     }
 

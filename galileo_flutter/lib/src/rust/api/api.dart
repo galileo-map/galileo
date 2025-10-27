@@ -59,6 +59,14 @@ Future<void> handleEventForSession({
   event: event,
 );
 
+Future<void> resizeSession({
+  required int sessionId,
+  required MapSize newSize,
+}) => RustLib.instance.api.crateApiApiResizeSession(
+  sessionId: sessionId,
+  newSize: newSize,
+);
+
 class CreateNewSessionResponse {
   final int sessionId;
   final PlatformInt64 textureId;

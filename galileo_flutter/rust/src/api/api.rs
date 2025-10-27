@@ -159,3 +159,15 @@ pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
         session.controller.handle(&galileo_event, &mut map);
     }
 }
+
+pub fn resize_session(session_id: SessionID, new_size: MapSize) -> anyhow::Result<()> {
+    let sessions = SESSIONS.lock();
+    let session = sessions
+        .get(&session_id)
+        .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
+    
+    TOKIO_RUNTIME
+        .get()
+        .unwrap()
+        .block_on(session.resize(new_size))
+}

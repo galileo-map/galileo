@@ -163,6 +163,14 @@ class GalileoMapController {
   /// Resize the map
   Future<void> resize(MapSize newSize) async {
     if (!_running) return;
+
+    try {
+      await rlib.resizeSession(sessionId: sessionId, newSize: newSize);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error resizing map: $e');
+      }
+    }
   }
 
   /// Dispose of the controller and clean up resources

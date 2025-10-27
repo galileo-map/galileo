@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -317408976;
+  int get rustContentHash => -1423957431;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -110,6 +110,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiApiMarkSessionAlive({required int sessionId});
 
   Future<void> crateApiApiRequestMapRedraw({required int sessionId});
+
+  Future<void> crateApiApiResizeSession({
+    required int sessionId,
+    required MapSize newSize,
+  });
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -464,6 +469,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: ["sessionId"],
       );
 
+  @override
+  Future<void> crateApiApiResizeSession({
+    required int sessionId,
+    required MapSize newSize,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(sessionId, serializer);
+          sse_encode_box_autoadd_map_size(newSize, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiApiResizeSessionConstMeta,
+        argValues: [sessionId, newSize],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiApiResizeSessionConstMeta => const TaskConstMeta(
+    debugName: "resize_session",
+    argNames: ["sessionId", "newSize"],
+  );
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -492,6 +531,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MapInitConfig dco_decode_box_autoadd_map_init_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_map_init_config(raw);
+  }
+
+  @protected
+  MapSize dco_decode_box_autoadd_map_size(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_map_size(raw);
   }
 
   @protected
@@ -828,6 +873,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_map_init_config(deserializer));
+  }
+
+  @protected
+  MapSize sse_decode_box_autoadd_map_size(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_map_size(deserializer));
   }
 
   @protected
@@ -1173,6 +1224,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_map_init_config(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_map_size(MapSize self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_map_size(self, serializer);
   }
 
   @protected

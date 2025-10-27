@@ -115,6 +115,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
   double _scaleY = 1.0;
   Size? _lastConstraintSize;
   Offset? _lastPointerPosition;
+  MapSize? _lastMapSize;
 
   @override
   void initState() {
@@ -200,6 +201,9 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           _focusNode.requestFocus();
         }
         widget.onTap?.call(event.localPosition.dx, event.localPosition.dy);
+        final dx = event.localPosition.dx * _scaleX;
+        final dy = event.localPosition.dy * _scaleY;
+        _lastPointerPosition = Offset(dx, dy);
 
         // Handle button press for primary pointer
         final mouseEvent = UserEvent.buttonPressed(
@@ -216,6 +220,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         widget.controller.handleEvent(mouseEvent);
       },
       onPointerUp: (event) {
+        _lastPointerPosition = null;
         // Handle button release for primary pointer
         final mouseEvent = UserEvent.buttonReleased(
           MouseButton.left, // Default to left for touch
@@ -231,6 +236,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         widget.controller.handleEvent(mouseEvent);
       },
       onPointerCancel: (event) {
+        _lastPointerPosition = null;
         // Release button on cancel
         final mouseEvent = UserEvent.buttonReleased(
           MouseButton.left,
@@ -311,6 +317,17 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final newMapSize = MapSize(width: size.width.toInt(), height: size.height.toInt());
+        
+        if (_lastMapSize == null || 
+            _lastMapSize!.width != newMapSize.width || 
+            _lastMapSize!.height != newMapSize.height) {
+          _lastMapSize = newMapSize;
+          // resize in next frame
+          // TODO: test this
+          Future.microtask(() => widget.controller.resize(newMapSize));
+        }
+        
         _updateScaleFactors(size);
         return mapContent;
       },
@@ -527,7 +544,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
       case GalileoMapState.ready:
         final textureId = widget.controller.textureId;
         if (textureId != null) {
-          Future.microtask(() async => await widget.controller.requestRedraw());
+          // Future.microtask(() async => await widget.controller.requestRedraw());
           return _buildMapWidget(textureId);
         } else {
           return _buildLoadingWidget('Preparing texture...');

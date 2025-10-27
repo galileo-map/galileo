@@ -198,11 +198,11 @@ impl MapSession {
             "Resizing session {} to {}x{}",
             self.session_id, new_size.width, new_size.height
         );
+        let size = galileo_types::cartesian::Size::new(new_size.width, new_size.height);
 
         // Resize renderer
         {
             let mut renderer = self.renderer.lock();
-            let size = galileo_types::cartesian::Size::new(new_size.width, new_size.height);
             renderer
                 .resize(size)
                 .map_err(|e| anyhow::anyhow!("Failed to resize renderer: {}", e))?;
@@ -210,7 +210,8 @@ impl MapSession {
 
         // Resize pixel buffer
         {
-            todo!("resize")
+            let mut map = self.map.lock();
+            map.set_size(size.cast::<f64>());
         }
         let flctx = self.flutter_ctx.read();
         let flutter_ctx = flctx
@@ -225,9 +226,11 @@ impl MapSession {
 
         Ok(())
     }
+
     async fn _draw_no_res(&self) {
         self.redraw().await.inspect_err(|err| error!("{err}"));
     }
+
     pub async fn terminate(self: Arc<Self>) {
         self.is_alive.store(false, Ordering::SeqCst);
         let max_retries = 10;

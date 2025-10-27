@@ -37,6 +37,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MapInitConfig dco_decode_box_autoadd_map_init_config(dynamic raw);
 
   @protected
+  MapSize dco_decode_box_autoadd_map_size(dynamic raw);
+
+  @protected
   MapViewport dco_decode_box_autoadd_map_viewport(dynamic raw);
 
   @protected
@@ -141,6 +144,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MapInitConfig sse_decode_box_autoadd_map_init_config(
     SseDeserializer deserializer,
   );
+
+  @protected
+  MapSize sse_decode_box_autoadd_map_size(SseDeserializer deserializer);
 
   @protected
   MapViewport sse_decode_box_autoadd_map_viewport(SseDeserializer deserializer);
@@ -260,6 +266,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     MapInitConfig self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_map_size(MapSize self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_map_viewport(
