@@ -616,6 +616,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           urlTemplate: dco_decode_String(raw[1]),
           attribution: dco_decode_opt_String(raw[2]),
         );
+      case 2:
+        return LayerConfig_VectorTiles(
+          urlTemplate: dco_decode_String(raw[1]),
+          styleJson: dco_decode_String(raw[2]),
+          attribution: dco_decode_opt_String(raw[3]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -963,6 +969,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_attribution = sse_decode_opt_String(deserializer);
         return LayerConfig_RasterTiles(
           urlTemplate: var_urlTemplate,
+          attribution: var_attribution,
+        );
+      case 2:
+        var var_urlTemplate = sse_decode_String(deserializer);
+        var var_styleJson = sse_decode_String(deserializer);
+        var var_attribution = sse_decode_opt_String(deserializer);
+        return LayerConfig_VectorTiles(
+          urlTemplate: var_urlTemplate,
+          styleJson: var_styleJson,
           attribution: var_attribution,
         );
       default:
@@ -1317,6 +1332,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ):
         sse_encode_i_32(1, serializer);
         sse_encode_String(urlTemplate, serializer);
+        sse_encode_opt_String(attribution, serializer);
+      case LayerConfig_VectorTiles(
+        urlTemplate: final urlTemplate,
+        styleJson: final styleJson,
+        attribution: final attribution,
+      ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(urlTemplate, serializer);
+        sse_encode_String(styleJson, serializer);
         sse_encode_opt_String(attribution, serializer);
     }
   }

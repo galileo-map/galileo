@@ -1,4 +1,4 @@
-use crate::core::galileo_ref::create_galileo_map;
+use crate::core::galileo_ref::create_galileo_map_v2;
 pub use crate::core::pixel_buffer::PixelBuffer;
 use crate::core::{WindowlessRenderer, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME};
 use crate::utils::invoke_on_platform_main_thread;
@@ -66,17 +66,18 @@ impl MapSession {
         let renderer = Arc::new(Mutex::new(renderer));
 
         // Create OSM layer for background
-        let mut osm = RasterTileLayerBuilder::new_osm()
-            // .with_file_cache_checked(".tile_cache")
-            .build()
-            .expect("failed to create layer");
+        // let mut osm = RasterTileLayerBuilder::new_osm()
+        //     // .with_file_cache_checked(".tile_cache")
+        //     .build()
+        //     .expect("failed to create layer");
 
-        // If we don't set fade in duration to 0, when the image is first drawn, all tiles will
-        // be transparent.
-        osm.set_fade_in_duration(Duration::default());
+        // // If we don't set fade in duration to 0, when the image is first drawn, all tiles will
+        // // be transparent.
+        // osm.set_fade_in_duration(Duration::default());
         let size = config.map_size;
 
-        let map = create_galileo_map(&config, osm)?;
+        // let map = create_galileo_map(&config, osm)?;
+        let map = create_galileo_map_v2(&config)?;
         let map = Arc::new(Mutex::new(map));
 
         let flutter_ctx = FlutterCtx::new(engine_handle, size)?;

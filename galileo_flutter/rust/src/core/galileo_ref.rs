@@ -21,3 +21,11 @@ pub fn create_galileo_map(
         .build();
     Ok(map)
 }
+
+pub fn create_galileo_map_v2(config: &MapInitConfig) -> anyhow::Result<Map> {
+    let map = MapBuilder::default()
+        .with_latlon(config.latlon.0, config.latlon.1)
+        .with_z_level(config.zoom_level)
+        .build();
+    Ok(map)
+}

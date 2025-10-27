@@ -22,32 +22,49 @@ mixin _$LayerConfig {
     required TResult Function() osm,
     required TResult Function(String urlTemplate, String? attribution)
     rasterTiles,
+    required TResult Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )
+    vectorTiles,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? osm,
     TResult? Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult? Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )?
+    vectorTiles,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? osm,
     TResult Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult Function(String urlTemplate, String styleJson, String? attribution)?
+    vectorTiles,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(LayerConfig_Osm value) osm,
     required TResult Function(LayerConfig_RasterTiles value) rasterTiles,
+    required TResult Function(LayerConfig_VectorTiles value) vectorTiles,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(LayerConfig_Osm value)? osm,
     TResult? Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult? Function(LayerConfig_VectorTiles value)? vectorTiles,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(LayerConfig_Osm value)? osm,
     TResult Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult Function(LayerConfig_VectorTiles value)? vectorTiles,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
 }
@@ -120,6 +137,12 @@ class _$LayerConfig_OsmImpl extends LayerConfig_Osm {
     required TResult Function() osm,
     required TResult Function(String urlTemplate, String? attribution)
     rasterTiles,
+    required TResult Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )
+    vectorTiles,
   }) {
     return osm();
   }
@@ -129,6 +152,12 @@ class _$LayerConfig_OsmImpl extends LayerConfig_Osm {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? osm,
     TResult? Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult? Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )?
+    vectorTiles,
   }) {
     return osm?.call();
   }
@@ -138,6 +167,8 @@ class _$LayerConfig_OsmImpl extends LayerConfig_Osm {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? osm,
     TResult Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult Function(String urlTemplate, String styleJson, String? attribution)?
+    vectorTiles,
     required TResult orElse(),
   }) {
     if (osm != null) {
@@ -151,6 +182,7 @@ class _$LayerConfig_OsmImpl extends LayerConfig_Osm {
   TResult map<TResult extends Object?>({
     required TResult Function(LayerConfig_Osm value) osm,
     required TResult Function(LayerConfig_RasterTiles value) rasterTiles,
+    required TResult Function(LayerConfig_VectorTiles value) vectorTiles,
   }) {
     return osm(this);
   }
@@ -160,6 +192,7 @@ class _$LayerConfig_OsmImpl extends LayerConfig_Osm {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(LayerConfig_Osm value)? osm,
     TResult? Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult? Function(LayerConfig_VectorTiles value)? vectorTiles,
   }) {
     return osm?.call(this);
   }
@@ -169,6 +202,7 @@ class _$LayerConfig_OsmImpl extends LayerConfig_Osm {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(LayerConfig_Osm value)? osm,
     TResult Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult Function(LayerConfig_VectorTiles value)? vectorTiles,
     required TResult orElse(),
   }) {
     if (osm != null) {
@@ -272,6 +306,12 @@ class _$LayerConfig_RasterTilesImpl extends LayerConfig_RasterTiles {
     required TResult Function() osm,
     required TResult Function(String urlTemplate, String? attribution)
     rasterTiles,
+    required TResult Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )
+    vectorTiles,
   }) {
     return rasterTiles(urlTemplate, attribution);
   }
@@ -281,6 +321,12 @@ class _$LayerConfig_RasterTilesImpl extends LayerConfig_RasterTiles {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? osm,
     TResult? Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult? Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )?
+    vectorTiles,
   }) {
     return rasterTiles?.call(urlTemplate, attribution);
   }
@@ -290,6 +336,8 @@ class _$LayerConfig_RasterTilesImpl extends LayerConfig_RasterTiles {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? osm,
     TResult Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult Function(String urlTemplate, String styleJson, String? attribution)?
+    vectorTiles,
     required TResult orElse(),
   }) {
     if (rasterTiles != null) {
@@ -303,6 +351,7 @@ class _$LayerConfig_RasterTilesImpl extends LayerConfig_RasterTiles {
   TResult map<TResult extends Object?>({
     required TResult Function(LayerConfig_Osm value) osm,
     required TResult Function(LayerConfig_RasterTiles value) rasterTiles,
+    required TResult Function(LayerConfig_VectorTiles value) vectorTiles,
   }) {
     return rasterTiles(this);
   }
@@ -312,6 +361,7 @@ class _$LayerConfig_RasterTilesImpl extends LayerConfig_RasterTiles {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(LayerConfig_Osm value)? osm,
     TResult? Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult? Function(LayerConfig_VectorTiles value)? vectorTiles,
   }) {
     return rasterTiles?.call(this);
   }
@@ -321,6 +371,7 @@ class _$LayerConfig_RasterTilesImpl extends LayerConfig_RasterTiles {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(LayerConfig_Osm value)? osm,
     TResult Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult Function(LayerConfig_VectorTiles value)? vectorTiles,
     required TResult orElse(),
   }) {
     if (rasterTiles != null) {
@@ -344,6 +395,204 @@ abstract class LayerConfig_RasterTiles extends LayerConfig {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$LayerConfig_RasterTilesImplCopyWith<_$LayerConfig_RasterTilesImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$LayerConfig_VectorTilesImplCopyWith<$Res> {
+  factory _$$LayerConfig_VectorTilesImplCopyWith(
+    _$LayerConfig_VectorTilesImpl value,
+    $Res Function(_$LayerConfig_VectorTilesImpl) then,
+  ) = __$$LayerConfig_VectorTilesImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String urlTemplate, String styleJson, String? attribution});
+}
+
+/// @nodoc
+class __$$LayerConfig_VectorTilesImplCopyWithImpl<$Res>
+    extends _$LayerConfigCopyWithImpl<$Res, _$LayerConfig_VectorTilesImpl>
+    implements _$$LayerConfig_VectorTilesImplCopyWith<$Res> {
+  __$$LayerConfig_VectorTilesImplCopyWithImpl(
+    _$LayerConfig_VectorTilesImpl _value,
+    $Res Function(_$LayerConfig_VectorTilesImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of LayerConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? urlTemplate = null,
+    Object? styleJson = null,
+    Object? attribution = freezed,
+  }) {
+    return _then(
+      _$LayerConfig_VectorTilesImpl(
+        urlTemplate:
+            null == urlTemplate
+                ? _value.urlTemplate
+                : urlTemplate // ignore: cast_nullable_to_non_nullable
+                    as String,
+        styleJson:
+            null == styleJson
+                ? _value.styleJson
+                : styleJson // ignore: cast_nullable_to_non_nullable
+                    as String,
+        attribution:
+            freezed == attribution
+                ? _value.attribution
+                : attribution // ignore: cast_nullable_to_non_nullable
+                    as String?,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$LayerConfig_VectorTilesImpl extends LayerConfig_VectorTiles {
+  const _$LayerConfig_VectorTilesImpl({
+    required this.urlTemplate,
+    required this.styleJson,
+    this.attribution,
+  }) : super._();
+
+  @override
+  final String urlTemplate;
+  @override
+  final String styleJson;
+  @override
+  final String? attribution;
+
+  @override
+  String toString() {
+    return 'LayerConfig.vectorTiles(urlTemplate: $urlTemplate, styleJson: $styleJson, attribution: $attribution)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$LayerConfig_VectorTilesImpl &&
+            (identical(other.urlTemplate, urlTemplate) ||
+                other.urlTemplate == urlTemplate) &&
+            (identical(other.styleJson, styleJson) ||
+                other.styleJson == styleJson) &&
+            (identical(other.attribution, attribution) ||
+                other.attribution == attribution));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, urlTemplate, styleJson, attribution);
+
+  /// Create a copy of LayerConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$LayerConfig_VectorTilesImplCopyWith<_$LayerConfig_VectorTilesImpl>
+  get copyWith => __$$LayerConfig_VectorTilesImplCopyWithImpl<
+    _$LayerConfig_VectorTilesImpl
+  >(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() osm,
+    required TResult Function(String urlTemplate, String? attribution)
+    rasterTiles,
+    required TResult Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )
+    vectorTiles,
+  }) {
+    return vectorTiles(urlTemplate, styleJson, attribution);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? osm,
+    TResult? Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult? Function(
+      String urlTemplate,
+      String styleJson,
+      String? attribution,
+    )?
+    vectorTiles,
+  }) {
+    return vectorTiles?.call(urlTemplate, styleJson, attribution);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? osm,
+    TResult Function(String urlTemplate, String? attribution)? rasterTiles,
+    TResult Function(String urlTemplate, String styleJson, String? attribution)?
+    vectorTiles,
+    required TResult orElse(),
+  }) {
+    if (vectorTiles != null) {
+      return vectorTiles(urlTemplate, styleJson, attribution);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(LayerConfig_Osm value) osm,
+    required TResult Function(LayerConfig_RasterTiles value) rasterTiles,
+    required TResult Function(LayerConfig_VectorTiles value) vectorTiles,
+  }) {
+    return vectorTiles(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(LayerConfig_Osm value)? osm,
+    TResult? Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult? Function(LayerConfig_VectorTiles value)? vectorTiles,
+  }) {
+    return vectorTiles?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(LayerConfig_Osm value)? osm,
+    TResult Function(LayerConfig_RasterTiles value)? rasterTiles,
+    TResult Function(LayerConfig_VectorTiles value)? vectorTiles,
+    required TResult orElse(),
+  }) {
+    if (vectorTiles != null) {
+      return vectorTiles(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class LayerConfig_VectorTiles extends LayerConfig {
+  const factory LayerConfig_VectorTiles({
+    required final String urlTemplate,
+    required final String styleJson,
+    final String? attribution,
+  }) = _$LayerConfig_VectorTilesImpl;
+  const LayerConfig_VectorTiles._() : super._();
+
+  String get urlTemplate;
+  String get styleJson;
+  String? get attribution;
+
+  /// Create a copy of LayerConfig
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$LayerConfig_VectorTilesImplCopyWith<_$LayerConfig_VectorTilesImpl>
   get copyWith => throw _privateConstructorUsedError;
 }
 

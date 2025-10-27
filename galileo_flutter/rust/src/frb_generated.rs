@@ -551,6 +551,16 @@ impl SseDecode for crate::api::dart_types::LayerConfig {
                     attribution: var_attribution,
                 };
             }
+            2 => {
+                let mut var_urlTemplate = <String>::sse_decode(deserializer);
+                let mut var_styleJson = <String>::sse_decode(deserializer);
+                let mut var_attribution = <Option<String>>::sse_decode(deserializer);
+                return crate::api::dart_types::LayerConfig::VectorTiles {
+                    url_template: var_urlTemplate,
+                    style_json: var_styleJson,
+                    attribution: var_attribution,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -905,6 +915,17 @@ impl flutter_rust_bridge::IntoDart for crate::api::dart_types::LayerConfig {
             } => [
                 1.into_dart(),
                 url_template.into_into_dart().into_dart(),
+                attribution.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::dart_types::LayerConfig::VectorTiles {
+                url_template,
+                style_json,
+                attribution,
+            } => [
+                2.into_dart(),
+                url_template.into_into_dart().into_dart(),
+                style_json.into_into_dart().into_dart(),
                 attribution.into_into_dart().into_dart(),
             ]
             .into_dart(),
@@ -1272,6 +1293,16 @@ impl SseEncode for crate::api::dart_types::LayerConfig {
             } => {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(url_template, serializer);
+                <Option<String>>::sse_encode(attribution, serializer);
+            }
+            crate::api::dart_types::LayerConfig::VectorTiles {
+                url_template,
+                style_json,
+                attribution,
+            } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(url_template, serializer);
+                <String>::sse_encode(style_json, serializer);
                 <Option<String>>::sse_encode(attribution, serializer);
             }
             _ => {

@@ -78,6 +78,11 @@ pub enum LayerConfig {
         url_template: String,
         attribution: Option<String>,
     },
+    VectorTiles {
+        url_template: String,
+        style_json: String,
+        attribution: Option<String>,
+    }
 }
 
 // Manual type definitions for Dart-friendly versions

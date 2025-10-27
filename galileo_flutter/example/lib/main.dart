@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:galileo_flutter/galileo_flutter.dart';
 
@@ -44,7 +45,29 @@ class GalileoMapPage extends StatefulWidget {
 
 class _GalileoMapPageState extends State<GalileoMapPage> {
   MapViewport? currentViewport;
-  String statusMessage = 'Map is ready';
+  String statusMessage = 'Loading...';
+  String? _vectorTileStyle;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVectorTileStyle();
+  }
+
+  Future<void> _loadVectorTileStyle() async {
+    try {
+      final style = await rootBundle.loadString("assets/vt_style.json");
+      setState(() {
+        _vectorTileStyle = style;
+        statusMessage = 'Map is ready';
+      });
+    } catch (e) {
+      debugPrint('Error loading vector tile style: $e');
+      setState(() {
+        statusMessage = 'Error loading style: $e';
+      });
+    }
+  }
 
   void _onViewportChanged(MapViewport viewport) {
     setState(() {
@@ -108,11 +131,17 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-              child: GalileoMapWidget.fromConfig(
-                size: const MapSize(width: 800, height: 600),
-                layers: const [
-                  LayerConfig.osm(), // OpenStreetMap layer
-                ],
+              child: _vectorTileStyle == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : GalileoMapWidget.fromConfig(
+                      size: const MapSize(width: 800, height: 600),
+                      layers: [
+                        // const LayerConfig.osm(),
+                        LayerConfig.vectorTiles(
+                          urlTemplate: 'https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf?key=PZ3FHCeFcKn9AF7iL6SO',
+                          styleJson: _vectorTileStyle!
+                        ),
+                      ],
                 config: MapInitConfig(
                   backgroundColor: (0.1, 0.1, 0, 0.5),
                   enableMultisampling: true,

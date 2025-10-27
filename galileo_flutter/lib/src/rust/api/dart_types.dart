@@ -24,6 +24,11 @@ sealed class LayerConfig with _$LayerConfig {
     required String urlTemplate,
     String? attribution,
   }) = LayerConfig_RasterTiles;
+  const factory LayerConfig.vectorTiles({
+    required String urlTemplate,
+    required String styleJson,
+    String? attribution,
+  }) = LayerConfig_VectorTiles;
 }
 
 class MapInitConfig {

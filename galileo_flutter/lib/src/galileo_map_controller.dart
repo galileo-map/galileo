@@ -86,6 +86,15 @@ class GalileoMapController {
       controller._textureId = newSessionResp.textureId;
       controller._running = true;
 
+      for (final layer in layers) {
+        await rlib.addSessionLayer(
+          sessionId: controller.sessionId,
+          layerConfig: layer,
+        );
+      }
+
+      await rlib.requestMapRedraw(sessionId: controller.sessionId);
+
       // Start session keep-alive task
       controller._startKeepAliveTask();
 

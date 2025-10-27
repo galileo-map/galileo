@@ -7,6 +7,7 @@ import '../frb_generated.dart';
 import 'dart_types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `create_url_source`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Initialize the Galileo Flutter plugin with FFI pointer for irondash
