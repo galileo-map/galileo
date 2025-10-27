@@ -110,10 +110,6 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
   late FocusNode _focusNode;
   Set<LogicalKeyboardKey> _pressedKeys = {};
 
-  // Coordinate scaling factors
-  double _scaleX = 1.0;
-  double _scaleY = 1.0;
-  Size? _lastConstraintSize;
   Offset? _lastPointerPosition;
   MapSize? _lastMapSize;
 
@@ -173,15 +169,6 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     );
   }
 
-  void _updateScaleFactors(Size constraintSize) {
-    if (_lastConstraintSize != constraintSize) {
-      _lastConstraintSize = constraintSize;
-
-      _scaleX = widget.controller.size.width / constraintSize.width;
-      _scaleY = widget.controller.size.height / constraintSize.height;
-    }
-  }
-
   Widget _buildMapWidget(int textureId) {
     Widget mapContent = Stack(
       children: [
@@ -201,9 +188,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           _focusNode.requestFocus();
         }
         widget.onTap?.call(event.localPosition.dx, event.localPosition.dy);
-        final dx = event.localPosition.dx * _scaleX;
-        final dy = event.localPosition.dy * _scaleY;
-        _lastPointerPosition = Offset(dx, dy);
+        _lastPointerPosition = event.localPosition;
 
         // Handle button press for primary pointer
         final mouseEvent = UserEvent.buttonPressed(
@@ -254,16 +239,11 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
       onPointerSignal: (event) {
         if (event is PointerScrollEvent) {
           // Handle scroll as zoom event
-          final mapX = event.localPosition.dx * _scaleX;
-          final mapY = event.localPosition.dy * _scaleY;
-          log('scroll: $mapX, $mapY');
-          log("scroll: ${event.scrollDelta.dy}");
-
           final zoomFactor = event.scrollDelta.dy > 0 ? -1.0 : 1.0;
           final scrollEvent = UserEvent.scroll(
             zoomFactor,
             MouseEvent(
-              screenPointerPosition: Point2(x: mapX, y: mapY),
+              screenPointerPosition: Point2(x: event.localPosition.dx, y: event.localPosition.dy),
               buttons: const MouseButtonsState(
                 left: MouseButtonState.released,
                 middle: MouseButtonState.released,
@@ -279,19 +259,17 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           return;
         }
 
-        final dx = event.localPosition.dx * _scaleX;
-        final dy = event.localPosition.dy * _scaleY;
-        final scaledPosition = Offset(dx, dy);
+        final currentPosition = event.localPosition;
 
         if (_lastPointerPosition case final lastPosition?) {
-          final delta = scaledPosition - lastPosition;
+          final delta = currentPosition - lastPosition;
 
           if (delta.dx.abs() > 0.1 || delta.dy.abs() > 0.1) {
             final panEvent = UserEvent.drag(
               MouseButton.left,
               Vector2(dx: delta.dx, dy: delta.dy),
               MouseEvent(
-                screenPointerPosition: Point2(x: dx, y: dy),
+                screenPointerPosition: Point2(x: currentPosition.dx, y: currentPosition.dy),
                 buttons: const MouseButtonsState(
                   left: MouseButtonState.pressed,
                   middle: MouseButtonState.released,
@@ -303,7 +281,7 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           }
         }
 
-        _lastPointerPosition = scaledPosition;
+        _lastPointerPosition = currentPosition;
       },
 
       child: mapContent,
@@ -328,7 +306,6 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
           Future.microtask(() => widget.controller.resize(newMapSize));
         }
         
-        _updateScaleFactors(size);
         return mapContent;
       },
     );
