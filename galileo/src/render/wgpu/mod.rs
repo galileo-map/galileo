@@ -599,7 +599,10 @@ impl WgpuRenderer {
             }
         });
 
-        if let Err(err) = self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }) {
+        if let Err(err) = self.device.poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: None,
+        }) {
             log::error!("polling device failed: {err:?}");
         }
 
