@@ -46,9 +46,11 @@ impl WindowlessRenderer {
                 size.height(),
             ));
         }
-        let renderer = WgpuRenderer::new_with_texture_rt(size.clone())
+        let mut renderer = WgpuRenderer::new_with_texture_rt(size.clone())
             .await
             .expect("failed to create renderer");
+        
+        renderer.set_horizon_options(None);
 
         debug!("Renderer initialized");
 
