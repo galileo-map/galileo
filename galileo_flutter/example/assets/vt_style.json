@@ -203,7 +203,11 @@
                     "pattern": "{name:en}",
                     "text_style": {
                         "font_family": [
-                            "Hack"
+                            "Arial",
+                            "Helvetica",
+                            "Segoe UI",
+                            "Calibri",
+                            "sans-serif"
                         ],
                         "font_size": 18,
                         "weight": 700,

@@ -8,8 +8,10 @@ use galileo::control::UserEventHandler;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::layer::vector_tile_layer::style::VectorTileStyle;
+use galileo::render::text::text_service::TextService;
+use galileo::render::text::RustybuzzRasterizer;
 use log::{debug, info};
-use std::sync::atomic::Ordering;
+use std::sync::{atomic::Ordering};
 
 use crate::api::dart_types::*;
 use crate::core::map_session::{MapSession, SessionID};
@@ -29,9 +31,18 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
     // Initialize irondash FFI
     irondash_dart_ffi::irondash_init_ffi(ffi_ptr as *mut std::ffi::c_void);
     init_logger();
+    initialize_font_service();
     info!("Galileo Flutter plugin initialized with FFI and texture support");
     IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
+
+fn initialize_font_service() {
+    let rasterizer: RustybuzzRasterizer = RustybuzzRasterizer::default();
+    let service: &'static TextService = TextService::initialize(rasterizer);
+    // TODO: support custom fonts
+    service.load_fonts("C:/Windows/Fonts");
+}
+
 
 #[derive(Clone, Debug)]
 pub struct CreateNewSessionResponse {
@@ -158,8 +169,8 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             
             let mut builder = VectorTileLayerBuilder::new_rest(create_url_source(url_template))
                 .with_style(style)
-                .with_tile_schema(galileo::TileSchema::web(18));
-                // .with_file_cache_checked(".tile_cache");
+                .with_tile_schema(galileo::TileSchema::web(18))
+                .with_file_cache_checked(".tile_cache");
             
             if let Some(attr) = attribution {
                 builder = builder.with_attribution(attr, "".to_string());
