@@ -85,7 +85,7 @@ serde-wasm-bindgen = "0.6"
 serde_bytes = "0.11"
 serde_json = "1"
 strfmt = "0.2"
-thiserror = "1"
+thiserror = "2"
 tokio = { version = "1.48", default-features = false }
 tokio-test = "0.4"
 # Fix the version of uuid to prevent build breaking
