@@ -36,7 +36,7 @@ ahash = "0.8"
 anyhow = "1"
 approx = "0.5"
 async-trait = "0.1"
-base64 = "0.21"
+base64 = "0.22"
 bincode = "2.0.0-rc.3"
 bitcode = "0.6"
 bytemuck = "1.14"
@@ -58,23 +58,23 @@ galileo = { path = "galileo", version = "0.2.1", default-features = false }
 galileo-egui = { path = "galileo-egui", version = "0.2.1" }
 galileo-mvt = { path = "galileo-mvt", version = "0.2.1" }
 galileo-types = { path = "galileo-types", version = "0.2.1" }
-geodesy = "0.13"
+geodesy = "0.14"
 geojson = "0.24"
-geozero = { version = "0.13", default-features = false }
+geozero = { version = "0.14", default-features = false }
 geo-types = "0.7"
 getrandom = "0.3"
 image = { version = "0.24", default-features = false }
 insta = "1.41"
 js-sys = "0.3"
-las = "0.8"
+las = "0.9"
 log = "0.4"
 lyon = "1"
 maybe-sync = "0.1"
-nalgebra = "0.32"
+nalgebra = "0.34"
 num-traits = "0.2"
 parking_lot = "0.12"
-prost = "0.12"
-prost-build = "0.12"
+prost = "0.14"
+prost-build = "0.14"
 quick_cache = "0.4"
 raw-window-handle = "0.6"
 regex = "1.11"
@@ -86,10 +86,10 @@ serde_bytes = "0.11"
 serde_json = "1"
 strfmt = "0.2"
 thiserror = "1"
-tokio = { version = "1.45", default-features = false }
+tokio = { version = "1.48", default-features = false }
 tokio-test = "0.4"
 # Fix the version of uuid to prevent build breaking
-uuid = "1.17"
+uuid = "1.18"
 wasm-bindgen = "0.2"
 wasm-bindgen-derive = "0.2"
 wasm-bindgen-futures = "0.4"
