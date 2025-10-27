@@ -63,7 +63,7 @@ geojson = "0.24"
 geozero = { version = "0.14", default-features = false }
 geo-types = "0.7"
 getrandom = "0.3"
-image = { version = "0.24", default-features = false }
+image = { version = "0.25", default-features = false }
 insta = "1.41"
 js-sys = "0.3"
 las = "0.9"

@@ -67,7 +67,7 @@ impl ImagePointSymbol {
     pub fn from_path(path: &str, offset: Vector2<f32>, scale: f32) -> Result<Self, GalileoError> {
         use galileo_types::cartesian::Size;
 
-        let image = image::io::Reader::open(path)?
+        let image = image::ImageReader::open(path)?
             .decode()
             .map_err(|_| GalileoError::ImageDecode)?;
 
