@@ -5,6 +5,7 @@
 
 use flutter_rust_bridge::frb;
 use galileo::control::UserEventHandler;
+use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::layer::vector_tile_layer::style::VectorTileStyle;
@@ -136,10 +137,13 @@ fn create_url_source(url_template: String) -> impl Fn(&galileo::tile_schema::Til
 
 /// Adds a layer to a session
 pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> anyhow::Result<()> {
-    let sessions = SESSIONS.lock();
-    let session = sessions
-        .get(&session_id)
-        .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?;
+    let session = {
+        let sessions = SESSIONS.lock();
+        sessions
+            .get(&session_id)
+            .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))?
+            .clone()
+    };
 
     match layer_config {
         LayerConfig::Osm => {
@@ -168,9 +172,9 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
                 .map_err(|e| anyhow::anyhow!("Failed to parse vector tile style: {}", e))?;
             
             let mut builder = VectorTileLayerBuilder::new_rest(create_url_source(url_template))
-                .with_style(style)
-                .with_tile_schema(galileo::TileSchema::web(18))
-                .with_file_cache_checked(".tile_cache");
+            .with_style(style)
+            .with_tile_schema(galileo::TileSchema::web(18))
+            .with_file_cache_modifier_checked(".tile_cache", Box::new(remove_parameters_modifier));
             
             if let Some(attr) = attribution {
                 builder = builder.with_attribution(attr, "".to_string());
