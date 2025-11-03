@@ -2,6 +2,7 @@
 
 use bytes::Bytes;
 use galileo_mvt::MvtTile;
+use log::info;
 use maybe_sync::{MaybeSend, MaybeSync};
 
 use crate::error::GalileoError;
@@ -50,6 +51,7 @@ impl WebVtLoader {
 
     async fn load_raw(&self, url: &str) -> Result<Bytes, TileLoadError> {
         if let Some(data) = self.cache.as_ref().and_then(|cache| cache.get(url)) {
+            info!("Cache hit for url {url}");
             log::trace!("Cache hit for url {url}");
             return Ok(data);
         }

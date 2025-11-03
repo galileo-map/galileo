@@ -32,7 +32,7 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
     // Initialize irondash FFI
     irondash_dart_ffi::irondash_init_ffi(ffi_ptr as *mut std::ffi::c_void);
     init_logger();
-    initialize_font_service();
+    // initialize_font_service();
     info!("Galileo Flutter plugin initialized with FFI and texture support");
     IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
@@ -173,7 +173,7 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             
             let mut builder = VectorTileLayerBuilder::new_rest(create_url_source(url_template))
             .with_style(style)
-            .with_tile_schema(galileo::TileSchema::web(18))
+            .with_tile_schema(galileo::TileSchema::test_schema())
             .with_file_cache_modifier_checked(".tile_cache", Box::new(remove_parameters_modifier));
             
             if let Some(attr) = attribution {

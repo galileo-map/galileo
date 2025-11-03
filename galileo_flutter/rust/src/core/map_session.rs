@@ -55,6 +55,21 @@ pub struct MapSession {
 // Ensure MapSession is Send + Sync for thread safety
 unsafe impl Send for MapSession {}
 unsafe impl Sync for MapSession {}
+
+#[derive(Clone)]
+struct SessionMessenger(Arc<MapSession>);
+
+impl galileo::Messenger for SessionMessenger {
+    fn request_redraw(&self) {
+        let session = self.0.clone();
+        std::thread::spawn(move || {
+            TOKIO_RUNTIME.get().unwrap().block_on(async move {
+                session._draw_no_res().await;
+            });
+        });
+    }
+}
+
 impl MapSession {
     pub async fn new(engine_handle: i64, config: MapInitConfig) -> anyhow::Result<Arc<MapSession>> {
         let session_id = create_new_session();
@@ -94,22 +109,7 @@ impl MapSession {
         });
         // set session as message callback for galileo
         {
-            #[derive(Clone)]
-            struct _SessionWrapper(Arc<MapSession>);
-
-            impl galileo::Messenger for _SessionWrapper {
-                fn request_redraw(&self) {
-                    let session = self.0.clone();
-
-                    std::thread::spawn(move || {
-                        TOKIO_RUNTIME.get().unwrap().block_on(async move {
-                            session._draw_no_res().await;
-                        });
-                    });
-                }
-            }
-
-            let messenger = _SessionWrapper(session.clone());
+            let messenger = SessionMessenger(session.clone());
 
             let mut map = map.lock();
             for layer in map.layers_mut().iter_mut() {
@@ -137,7 +137,12 @@ impl MapSession {
         Some(self.flutter_ctx.read().as_ref()?.texture_id)
     }
 
-    pub fn add_layer(&self, layer: impl galileo::layer::Layer + 'static) {
+    pub fn add_layer(&self, mut layer: impl galileo::layer::Layer + 'static) {
+        if let Some(session) = SESSIONS.lock().get(&self.session_id).cloned() {
+            let messenger: SessionMessenger = SessionMessenger(session);
+            layer.set_messenger(Box::new(messenger));
+        }
+
         let mut map = self.map.lock();
         map.layers_mut().push(layer);
         map.redraw();
