@@ -4,10 +4,9 @@ use crate::core::{WindowlessRenderer, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME};
 use crate::utils::invoke_on_platform_main_thread;
 use anyhow::anyhow;
 use galileo::galileo_types;
-use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use log::{debug, error, info};
-use parking_lot::Mutex;
 use parking_lot::RwLock;
+use tokio::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -62,11 +61,11 @@ struct SessionMessenger(Arc<MapSession>);
 impl galileo::Messenger for SessionMessenger {
     fn request_redraw(&self) {
         let session = self.0.clone();
-        std::thread::spawn(move || {
-            TOKIO_RUNTIME.get().unwrap().block_on(async move {
-                session._draw_no_res().await;
+        if let Some(runtime) = TOKIO_RUNTIME.get() {
+            let _ = runtime.spawn(async move {
+                session._draw_no_res().await
             });
-        });
+        }
     }
 }
 
@@ -111,7 +110,7 @@ impl MapSession {
         {
             let messenger = SessionMessenger(session.clone());
 
-            let mut map = map.lock();
+            let mut map = map.lock().await;
             for layer in map.layers_mut().iter_mut() {
                 layer.set_messenger(Box::new(messenger.clone()));
             }
@@ -137,29 +136,36 @@ impl MapSession {
         Some(self.flutter_ctx.read().as_ref()?.texture_id)
     }
 
-    pub fn add_layer(&self, mut layer: impl galileo::layer::Layer + 'static) {
+    pub async fn add_layer(&self, mut layer: impl galileo::layer::Layer + 'static) {
         if let Some(session) = SESSIONS.lock().get(&self.session_id).cloned() {
             let messenger: SessionMessenger = SessionMessenger(session);
             layer.set_messenger(Box::new(messenger));
         }
 
-        let mut map = self.map.lock();
+        let mut map = self.map.lock().await;
         map.layers_mut().push(layer);
         map.redraw();
     }
 
     /// Renders a single frame for the session.
     pub async fn redraw(&self) -> anyhow::Result<()> {
-        let flctx = self.flutter_ctx.read();
-        let flutter_ctx = flctx
-            .as_ref()
-            .ok_or(anyhow!("flutter context not available"))?;
+        let (payload_holder, sendable_texture) = {
+            let flctx = self.flutter_ctx.read();
+            let flutter_ctx = flctx
+                .as_ref()
+                .ok_or(anyhow!("flutter context not available"))?;
+            (flutter_ctx.payload_holder.clone(), flutter_ctx.sendable_texture.clone())
+        };
 
         let is_first_render = self.is_first_render.swap(false, Ordering::Relaxed);
 
+        if is_first_render {
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+        }
+
         let pixels = {
-            let mut renderer = self.renderer.lock();
-            let mut map = self.map.lock();
+            let renderer = self.renderer.lock().await;
+            let mut map = self.map.lock().await;
 
             map.animate();
 
@@ -176,22 +182,20 @@ impl MapSession {
             );
             debug!("Map view is: {:?}", map.view());
             map.load_layers();
-            if is_first_render {
-                tokio::time::sleep(Duration::from_millis(1000)).await;
-            }
             renderer.render(&map).await
         };
 
         // Update texture provider
-        flutter_ctx.payload_holder.update_pixels(pixels);
+        payload_holder.update_pixels(pixels);
         // Mark frame available for Flutter
-        flutter_ctx.sendable_texture.mark_frame_available();
+        sendable_texture.mark_frame_available();
         Ok(())
     }
 
-    pub fn get_viewport(&self) -> Option<MapViewport> {
+    pub async fn get_viewport(&self) -> Option<MapViewport> {
         self.map
             .lock()
+            .await
             .view()
             .get_bbox()
             .as_ref()
@@ -208,7 +212,7 @@ impl MapSession {
 
         // Resize renderer
         {
-            let mut renderer = self.renderer.lock();
+            let mut renderer = self.renderer.lock().await;
             renderer
                 .resize(size)
                 .map_err(|e| anyhow::anyhow!("Failed to resize renderer: {}", e))?;
@@ -216,7 +220,7 @@ impl MapSession {
 
         // Resize pixel buffer
         {
-            let mut map = self.map.lock();
+            let mut map = self.map.lock().await;
             map.set_size(size.cast::<f64>());
         }
         let flctx = self.flutter_ctx.read();

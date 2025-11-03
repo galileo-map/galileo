@@ -70,10 +70,10 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
   }
 
   void _onViewportChanged(MapViewport viewport) {
-    setState(() {
-      currentViewport = viewport;
-      statusMessage = "viewport: ${viewport.toString()}";
-    });
+    // setState(() {
+    //   currentViewport = viewport;
+    //   statusMessage = "viewport: ${viewport.toString()}";
+    // });
   }
 
   void _onMapTap(double x, double y) {
@@ -138,6 +138,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                       layers: [
                         // const LayerConfig.osm(),
                         LayerConfig.vectorTiles(
+                          // urlTemplate: 'https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=07be0dc677fb29d3',
                           urlTemplate: 'https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf?key=PZ3FHCeFcKn9AF7iL6SO',
                           styleJson: _vectorTileStyle!
                         ),

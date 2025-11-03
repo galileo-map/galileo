@@ -2,7 +2,6 @@
 
 use bytes::Bytes;
 use galileo_mvt::MvtTile;
-use log::info;
 use maybe_sync::{MaybeSend, MaybeSync};
 
 use crate::error::GalileoError;
@@ -51,28 +50,36 @@ impl WebVtLoader {
 
     async fn load_raw(&self, url: &str) -> Result<Bytes, TileLoadError> {
         if let Some(data) = self.cache.as_ref().and_then(|cache| cache.get(url)) {
-            info!("Cache hit for url {url}");
-            log::trace!("Cache hit for url {url}");
+            log::info!("✓ Cache HIT for: {url}");
             return Ok(data);
         }
 
         if self.offline_mode {
+            log::info!("Offline mode: tile not in cache for: {url}");
             return Err(TileLoadError::DoesNotExist);
         }
 
+        log::info!("⬇ Downloading from network: {url}");
         let bytes = crate::platform::instance()
             .load_bytes_from_url(url)
             .await
             .map_err(|err| match err {
-                GalileoError::NotFound => TileLoadError::DoesNotExist,
-                _ => TileLoadError::Network,
+                GalileoError::NotFound => {
+                    log::warn!("✗ Tile not found (404): {url}");
+                    TileLoadError::DoesNotExist
+                }
+                _ => {
+                    log::error!("✗ Network error loading tile: {url}");
+                    TileLoadError::Network
+                }
             })?;
 
-        log::info!("Loaded tile from url: {url}");
+        log::info!("✓ Downloaded {} bytes from: {url}", bytes.len());
 
         if let Some(cache) = &self.cache {
-            if let Err(error) = cache.insert(url, &bytes) {
-                log::warn!("Failed to write persistent cache entry: {error:?}");
+            match cache.insert(url, &bytes) {
+                Ok(()) => log::info!("✓ Cached tile: {url}"),
+                Err(error) => log::info!("✗ Failed to cache tile {url}: {error:?}"),
             }
         }
 

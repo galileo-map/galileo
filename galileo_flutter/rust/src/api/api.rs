@@ -32,7 +32,7 @@ pub fn galileo_flutter_init(ffi_ptr: i64) {
     // Initialize irondash FFI
     irondash_dart_ffi::irondash_init_ffi(ffi_ptr as *mut std::ffi::c_void);
     init_logger();
-    // initialize_font_service();
+    initialize_font_service();
     info!("Galileo Flutter plugin initialized with FFI and texture support");
     IS_INITIALIZED.store(true, Ordering::SeqCst);
 }
@@ -150,7 +150,7 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             let layer = RasterTileLayerBuilder::new_osm()
                 .build()
                 .map_err(|e| anyhow::anyhow!("Failed to create OSM layer: {}", e))?;
-            session.add_layer(layer);
+            TOKIO_RUNTIME.get().unwrap().block_on(session.add_layer(layer));
         }
         LayerConfig::RasterTiles {
             url_template: _,
@@ -161,7 +161,7 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             let layer = RasterTileLayerBuilder::new_osm()
                 .build()
                 .map_err(|e| anyhow::anyhow!("Failed to create OSM layer: {}", e))?;
-            session.add_layer(layer);
+            TOKIO_RUNTIME.get().unwrap().block_on(session.add_layer(layer));
         }
         LayerConfig::VectorTiles {
             url_template,
@@ -173,7 +173,7 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             
             let mut builder = VectorTileLayerBuilder::new_rest(create_url_source(url_template))
             .with_style(style)
-            .with_tile_schema(galileo::TileSchema::test_schema())
+            .with_tile_schema(galileo::TileSchema::web(18))
             .with_file_cache_modifier_checked(".tile_cache", Box::new(remove_parameters_modifier));
             
             if let Some(attr) = attribution {
@@ -182,7 +182,7 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             
             let layer = builder.build()
                 .map_err(|e| anyhow::anyhow!("Failed to create vector tile layer: {}", e))?;
-            session.add_layer(layer);
+            TOKIO_RUNTIME.get().unwrap().block_on(session.add_layer(layer));
         }
     }
 
@@ -190,8 +190,8 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
 }
 
 pub fn get_map_viewport(session_id: SessionID) -> Option<MapViewport> {
-    if let Some(session) = SESSIONS.lock().get(&session_id) {
-        return session.get_viewport();
+    if let Some(session) = SESSIONS.lock().get(&session_id).cloned() {
+        return TOKIO_RUNTIME.get().unwrap().block_on(session.get_viewport());
     }
     None
 }
@@ -205,8 +205,10 @@ pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     };
 
     if let Some(session) = session {
-        let mut map = session.map.lock();
-        session.controller.handle(&galileo_event, &mut map);
+        TOKIO_RUNTIME.get().unwrap().block_on(async {
+            let mut map = session.map.lock().await;
+            session.controller.handle(&galileo_event, &mut map);
+        });
     }
 }
 
