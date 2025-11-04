@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/gestures.dart';
@@ -112,6 +111,8 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
 
   Offset? _lastPointerPosition;
   MapSize? _lastMapSize;
+  double _lastPinchScaleValue = 1;
+  bool _isPinchScaling = false;
 
   @override
   void initState() {
@@ -183,6 +184,10 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     mapContent = Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
+        if (_isPinchScaling) {
+          return;
+        }
+        
         // Request focus for keyboard events
         if (widget.enableKeyboard) {
           _focusNode.requestFocus();
@@ -255,6 +260,10 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
         }
       },
       onPointerMove: (event) {
+        if (_isPinchScaling) {
+          return;
+        }
+        
         if (event.buttons == 0) {
           return;
         }
@@ -291,6 +300,39 @@ class _GalileoMapWidgetState extends State<GalileoMapWidget> {
     if (widget.enableKeyboard) {
       mapContent = Focus(focusNode: _focusNode, autofocus: true, child: mapContent);
     }
+
+    // Add pinch-to-zoom support
+    mapContent = GestureDetector(
+      onScaleStart: (details) {
+        _lastPinchScaleValue = 1.0;
+      },
+      onScaleUpdate: (details) {
+        if (details.pointerCount >= 2) {
+          if (!_isPinchScaling) {
+            _isPinchScaling = true;
+            _lastPinchScaleValue = details.scale;
+            return;
+          }
+          
+          if (details.scale != _lastPinchScaleValue) {
+            // TODO: test this
+            final scaleDelta = details.scale / _lastPinchScaleValue;
+            final zoomEvent = UserEvent.zoom(
+              1.0 / scaleDelta,
+              Point2(x: details.localFocalPoint.dx, y: details.localFocalPoint.dy),
+            );
+            widget.controller.handleEvent(zoomEvent);
+            
+            _lastPinchScaleValue = details.scale;
+          }
+        }
+      },
+      onScaleEnd: (details) {
+        _lastPinchScaleValue = 1.0;
+        _isPinchScaling = false;
+      },
+      child: mapContent,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {

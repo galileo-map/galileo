@@ -45,70 +45,10 @@ impl TextService {
         }
 
         INSTANCE.get_or_init(|| {
-            log::info!("Initializing TextService");
+            log::debug!("Initializing FontService");
 
             Self {
                 rasterizer: RwLock::new(Box::new(provider)),
-                font_provider: Box::new(DefaultFontProvider::new()),
-            }
-        })
-    }
-    
-    /// Ensures the font service is initialized with default settings if not already initialized.
-    /// This is a fallback for cases where explicit initialization was not called.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn ensure_initialized() -> &'static Self {
-        use crate::render::text::RustybuzzRasterizer;
-        
-        INSTANCE.get_or_init(|| {
-            log::warn!(
-                "TextService was not explicitly initialized. Initializing with default settings. \
-                For better control, call TextService::initialize() during application startup."
-            );
-
-            let service = Self {
-                rasterizer: RwLock::new(Box::new(RustybuzzRasterizer::default())),
-                font_provider: Box::new(DefaultFontProvider::new()),
-            };
-            
-            // Load system fonts on Windows
-            #[cfg(target_os = "windows")]
-            {
-                log::info!("Loading fonts from C:/Windows/Fonts");
-                service.font_provider.load_fonts_folder("C:/Windows/Fonts".into());
-            }
-            
-            // Load system fonts on macOS
-            #[cfg(target_os = "macos")]
-            {
-                log::info!("Loading fonts from /System/Library/Fonts");
-                service.font_provider.load_fonts_folder("/System/Library/Fonts".into());
-                service.font_provider.load_fonts_folder("/Library/Fonts".into());
-            }
-            
-            // Load system fonts on Linux
-            #[cfg(target_os = "linux")]
-            {
-                log::info!("Loading fonts from /usr/share/fonts");
-                service.font_provider.load_fonts_folder("/usr/share/fonts".into());
-            }
-            
-            service
-        })
-    }
-    
-    #[cfg(target_arch = "wasm32")]
-    fn ensure_initialized() -> &'static Self {
-        use crate::render::text::RustybuzzRasterizer;
-        
-        INSTANCE.get_or_init(|| {
-            log::warn!(
-                "TextService was not explicitly initialized. Initializing with default settings. \
-                For better control, call TextService::initialize() during application startup."
-            );
-
-            Self {
-                rasterizer: RwLock::new(Box::new(RustybuzzRasterizer::default())),
                 font_provider: Box::new(DefaultFontProvider::new()),
             }
         })
@@ -126,11 +66,9 @@ impl TextService {
         offset: Vector2<f32>,
         dpi_scale_factor: f32,
     ) -> Result<TextShaping, FontServiceError> {
-        // Get existing instance or auto-initialize with defaults
-        let service = Self::instance().unwrap_or_else(|| {
-            log::warn!("TextService::shape() called before initialization. Auto-initializing with defaults.");
-            Self::ensure_initialized()
-        });
+        let Some(service) = Self::instance() else {
+            return Err(FontServiceError::NotInitialized);
+        };
 
         service.rasterizer.read().shape(
             text,
