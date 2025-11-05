@@ -3,7 +3,7 @@ pub use crate::core::pixel_buffer::PixelBuffer;
 use crate::core::{WindowlessRenderer, SESSIONS, SESSION_COUNTER, TOKIO_RUNTIME};
 use crate::utils::invoke_on_platform_main_thread;
 use anyhow::anyhow;
-use galileo::galileo_types;
+use galileo::{DummyMessenger, galileo_types};
 use log::{debug, error, info};
 use parking_lot::RwLock;
 use tokio::sync::Mutex;
@@ -243,31 +243,27 @@ impl MapSession {
 
     pub async fn terminate(self: Arc<Self>) {
         self.is_alive.store(false, Ordering::SeqCst);
-        let max_retries = 10;
-        let mut retries = 0;
-
-        while retries < max_retries {
-            let self_clone = self.clone();
-            if invoke_on_platform_main_thread(move || {
-                // drop the flutter texture in the platform thread
-                let mut flctx = self_clone.flutter_ctx.write();
-                if let Some(ctx) = flctx.take() {
-                    let mut ref_count = Arc::strong_count(&ctx.payload_holder);
-                    ref_count += Arc::strong_count(&ctx.sendable_texture);
-                    info!("flutter ref count sum: {}", ref_count);
-                    if ref_count == 2 {
-                        drop(ctx);
-                    }
-                    return true;
-                }
-
-                return false;
-            }) {
-                return;
-            } else {
-                retries += 1;
-                tokio::time::sleep(Duration::from_millis(500)).await;
+        
+        // clear all layers
+        {
+            let mut map = self.map.lock().await;
+            for layer in map.layers_mut().iter_mut() {
+                layer.set_messenger(Box::new(DummyMessenger {}));
             }
+            map.set_messenger(None::<DummyMessenger>);
+            map.layers_mut().clear();
+        }
+        
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let flctx = self.flutter_ctx.write().take();
+        if let Some(ctx) = flctx {
+            let _ = Arc::strong_count(&ctx.payload_holder);
+            let _ = Arc::strong_count(&ctx.sendable_texture);
+
+            invoke_on_platform_main_thread(move || {
+                drop(ctx);
+            });
         }
     }
 }

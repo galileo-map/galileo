@@ -136,12 +136,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                   : GalileoMapWidget.fromConfig(
                       size: const MapSize(width: 800, height: 600),
                       layers: [
-                        // const LayerConfig.osm(),
-                        LayerConfig.vectorTiles(
-                          // urlTemplate: 'https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=07be0dc677fb29d3',
-                          urlTemplate: 'https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf?key=PZ3FHCeFcKn9AF7iL6SO',
-                          styleJson: _vectorTileStyle!
-                        ),
+                        const LayerConfig.osm(),
                       ],
                 config: MapInitConfig(
                   backgroundColor: (0.1, 0.1, 0, 0.5),
