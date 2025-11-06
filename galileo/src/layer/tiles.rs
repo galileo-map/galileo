@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -6,6 +7,8 @@ use parking_lot::Mutex;
 use crate::render::PackedBundle;
 use crate::tile_schema::{TileIndex, WrappingTileIndex};
 use crate::TileSchema;
+
+const DEFAULT_FADE_IN_DURATION: Duration = Duration::from_millis(300);
 
 #[derive(Clone)]
 pub(crate) struct DisplayedTile<StyleId: Copy> {
@@ -34,6 +37,7 @@ where
     pub(crate) tiles: Mutex<Vec<DisplayedTile<StyleId>>>,
     tile_schema: TileSchema,
     pub(crate) tile_provider: Provider,
+    pub fade_in_duration: AtomicU64,
 }
 
 impl<StyleId, Provider> TilesContainer<StyleId, Provider>
@@ -46,6 +50,7 @@ where
             tiles: Default::default(),
             tile_schema,
             tile_provider,
+            fade_in_duration: AtomicU64::new(DEFAULT_FADE_IN_DURATION.as_millis() as u64),
         }
     }
 
@@ -60,7 +65,7 @@ where
         let mut to_substitute = vec![];
 
         let now = web_time::Instant::now();
-        let fade_in_time = self.fade_in_time();
+        let fade_in_time = self.fade_in_duration();
         let mut requires_redraw = false;
 
         for index in needed_indices {
@@ -70,9 +75,13 @@ where
             {
                 if !displayed.is_opaque() {
                     to_substitute.push(index);
-                    displayed.opacity = ((now.duration_since(displayed.displayed_at)).as_secs_f64()
-                        / fade_in_time.as_secs_f64())
-                    .min(1.0) as f32;
+                    let fade_in_secs = fade_in_time.as_secs_f64();
+                    displayed.opacity = if fade_in_secs > 0.001 {
+                        ((now.duration_since(displayed.displayed_at)).as_secs_f64() / fade_in_secs)
+                            .min(1.0) as f32
+                    } else {
+                        1.0
+                    };
                     requires_redraw = true;
                 }
 
@@ -81,11 +90,12 @@ where
                 match self.tile_provider.get_tile(index.into(), style_id) {
                     None => to_substitute.push(index),
                     Some(bundle) => {
+                        let opacity = if self.requires_animation() { 0.0 } else { 1.0 };
                         needed_tiles.push(DisplayedTile {
                             index,
                             bundle,
                             style_id,
-                            opacity: 0.0,
+                            opacity,
                             displayed_at: now,
                         });
                         to_substitute.push(index);
@@ -126,7 +136,16 @@ where
         requires_redraw
     }
 
-    fn fade_in_time(&self) -> Duration {
-        Duration::from_millis(300)
+    pub fn fade_in_duration(&self) -> Duration {
+        Duration::from_millis(self.fade_in_duration.load(Ordering::Relaxed))
+    }
+
+    pub fn set_fade_in_duration(&self, duration: Duration) {
+        self.fade_in_duration
+            .store(duration.as_millis() as u64, Ordering::Relaxed);
+    }
+
+    fn requires_animation(&self) -> bool {
+        self.fade_in_duration.load(Ordering::Relaxed) > 1
     }
 }

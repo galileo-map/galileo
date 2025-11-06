@@ -26,7 +26,6 @@ pub struct RasterTileLayer {
     tile_loader: Arc<dyn RasterTileLoader>,
     tile_container: Arc<TilesContainer<(), RasterTileProvider>>,
     tile_schema: TileSchema,
-    fade_in_duration: Duration,
     messenger: Option<Arc<dyn Messenger>>,
     attribution: Option<Attribution>,
 }
@@ -35,13 +34,12 @@ impl std::fmt::Debug for RasterTileLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RasterTileLayer")
             .field("tile_schema", &self.tile_schema)
-            .field("fade_in_duration", &self.fade_in_duration)
             .finish()
     }
 }
 
 impl RasterTileLayer {
-    /// Creates anew layer.
+    /// Creates a new layer.
     pub fn new(
         tile_schema: TileSchema,
         tile_loader: impl RasterTileLoader + 'static,
@@ -54,7 +52,6 @@ impl RasterTileLayer {
                 RasterTileProvider::new(tile_schema.clone()),
             )),
             tile_schema,
-            fade_in_duration: Duration::from_millis(300),
             messenger,
             attribution: None,
         }
@@ -73,7 +70,6 @@ impl RasterTileLayer {
                 RasterTileProvider::new(tile_schema.clone()),
             )),
             tile_schema,
-            fade_in_duration: Duration::from_millis(300),
             messenger: messenger.map(|m| m.into()),
             attribution,
         }
@@ -81,7 +77,7 @@ impl RasterTileLayer {
 
     /// Sets fade in duration for newly loaded tiles.
     pub fn set_fade_in_duration(&mut self, duration: Duration) {
-        self.fade_in_duration = duration;
+        self.tile_container.set_fade_in_duration(duration);
     }
 
     fn update_displayed_tiles(&self, view: &MapView, canvas: &dyn Canvas) {
@@ -168,6 +164,7 @@ impl Layer for RasterTileLayer {
             .filter_map(|v| {
                 let tile_bbox = self.tile_schema.tile_bbox(v.index)?;
                 let offset = Vector2::new(tile_bbox.x_min() as f32, tile_bbox.y_max() as f32);
+
                 Some(BundleToDraw::new(&*v.bundle, v.opacity, offset))
             })
             .collect();
