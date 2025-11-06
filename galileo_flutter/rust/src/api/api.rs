@@ -205,10 +205,12 @@ pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     };
 
     if let Some(session) = session {
-        TOKIO_RUNTIME.get().unwrap().block_on(async {
-            let mut map = session.map.lock().await;
-            session.controller.handle(&galileo_event, &mut map);
-        });
+        if let Some(runtime) = TOKIO_RUNTIME.get() {
+            let _ = runtime.spawn(async move {
+                let mut map = session.map.lock().await;
+                session.controller.handle(&galileo_event, &mut map);
+            });
+        }
     }
 }
 

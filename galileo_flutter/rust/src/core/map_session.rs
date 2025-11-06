@@ -49,6 +49,8 @@ pub struct MapSession {
     is_alive: AtomicBool,
     pub controller: galileo::control::MapController,
     is_first_render: AtomicBool,
+    requires_redraw: AtomicBool,
+    redraw_scheduled: AtomicBool,
 }
 
 // Ensure MapSession is Send + Sync for thread safety
@@ -60,10 +62,24 @@ struct SessionMessenger(Arc<MapSession>);
 
 impl galileo::Messenger for SessionMessenger {
     fn request_redraw(&self) {
+        self.0.requires_redraw.store(true, Ordering::Relaxed);
+
+        if self.0.redraw_scheduled.swap(true, Ordering::Acquire) {
+            return;
+        }
+
         let session = self.0.clone();
         if let Some(runtime) = TOKIO_RUNTIME.get() {
             let _ = runtime.spawn(async move {
-                session._draw_no_res().await
+                loop {
+                    tokio::time::sleep(Duration::from_millis(16)).await; // throttle to ~60fps
+                    if !session.requires_redraw.swap(false, Ordering::Relaxed) {
+                        session.redraw_scheduled.store(false, Ordering::Release);
+                        break;
+                    }
+
+                    session._draw_no_res().await;
+                }
             });
         }
     }
@@ -105,6 +121,8 @@ impl MapSession {
             is_alive: AtomicBool::new(true),
             controller: galileo::control::MapController::default(),
             is_first_render: AtomicBool::new(true),
+            requires_redraw: AtomicBool::new(false),
+            redraw_scheduled: AtomicBool::new(false),
         });
         // set session as message callback for galileo
         {
