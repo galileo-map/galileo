@@ -4,6 +4,7 @@
 //! managing Galileo maps in Flutter applications with real texture rendering.
 
 use flutter_rust_bridge::frb;
+use galileo::TileSchema;
 use galileo::control::UserEventHandler;
 use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
@@ -12,7 +13,7 @@ use galileo::layer::vector_tile_layer::style::VectorTileStyle;
 use galileo::render::text::text_service::TextService;
 use galileo::render::text::RustybuzzRasterizer;
 use log::{debug, info};
-use std::sync::{atomic::Ordering};
+use std::sync::atomic::Ordering;
 
 use crate::api::dart_types::*;
 use crate::core::map_session::{MapSession, SessionID};
@@ -173,7 +174,7 @@ pub fn add_session_layer(session_id: SessionID, layer_config: LayerConfig) -> an
             
             let mut builder = VectorTileLayerBuilder::new_rest(create_url_source(url_template))
             .with_style(style)
-            .with_tile_schema(galileo::TileSchema::web(18))
+            .with_tile_schema(TileSchema::test_schema())
             .with_file_cache_modifier_checked(".tile_cache", Box::new(remove_parameters_modifier));
             
             if let Some(attr) = attribution {
@@ -207,8 +208,14 @@ pub fn handle_event_for_session(session_id: SessionID, event: UserEvent) {
     if let Some(session) = session {
         if let Some(runtime) = TOKIO_RUNTIME.get() {
             let _ = runtime.spawn(async move {
-                let mut map = session.map.lock().await;
-                session.controller.handle(&galileo_event, &mut map);
+                match session.map.try_lock() {
+                    Ok(mut map) => {
+                        session.controller.handle(&galileo_event, &mut map);
+                    }
+                    Err(_) => {
+                        info!("Map busy: {:?}", galileo_event);
+                    }
+                }
             });
         }
     }

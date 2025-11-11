@@ -9,7 +9,6 @@ Future<void> main() async {
   // Handle the key assertion error
   FlutterError.onError = (FlutterErrorDetails details) {
     if (details.exception is AssertionError &&
-        
         details.exception.toString().contains('KeyDownEvent is dispatched')) {
       // Ignore this known Flutter issue in debug mode
       return;
@@ -69,6 +68,27 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
     }
   }
 
+  final style_str = '''{
+      "rules": [
+        {
+          "symbol": {
+            "line": {
+              "stroke_color": "#000000ff",
+              "width": 0.5
+            }
+          }
+        },
+        {
+          "symbol": {
+            "polygon": {
+              "fill_color": "#999999ff"
+            }
+          }
+        }
+      ],
+      "background": "#ffffffff"
+    }''';
+
   void _onViewportChanged(MapViewport viewport) {
     // setState(() {
     //   currentViewport = viewport;
@@ -114,10 +134,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
               children: [
                 Text(
                   'Status: $statusMessage',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 const Text(
@@ -131,63 +148,64 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-              child: _vectorTileStyle == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : GalileoMapWidget.fromConfig(
-                      size: const MapSize(width: 800, height: 600),
-                      layers: [
-                        const LayerConfig.osm(),
-                      ],
-                config: MapInitConfig(
-                  backgroundColor: (0.1, 0.1, 0, 0.5),
-                  enableMultisampling: true,
-                  latlon: (0.0, 0.0),
-                  mapSize: MapSize(width: 800, height: 600),
-                  zoomLevel: 10,
-                ),
-                enableKeyboard: true,
-                onTap: _onMapTap,
-                onViewportChanged: _onViewportChanged,
-                child: Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+              child:
+                  _vectorTileStyle == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : GalileoMapWidget.fromConfig(
+                        size: const MapSize(width: 800, height: 600),
+                        layers: [
+                          // const LayerConfig.osm(),
+                          LayerConfig.vectorTiles(
+                            // urlTemplate: 'https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=07be0dc677fb29d3',
+                            urlTemplate:
+                                'https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf?key=PZ3FHCeFcKn9AF7iL6SO',
+                            styleJson: _vectorTileStyle!,
+                          ),
+                        ],
+                        config: MapInitConfig(
+                          backgroundColor: (0.1, 0.1, 0, 0.5),
+                          enableMultisampling: true,
+                          latlon: (0.0, 0.0),
+                          mapSize: MapSize(width: 800, height: 600),
+                          zoomLevel: 10,
                         ),
-                      ],
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Map Controls:',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        enableKeyboard: true,
+                        onTap: _onMapTap,
+                        onViewportChanged: _onViewportChanged,
+                        child: Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Map Controls:',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 4),
+                                Text('• Drag to pan', style: TextStyle(fontSize: 10)),
+                                Text('• Pinch to zoom', style: TextStyle(fontSize: 10)),
+                                Text('• Arrow keys to pan', style: TextStyle(fontSize: 10)),
+                                Text('• +/- to zoom', style: TextStyle(fontSize: 10)),
+                              ],
+                            ),
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text('• Drag to pan', style: TextStyle(fontSize: 10)),
-                        Text('• Pinch to zoom', style: TextStyle(fontSize: 10)),
-                        Text(
-                          '• Arrow keys to pan',
-                          style: TextStyle(fontSize: 10),
-                        ),
-                        Text('• +/- to zoom', style: TextStyle(fontSize: 10)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+                      ),
             ),
           ),
           // Control panel
@@ -203,9 +221,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                   onPressed: () async {
                     // TODO: Implement in Phase 2
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Zoom to location (coming in Phase 2)'),
-                      ),
+                      const SnackBar(content: Text('Zoom to location (coming in Phase 2)')),
                     );
                   },
                   icon: const Icon(Icons.my_location),
@@ -214,11 +230,9 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                 ElevatedButton.icon(
                   onPressed: () async {
                     // TODO: Implement in Phase 2
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Reset view (coming in Phase 2)'),
-                      ),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('Reset view (coming in Phase 2)')));
                   },
                   icon: const Icon(Icons.refresh),
                   label: const Text('Reset View'),
@@ -226,11 +240,9 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
                 ElevatedButton.icon(
                   onPressed: () async {
                     // TODO: Implement in Phase 2
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Add layer (coming in Phase 2)'),
-                      ),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('Add layer (coming in Phase 2)')));
                   },
                   icon: const Icon(Icons.layers),
                   label: const Text('Add Layer'),
@@ -247,9 +259,7 @@ class _GalileoMapPageState extends State<GalileoMapPage> {
             builder:
                 (context) => AlertDialog(
                   title: const Text('About'),
-                  content: const Text(
-                    'This is a Galileo Flutter integration demo.\n'
-                  ),
+                  content: const Text('This is a Galileo Flutter integration demo.\n'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),

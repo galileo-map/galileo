@@ -74,11 +74,15 @@ impl WindowlessRenderer {
 
     pub async fn render(&self, map: &Map) -> Vec<u8>{
         debug!("Redner is called for galileo map");
+        
+        self.galileo_renderer.trim_textures();
+
         self.galileo_renderer.render(&map).expect("failed to render the map");
     
         self.galileo_renderer.get_image()
             .await
             .expect("failed to get image bitmap from texture")
+            
     }
 
 }
