@@ -314,12 +314,12 @@ impl LabeledSymbol {
         Self {
             style: TextStyle {
                 font_family: vec![
-                    "DejaVu Sans".to_string(),
-                    "Noto Sans CJK KR".to_string(),
-                    "Noto Sans CJK JP".to_string(),
-                    "Noto Sans CJK HK".to_string(),
-                    "Noto Sans CJK SC".to_string(),
                     "Noto Sans".to_string(),
+                    "Noto Sans Arabic".to_string(),
+                    "Noto Sans Hebrew".to_string(),
+                    "Noto Sans SC".to_string(),
+                    "Noto Sans KR".to_string(),
+                    "Noto Sans JP".to_string(),
                 ],
                 font_size: 20.0,
                 font_color: Color::BLACK,
