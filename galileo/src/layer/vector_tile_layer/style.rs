@@ -1,7 +1,5 @@
 //! See [`VectorTileStyle`].
 
-use std::collections::HashMap;
-
 use galileo_mvt::{MvtFeature, MvtGeometry};
 use serde::{Deserialize, Serialize};
 
@@ -53,14 +51,50 @@ impl VectorTileStyle {
                 return false;
             }
 
-            let filter_check_passed = rule
-                .properties
-                .iter()
-                .all(|(key, value)| feature.properties.get(key).is_some_and(|v| v.eq_str(value)));
+            let filter_check_passed = rule.properties.iter().all(|filter| {
+                let value = feature.properties.get(&filter.property_name);
+                match (&filter.operator, value) {
+                    (PropertyFilterOperator::Equal(value), Some(v)) => v.eq_str(value),
+                    (PropertyFilterOperator::NotEqual(value), Some(v)) => !v.eq_str(value),
+                    (PropertyFilterOperator::NotEqual(_), None) => true,
+                    (PropertyFilterOperator::GreaterThan(value), Some(v)) => {
+                        compare_numeric(v, value, |a, b| a > b)
+                    }
+                    (PropertyFilterOperator::LessThan(value), Some(v)) => {
+                        compare_numeric(v, value, |a, b| a < b)
+                    }
+                    (PropertyFilterOperator::GreaterThanOrEqual(value), Some(v)) => {
+                        compare_numeric(v, value, |a, b| a >= b)
+                    }
+                    (PropertyFilterOperator::LessThanOrEqual(value), Some(v)) => {
+                        compare_numeric(v, value, |a, b| a <= b)
+                    }
+                    (PropertyFilterOperator::OneOf(values), Some(v)) => {
+                        values.iter().any(|candidate| v.eq_str(candidate))
+                    }
+                    (PropertyFilterOperator::NotOneOf(values), Some(v)) => {
+                        !values.iter().any(|candidate| v.eq_str(candidate))
+                    }
+                    (PropertyFilterOperator::Exist, Some(_)) => true,
+                    (PropertyFilterOperator::NotExist, None) => true,
+
+                    _ => false,
+                }
+            });
 
             filter_check_passed
         })
     }
+}
+
+fn compare_numeric(a: &galileo_mvt::MvtValue, b: &str, cmp: impl Fn(f64, f64) -> bool) -> bool {
+    if let Some(a_num) = a.as_f64() {
+        if let Ok(b_num) = b.parse::<f64>() {
+            return cmp(a_num, b_num);
+        }
+    }
+
+    false
 }
 
 /// A rule that specifies what kind of features can be drawing with the given symbol.
@@ -70,10 +104,94 @@ pub struct StyleRule {
     pub layer_name: Option<String>,
     /// Specifies a set of attributes of a feature that must have the given values for this rule to be applied.
     #[serde(default)]
-    pub properties: HashMap<String, String>,
+    pub properties: Vec<PropertyFilter>,
     /// Symbol to draw a feature with.
     #[serde(default)]
     pub symbol: VectorTileSymbol,
+}
+
+/// A filter that checks if a feature's property matches specific criteria.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PropertyFilter {
+    /// Name of the property to check.
+    pub property_name: String,
+    /// Operator and value(s) to compare the property against.
+    pub operator: PropertyFilterOperator,
+}
+
+/// Operators for filtering feature properties.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PropertyFilterOperator {
+    /// Property value must equal the given string.
+    Equal(String),
+    /// Property value must not equal the given string.
+    NotEqual(String),
+    /// Property value (as number) must be greater than the given value.
+    GreaterThan(String),
+    /// Property value (as number) must be less than the given value.
+    LessThan(String),
+    /// Property value (as number) must be greater than or equal to the given value.
+    GreaterThanOrEqual(String),
+    /// Property value (as number) must be less than or equal to the given value.
+    LessThanOrEqual(String),
+    /// Property value must be one of the given values.
+    OneOf(Vec<String>),
+    /// Property value must not be one of the given values.
+    NotOneOf(Vec<String>),
+    /// Property must exist (regardless of value).
+    Exist,
+    /// Property must not exist.
+    NotExist,
+}
+
+impl PropertyFilterOperator {
+    /// Parse a property filter operator from a string.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The operator string (e.g., "==", "!=", ">", "<", "in", "exist")
+    /// * `rhs` - The right-hand side value(s) to compare against
+    ///
+    /// # Returns
+    ///
+    /// `Some(PropertyFilterOperator)` if the operator is valid, `None` otherwise.
+    pub fn from_str(s: &str, rhs: &str) -> Option<Self> {
+        match s {
+            "==" => Some(Self::Equal(rhs.to_string())),
+            "!=" => Some(Self::NotEqual(rhs.to_string())),
+            ">" => Some(Self::GreaterThan(rhs.to_string())),
+            "<" => Some(Self::LessThan(rhs.to_string())),
+            ">=" => Some(Self::GreaterThanOrEqual(rhs.to_string())),
+            "<=" => Some(Self::LessThanOrEqual(rhs.to_string())),
+            "in" => Some(Self::OneOf(
+                rhs.split(',').map(|s| s.trim().to_string()).collect(),
+            )),
+            "not in" => Some(Self::NotOneOf(
+                rhs.split(',').map(|s| s.trim().to_string()).collect(),
+            )),
+            "exist" => Some(Self::Exist),
+            "not_exist" => Some(Self::NotExist),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for PropertyFilterOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Equal(v) => write!(f, "== {}", v),
+            Self::NotEqual(v) => write!(f, "!= {}", v),
+            Self::GreaterThan(v) => write!(f, "> {}", v),
+            Self::LessThan(v) => write!(f, "< {}", v),
+            Self::GreaterThanOrEqual(v) => write!(f, ">= {}", v),
+            Self::LessThanOrEqual(v) => write!(f, "<= {}", v),
+            Self::OneOf(values) => write!(f, "in [{}]", values.join(", ")),
+            Self::NotOneOf(values) => write!(f, "not in [{}]", values.join(", ")),
+            Self::Exist => write!(f, "exist"),
+            Self::NotExist => write!(f, "not exist"),
+        }
+    }
 }
 
 /// Symbol of an object in a vector tile.
@@ -99,6 +217,7 @@ pub enum VectorTileSymbol {
 }
 
 impl VectorTileSymbol {
+    /// Get the line symbol if this is a line symbol.
     pub(crate) fn line(&self) -> Option<&VectorTileLineSymbol> {
         match self {
             Self::Line(symbol) => Some(symbol),
@@ -106,6 +225,7 @@ impl VectorTileSymbol {
         }
     }
 
+    /// Get the polygon symbol if this is a polygon symbol.
     pub(crate) fn polygon(&self) -> Option<&VectorTilePolygonSymbol> {
         match self {
             Self::Polygon(symbol) => Some(symbol),
@@ -113,6 +233,7 @@ impl VectorTileSymbol {
         }
     }
 
+    /// Get the point symbol if this is a point symbol.
     pub(crate) fn point(&self) -> Option<&VectorTilePointSymbol> {
         match self {
             Self::Point(symbol) => Some(symbol),
@@ -120,6 +241,7 @@ impl VectorTileSymbol {
         }
     }
 
+    /// Get the label symbol if this is a label symbol.
     pub(crate) fn label(&self) -> Option<&VectorTileLabelSymbol> {
         match self {
             Self::Label(symbol) => Some(symbol),
@@ -198,8 +320,7 @@ mod tests {
             color: Color::BLACK,
         });
 
-        let json = serde_json::to_string_pretty(&symbol).unwrap();
-        eprintln!("{json}");
+        let _json = serde_json::to_string_pretty(&symbol).unwrap();
 
         let value = serde_json::to_value(&symbol).unwrap();
         assert!(value.as_object().unwrap().get("point").is_some());
@@ -210,7 +331,7 @@ mod tests {
     fn serialize_with_bincode() {
         let rule = StyleRule {
             layer_name: None,
-            properties: HashMap::new(),
+            properties: vec![],
             symbol: VectorTileSymbol::None,
         };
 

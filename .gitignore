@@ -5,6 +5,7 @@ galileo/pkg
 Cargo.lock
 .env
 .cargo
+.vscode
 
 # Ignore large sample files
 **/*.laz

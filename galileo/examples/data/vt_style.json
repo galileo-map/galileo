@@ -2,9 +2,7 @@
   "rules": [
     {
       "layer_name": "park",
-      "properties": {
-        "class": "protected_area"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "protected_area" } }]
     },
     {
       "layer_name": "boundary",
@@ -14,9 +12,7 @@
           "width": 1.6
         }
       },
-      "properties": {
-        "admin_level": "2"
-      }
+      "properties": [{ "property_name": "admin_level", "operator": { "equal": "2" } }]
     },
     {
       "layer_name": "boundary",
@@ -26,9 +22,7 @@
           "width": 1.0
         }
       },
-      "properties": {
-        "admin_level": "3"
-      }
+      "properties": [{ "property_name": "admin_level", "operator": { "equal": "3" } }]
     },
     {
       "layer_name": "boundary",
@@ -37,8 +31,7 @@
           "stroke_color": "#b0b0b0",
           "width": 1.0
         }
-      },
-      "properties": {}
+      }
     },
     {
       "layer_name": "landcover",
@@ -47,9 +40,7 @@
           "fill_color": "#3c3c3c00"
         }
       },
-      "properties": {
-        "class": "ice"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "ice" } }]
     },
     {
       "layer_name": "water",
@@ -58,9 +49,7 @@
           "fill_color": "#81C4EC"
         }
       },
-      "properties": {
-        "class": "ocean"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "ocean" } }]
     },
     {
       "layer_name": "water",
@@ -69,9 +58,7 @@
           "fill_color": "#759ec7"
         }
       },
-      "properties": {
-        "class": "lake"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "lake" } }]
     },
     {
       "layer_name": "water",
@@ -80,9 +67,7 @@
           "fill_color": "#b8dff5"
         }
       },
-      "properties": {
-        "class": "river"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "river" } }]
     },
     {
       "layer_name": "landcover",
@@ -91,9 +76,7 @@
           "fill_color": "#C1E3C4"
         }
       },
-      "properties": {
-        "class": "wood"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "wood" } }]
     },
     {
       "layer_name": "transportation",
@@ -103,9 +86,7 @@
           "width": 1.0
         }
       },
-      "properties": {
-        "class": "service"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "service" } }]
     },
     {
       "layer_name": "building",
@@ -113,8 +94,7 @@
         "polygon": {
           "fill_color": "#cfab7f"
         }
-      },
-      "properties": {}
+      }
     },
     {
       "layer_name": "transportation",
@@ -124,9 +104,7 @@
           "width": 1.2
         }
       },
-      "properties": {
-        "class": "primary"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "primary" } }]
     },
     {
       "layer_name": "transportation",
@@ -136,9 +114,7 @@
           "width": 1.2
         }
       },
-      "properties": {
-        "class": "rail"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "rail" } }]
     },
     {
       "layer_name": "transportation",
@@ -148,9 +124,7 @@
           "width": 1.2
         }
       },
-      "properties": {
-        "class": "trunk"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "trunk" } }]
     },
     {
       "layer_name": "transportation",
@@ -160,9 +134,7 @@
           "width": 1.5
         }
       },
-      "properties": {
-        "class": "motorway"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "motorway" } }]
     },
     {
       "layer_name": "transportation",
@@ -172,15 +144,11 @@
           "width": 1.0
         }
       },
-      "properties": {
-        "class": "secondary"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "secondary" } }]
     },
     {
       "layer_name": "park",
-      "properties": {
-        "class": "национальный_парк"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "национальный_парк" } }]
     },
     {
       "layer_name": "transportation",
@@ -190,14 +158,10 @@
           "width": 1.5
         }
       },
-      "properties": {
-        "class": "trunk_construction"
-      }
+      "properties": [{ "property_name": "class", "operator": { "equal": "trunk_construction" } }]
     },
     {
-      "properties": {
-          "rank": "1"
-      },
+      "properties": [{ "property_name": "rank", "operator": { "equal": "1" } }],
       "symbol": {
         "label": {
           "pattern": "{name:en}",
