@@ -319,6 +319,23 @@ impl<'a> EguiMapState {
 
                 Some(RawUserEvent::Scroll(zoom))
             }
+            Event::Touch { device_id, id, phase, pos, force } => {
+                let event = TouchEvent { touch_id: id.0, position: Point2::new(pos.x as f64, pos.y as f64) };
+                match phase {
+                    egui::TouchPhase::Start => {
+                        Some(RawUserEvent::TouchStart(event))
+                    },
+                    egui::TouchPhase::Move => {
+                        Some(RawUserEvent::TouchMove(event))
+                    },
+                    egui::TouchPhase::End => {
+                        Some(RawUserEvent::TouchEnd(event))
+                    },
+                    egui::TouchPhase::Cancel => {
+                        Some(RawUserEvent::TouchEnd(event))
+                    },
+                }
+            }
 
             _ => None,
         }
