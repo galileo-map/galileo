@@ -6,7 +6,7 @@ use egui::{Event, Image, ImageSource, Sense, TextureId, Ui, Vec2};
 use egui_wgpu::wgpu::{FilterMode, TextureView};
 use egui_wgpu::RenderState;
 use galileo::control::{
-    EventProcessor, MapController, MouseButton, RawUserEvent, UserEventHandler,
+    EventProcessor, MapController, MouseButton, RawUserEvent, TouchEvent, UserEventHandler
 };
 use galileo::galileo_types::cartesian::{Point2, Size};
 use galileo::galileo_types::geo::impls::GeoPoint2d;
