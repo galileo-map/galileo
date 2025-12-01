@@ -40,6 +40,7 @@ log = { workspace = true }
 lyon = { workspace = true, features = ["serialization"] }
 nalgebra = { workspace = true }
 num-traits = { workspace = true }
+ordered_hash_map = { workspace = true }
 parking_lot = { workspace = true }
 quick_cache = { workspace = true }
 raw-window-handle = { workspace = true, optional = true }

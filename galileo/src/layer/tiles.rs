@@ -1,7 +1,10 @@
+use std::hash::Hash;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use ahash::HashSet;
+use ordered_hash_map::OrderedHashMap;
 use parking_lot::Mutex;
 
 use crate::render::PackedBundle;
@@ -31,10 +34,10 @@ pub(crate) trait TileProvider<StyleId> {
 
 pub(crate) struct TilesContainer<StyleId, Provider>
 where
-    StyleId: Copy,
+    StyleId: Copy + Hash + Eq,
     Provider: TileProvider<StyleId>,
 {
-    pub(crate) tiles: Mutex<Vec<DisplayedTile<StyleId>>>,
+    pub(crate) tiles: Mutex<OrderedHashMap<(WrappingTileIndex, StyleId), DisplayedTile<StyleId>>>,
     tile_schema: TileSchema,
     pub(crate) tile_provider: Provider,
     pub fade_in_duration: AtomicU64,
@@ -42,7 +45,7 @@ where
 
 impl<StyleId, Provider> TilesContainer<StyleId, Provider>
 where
-    StyleId: Copy + PartialEq,
+    StyleId: Copy + Hash + Eq,
     Provider: TileProvider<StyleId>,
 {
     pub(crate) fn new(tile_schema: TileSchema, tile_provider: Provider) -> Self {
@@ -62,6 +65,7 @@ where
         let mut displayed_tiles = self.tiles.lock();
 
         let mut needed_tiles = vec![];
+        let mut tile_indices = HashSet::default();
         let mut to_substitute = vec![];
 
         let now = web_time::Instant::now();
@@ -69,12 +73,12 @@ where
         let mut requires_redraw = false;
 
         for index in needed_indices {
-            if let Some(displayed) = displayed_tiles
-                .iter_mut()
-                .find(|displayed| displayed.index == index && displayed.style_id == style_id)
-            {
+            if let Some(mut displayed) = displayed_tiles.remove(&(index, style_id)) {
                 if !displayed.is_opaque() {
-                    to_substitute.push(index);
+                    if let Some(bbox) = self.tile_schema.tile_bbox(index) {
+                        to_substitute.push(bbox);
+                    }
+
                     let fade_in_secs = fade_in_time.as_secs_f64();
                     displayed.opacity = if fade_in_secs > 0.001 {
                         ((now.duration_since(displayed.displayed_at)).as_secs_f64() / fade_in_secs)
@@ -86,9 +90,14 @@ where
                 }
 
                 needed_tiles.push(displayed.clone());
+                tile_indices.insert((index, style_id));
             } else {
                 match self.tile_provider.get_tile(index.into(), style_id) {
-                    None => to_substitute.push(index),
+                    None => {
+                        if let Some(bbox) = self.tile_schema.tile_bbox(index) {
+                            to_substitute.push(bbox);
+                        }
+                    }
                     Some(bundle) => {
                         let opacity = if self.requires_animation() { 0.0 } else { 1.0 };
                         needed_tiles.push(DisplayedTile {
@@ -98,39 +107,46 @@ where
                             opacity,
                             displayed_at: now,
                         });
-                        to_substitute.push(index);
+                        tile_indices.insert((index, style_id));
+
+                        if let Some(bbox) = self.tile_schema.tile_bbox(index) {
+                            to_substitute.push(bbox);
+                        }
+
                         requires_redraw = true;
                     }
                 }
             }
         }
 
-        let mut new_displayed = vec![];
-        for displayed in displayed_tiles.iter() {
-            if needed_tiles
-                .iter()
-                .any(|new| new.index == displayed.index && new.style_id == displayed.style_id)
-            {
-                continue;
-            }
+        let mut new_displayed = OrderedHashMap::new();
+        let mut selected = Vec::with_capacity(displayed_tiles.len());
 
-            let Some(displayed_bbox) = self.tile_schema.tile_bbox(displayed.index) else {
-                continue;
-            };
-
-            for subst in &to_substitute {
-                let Some(subst_bbox) = self.tile_schema.tile_bbox(*subst) else {
+        for subst_bbox in &to_substitute {
+            for key in displayed_tiles.keys() {
+                let Some(displayed_bbox) = self.tile_schema.tile_bbox(key.0) else {
                     continue;
                 };
 
-                if displayed_bbox.intersects(subst_bbox) {
-                    new_displayed.push(displayed.clone());
-                    break;
+                if displayed_bbox.intersects(*subst_bbox) {
+                    selected.push(*key);
                 }
             }
+
+            for key in &selected {
+                let Some(tile) = displayed_tiles.remove(key) else {
+                    continue;
+                };
+
+                new_displayed.insert(*key, tile);
+            }
+
+            selected.clear();
         }
 
-        new_displayed.append(&mut needed_tiles);
+        for tile in needed_tiles {
+            new_displayed.insert((tile.index, tile.style_id), tile);
+        }
         *displayed_tiles = new_displayed;
 
         requires_redraw

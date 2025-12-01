@@ -160,7 +160,7 @@ impl Layer for RasterTileLayer {
 
         let displayed_tiles = self.tile_container.tiles.lock();
         let to_render: Vec<_> = displayed_tiles
-            .iter()
+            .values()
             .filter_map(|v| {
                 let tile_bbox = self.tile_schema.tile_bbox(v.index)?;
                 let offset = Vector2::new(tile_bbox.x_min() as f32, tile_bbox.y_max() as f32);

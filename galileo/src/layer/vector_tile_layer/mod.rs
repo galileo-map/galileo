@@ -71,7 +71,7 @@ impl Layer for VectorTileLayer {
         let displayed_tiles = self.displayed_tiles.tiles.lock();
         let to_render: Vec<_> =
             std::iter::once(BundleToDraw::with_opacity(&*background_bundle, 1.0))
-                .chain(displayed_tiles.iter().filter_map(|v| {
+                .chain(displayed_tiles.values().filter_map(|v| {
                     let bbox = self.tile_schema.tile_bbox(v.index)?;
                     Some(BundleToDraw::new(
                         &*v.bundle,
