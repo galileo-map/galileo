@@ -1,7 +1,5 @@
 //! [`TileSchema`] is used by tile layers to calculate [tile indices](TileIndex) needed for a given ['MapView'].
 
-use std::collections::BTreeSet;
-
 use galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use galileo_types::geo::Crs;
 #[cfg(target_arch = "wasm32")]
@@ -95,7 +93,7 @@ pub struct TileSchema {
     /// Rectangle that contains all tiles of the tile scheme.
     pub bounds: Rect,
     /// Sorted set of levels of detail that specify resolutions for each z-level.
-    pub lods: BTreeSet<Lod>,
+    pub lods: Vec<f64>,
     /// Width of a single tile in pixels.
     pub tile_width: u32,
     /// Height of a single tile in pixels.
@@ -109,13 +107,12 @@ pub struct TileSchema {
 impl TileSchema {
     /// Resolution of the given z-level, if exists.
     pub fn lod_resolution(&self, z: u32) -> Option<f64> {
-        for lod in &self.lods {
-            if lod.z_index() == z {
-                return Some(lod.resolution());
-            }
+        let resolution = *self.lods.get(z as usize)?;
+        if resolution.is_finite() && resolution > 0.0 {
+            Some(resolution)
+        } else {
+            None
         }
-
-        None
     }
 
     /// Width of a single tile.
@@ -130,21 +127,26 @@ impl TileSchema {
 
     /// Select a level of detail for the given resolution.
     pub fn select_lod(&self, resolution: f64) -> Option<Lod> {
-        if !resolution.is_finite() {
+        if !resolution.is_finite() || self.lods.is_empty() {
             return None;
         }
 
-        let mut prev_lod = self.lods.iter().next()?;
+        let mut selected_lod = None;
 
-        for lod in self.lods.iter().skip(1) {
-            if lod.resolution() * (1.0 - RESOLUTION_TOLERANCE) > resolution {
+        for index in 0..self.lods.len() {
+            let Some(lod_resolution) = self.lod_resolution(index as u32) else {
+                continue;
+            };
+
+            selected_lod = Some(Lod::new(lod_resolution, index as u32)?);
+
+            let adjusted_resolution = lod_resolution * (1.0 - RESOLUTION_TOLERANCE);
+            if adjusted_resolution < resolution {
                 break;
             }
-
-            prev_lod = lod;
         }
 
-        Some(*prev_lod)
+        selected_lod
     }
 
     /// Iterate over tile indices that should be displayed for the given map view.
@@ -225,12 +227,9 @@ impl TileSchema {
         const ORIGIN: Point2 = Point2::new(-20037508.342787, 20037508.342787);
         const TOP_RESOLUTION: f64 = 156543.03392800014;
 
-        let mut lods = vec![Lod::new(TOP_RESOLUTION, 0).expect("invalid const parameters")];
+        let mut lods = vec![TOP_RESOLUTION];
         for i in 1..lods_count {
-            lods.push(
-                Lod::new(lods[(i - 1) as usize].resolution() / 2.0, i)
-                    .expect("invalid const parameters"),
-            );
+            lods.push(lods[(i - 1) as usize] / 2.0);
         }
 
         TileSchema {
@@ -241,7 +240,7 @@ impl TileSchema {
                 20037508.342787,
                 20037508.342787,
             ),
-            lods: lods.into_iter().collect(),
+            lods,
             tile_width: 256,
             tile_height: 256,
             y_direction: VerticalDirection::TopToBottom,
@@ -249,15 +248,12 @@ impl TileSchema {
         }
     }
 
-    pub(crate) fn tile_bbox(&self, index: WrappingTileIndex) -> Option<Rect> {
+    /// Returns the bounding rectangle of the given tile index, if the index is valid.
+    pub fn tile_bbox(&self, index: WrappingTileIndex) -> Option<Rect> {
         let x_index = index.display_x;
         let y_index = index.y;
 
-        let resolution = self
-            .lods
-            .iter()
-            .find(|lod| lod.z_index() == index.z)?
-            .resolution();
+        let resolution = self.lod_resolution(index.z)?;
         let x_min = self.origin.x() + (x_index as f64) * self.tile_width as f64 * resolution;
         let y_min = match self.y_direction {
             VerticalDirection::TopToBottom => {
@@ -349,12 +345,7 @@ mod tests {
         TileSchema {
             origin: Point2::default(),
             bounds: Rect::new(0.0, 0.0, 2048.0, 2048.0),
-            lods: [
-                Lod::new(8.0, 0).unwrap(),
-                Lod::new(4.0, 1).unwrap(),
-                Lod::new(2.0, 2).unwrap(),
-            ]
-            .into(),
+            lods: vec![8.0, 4.0, 2.0],
             tile_width: 256,
             tile_height: 256,
             y_direction: VerticalDirection::BottomToTop,

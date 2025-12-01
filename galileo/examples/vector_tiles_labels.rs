@@ -8,7 +8,7 @@ use galileo::layer::vector_tile_layer::{VectorTileLayer, VectorTileLayerBuilder}
 use galileo::render::text::text_service::TextService;
 use galileo::render::text::{FontWeight, RustybuzzRasterizer, TextStyle};
 use galileo::tile_schema::{TileIndex, TileSchema, VerticalDirection};
-use galileo::{Color, Lod, MapBuilder};
+use galileo::{Color, MapBuilder};
 use galileo_types::cartesian::{Point2, Rect};
 use galileo_types::geo::Crs;
 
@@ -101,11 +101,9 @@ fn tile_schema() -> TileSchema {
     const ORIGIN: Point2 = Point2::new(-20037508.342787, 20037508.342787);
     const TOP_RESOLUTION: f64 = 156543.03392800014 / 16.0;
 
-    let mut lods = vec![Lod::new(TOP_RESOLUTION, 2).expect("invalid config")];
+    let mut lods = vec![0.0, 0.0, TOP_RESOLUTION];
     for i in 3..16 {
-        lods.push(
-            Lod::new(lods[(i - 3) as usize].resolution() / 2.0, i).expect("invalid tile schema"),
-        );
+        lods.push(lods[i - 3] / 2.0);
     }
 
     TileSchema {
