@@ -206,7 +206,7 @@ at your option.
 # Community
 
 Have a question, suggestion, idea or want to share something you created with Galileo? Open a discussion on Github or
-join our [discord server](https://discord.gg/39yJ3wJu).
+join our [discord server](https://discord.gg/6hkgSdAPmA).
 
 # Contributing
 
