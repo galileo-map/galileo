@@ -10,7 +10,6 @@ use galileo::render::text::{FontWeight, RustybuzzRasterizer, TextStyle};
 use galileo::tile_schema::{TileIndex, TileSchema, VerticalDirection};
 use galileo::{Color, MapBuilder};
 use galileo_types::cartesian::{Point2, Rect};
-use galileo_types::geo::Crs;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -118,6 +117,5 @@ fn tile_schema() -> TileSchema {
         tile_width: 1024,
         tile_height: 1024,
         y_direction: VerticalDirection::TopToBottom,
-        crs: Crs::EPSG3857,
     }
 }

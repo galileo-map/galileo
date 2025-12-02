@@ -1,9 +1,6 @@
 //! [`TileSchema`] is used by tile layers to calculate [tile indices](TileIndex) needed for a given ['MapView'].
 
 use galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
-use galileo_types::geo::Crs;
-#[cfg(target_arch = "wasm32")]
-use js_sys::wasm_bindgen::prelude::wasm_bindgen;
 use serde::{Deserialize, Serialize};
 
 use crate::lod::Lod;
@@ -23,7 +20,6 @@ pub enum VerticalDirection {
 /// Tile index with additional virtual `display_x` index that can be used to wrap tiles
 /// over 180 longitude line.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize, Deserialize)]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct WrappingTileIndex {
     /// Z index.
     pub z: u32,
@@ -100,8 +96,6 @@ pub struct TileSchema {
     pub tile_height: u32,
     /// Direction of the Y-axis.
     pub y_direction: VerticalDirection,
-    /// Crs of the scheme.
-    pub crs: Crs,
 }
 
 impl TileSchema {
@@ -151,10 +145,6 @@ impl TileSchema {
 
     /// Iterate over tile indices that should be displayed for the given map view.
     pub fn iter_tiles(&self, view: &MapView) -> Option<impl Iterator<Item = WrappingTileIndex>> {
-        if *view.crs() != self.crs {
-            return None;
-        }
-
         let resolution = view.resolution();
         let bounding_box = view.get_bbox()?;
         self.iter_tiles_over_bbox(resolution, bounding_box)
@@ -244,7 +234,6 @@ impl TileSchema {
             tile_width: 256,
             tile_height: 256,
             y_direction: VerticalDirection::TopToBottom,
-            crs: Crs::EPSG3857,
         }
     }
 
@@ -349,7 +338,6 @@ mod tests {
             tile_width: 256,
             tile_height: 256,
             y_direction: VerticalDirection::BottomToTop,
-            crs: Crs::EPSG3857,
         }
     }
 

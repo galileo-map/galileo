@@ -14,7 +14,6 @@ use galileo::tile_schema::{TileIndex, TileSchema, VerticalDirection};
 use galileo::{Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
 use galileo_types::cartesian::{Point2, Rect};
-use galileo_types::geo::Crs;
 use parking_lot::RwLock;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -177,6 +176,5 @@ fn tile_schema() -> TileSchema {
         tile_width: 1024,
         tile_height: 1024,
         y_direction: VerticalDirection::TopToBottom,
-        crs: Crs::EPSG3857,
     }
 }
