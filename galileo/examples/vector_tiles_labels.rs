@@ -7,9 +7,8 @@ use galileo::layer::vector_tile_layer::style::{
 use galileo::layer::vector_tile_layer::{VectorTileLayer, VectorTileLayerBuilder};
 use galileo::render::text::text_service::TextService;
 use galileo::render::text::{FontWeight, RustybuzzRasterizer, TextStyle};
-use galileo::tile_schema::{TileIndex, TileSchema, VerticalDirection};
+use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
 use galileo::{Color, MapBuilder};
-use galileo_types::cartesian::{Point2, Rect};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -97,25 +96,8 @@ fn default_style() -> VectorTileStyle {
 }
 
 fn tile_schema() -> TileSchema {
-    const ORIGIN: Point2 = Point2::new(-20037508.342787, 20037508.342787);
-    const TOP_RESOLUTION: f64 = 156543.03392800014 / 16.0;
-
-    let mut lods = vec![0.0, 0.0, TOP_RESOLUTION];
-    for i in 3..16 {
-        lods.push(lods[i - 3] / 2.0);
-    }
-
-    TileSchema {
-        origin: ORIGIN,
-        bounds: Rect::new(
-            -20037508.342787,
-            -20037508.342787,
-            20037508.342787,
-            20037508.342787,
-        ),
-        lods: lods.into_iter().collect(),
-        tile_width: 1024,
-        tile_height: 1024,
-        y_direction: VerticalDirection::TopToBottom,
-    }
+    TileSchemaBuilder::web_mercator(2..16)
+        .with_rect_tile_size(1024)
+        .build()
+        .expect("invalid tile schema")
 }
