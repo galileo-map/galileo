@@ -56,8 +56,39 @@ impl TileSchema {
         self.tile_height
     }
 
+    /// Iterate over tile indices that should be displayed for the given map view.
+    pub fn iter_tiles(&self, view: &MapView) -> Option<impl Iterator<Item = WrappingTileIndex>> {
+        let resolution = view.resolution();
+        let bounding_box = view.get_bbox()?;
+        self.iter_tiles_over_bbox(resolution, bounding_box)
+    }
+
+    /// Returns the bounding rectangle of the given tile index, if the index is valid.
+    pub fn tile_bbox(&self, index: WrappingTileIndex) -> Option<Rect> {
+        let x_index = index.display_x;
+        let y_index = index.y;
+
+        let resolution = self.lod_resolution(index.z)?;
+        let x_min = self.origin.x() + (x_index as f64) * self.tile_width as f64 * resolution;
+        let y_min = match self.y_direction {
+            VerticalDirection::TopToBottom => {
+                self.origin.y() - (y_index + 1) as f64 * self.tile_height as f64 * resolution
+            }
+            VerticalDirection::BottomToTop => {
+                self.origin.y() + (y_index as f64) * self.tile_height as f64 * resolution
+            }
+        };
+
+        Some(Rect::new(
+            x_min,
+            y_min,
+            x_min + self.tile_width as f64 * resolution,
+            y_min + self.tile_height as f64 * resolution,
+        ))
+    }
+
     /// Select a level of detail for the given resolution.
-    pub fn select_lod(&self, resolution: f64) -> Option<Lod> {
+    fn select_lod(&self, resolution: f64) -> Option<Lod> {
         if !resolution.is_finite() || self.lods.is_empty() {
             return None;
         }
@@ -78,13 +109,6 @@ impl TileSchema {
         }
 
         selected_lod
-    }
-
-    /// Iterate over tile indices that should be displayed for the given map view.
-    pub fn iter_tiles(&self, view: &MapView) -> Option<impl Iterator<Item = WrappingTileIndex>> {
-        let resolution = view.resolution();
-        let bounding_box = view.get_bbox()?;
-        self.iter_tiles_over_bbox(resolution, bounding_box)
     }
 
     fn iter_tiles_over_bbox(
@@ -147,55 +171,6 @@ impl TileSchema {
             VerticalDirection::TopToBottom => self.origin.y() - y,
             VerticalDirection::BottomToTop => y - self.origin.y(),
         }
-    }
-
-    /// Standard Web Mercator based tile scheme (used, for example, by OSM and Google maps).
-    pub fn web(lods_count: u32) -> Self {
-        const ORIGIN: Point2 = Point2::new(-20037508.342787, 20037508.342787);
-        const TOP_RESOLUTION: f64 = 156543.03392800014;
-
-        let mut lods = vec![TOP_RESOLUTION];
-        for i in 1..lods_count {
-            lods.push(lods[(i - 1) as usize] / 2.0);
-        }
-
-        TileSchema {
-            origin: ORIGIN,
-            bounds: Rect::new(
-                -20037508.342787,
-                -20037508.342787,
-                20037508.342787,
-                20037508.342787,
-            ),
-            lods,
-            tile_width: 256,
-            tile_height: 256,
-            y_direction: VerticalDirection::TopToBottom,
-        }
-    }
-
-    /// Returns the bounding rectangle of the given tile index, if the index is valid.
-    pub fn tile_bbox(&self, index: WrappingTileIndex) -> Option<Rect> {
-        let x_index = index.display_x;
-        let y_index = index.y;
-
-        let resolution = self.lod_resolution(index.z)?;
-        let x_min = self.origin.x() + (x_index as f64) * self.tile_width as f64 * resolution;
-        let y_min = match self.y_direction {
-            VerticalDirection::TopToBottom => {
-                self.origin.y() - (y_index + 1) as f64 * self.tile_height as f64 * resolution
-            }
-            VerticalDirection::BottomToTop => {
-                self.origin.y() + (y_index as f64) * self.tile_height as f64 * resolution
-            }
-        };
-
-        Some(Rect::new(
-            x_min,
-            y_min,
-            x_min + self.tile_width as f64 * resolution,
-            y_min + self.tile_height as f64 * resolution,
-        ))
     }
 
     fn wrap_x(&self) -> bool {
