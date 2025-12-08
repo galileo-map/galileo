@@ -4,7 +4,6 @@ use galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use serde::{Deserialize, Serialize};
 
 use super::tile_index::WrappingTileIndex;
-use crate::lod::Lod;
 use crate::view::MapView;
 
 const RESOLUTION_TOLERANCE: f64 = 0.01;
@@ -33,6 +32,11 @@ pub struct TileSchema {
     pub(super) tile_height: u32,
     /// Direction of the Y-axis.
     pub(super) y_direction: VerticalDirection,
+}
+
+pub struct Lod {
+    resolution: f64,
+    z_index: u32,
 }
 
 impl TileSchema {
@@ -100,7 +104,10 @@ impl TileSchema {
                 continue;
             };
 
-            selected_lod = Some(Lod::new(lod_resolution, index as u32)?);
+            selected_lod = Some(Lod {
+                resolution: lod_resolution,
+                z_index: index as u32,
+            });
 
             let adjusted_resolution = lod_resolution * (1.0 - RESOLUTION_TOLERANCE);
             if adjusted_resolution < resolution {
@@ -118,17 +125,17 @@ impl TileSchema {
     ) -> Option<impl Iterator<Item = WrappingTileIndex>> {
         let lod = self.select_lod(resolution)?;
 
-        let tile_w = lod.resolution() * self.tile_width as f64;
-        let tile_h = lod.resolution() * self.tile_height as f64;
+        let tile_w = lod.resolution * self.tile_width as f64;
+        let tile_h = lod.resolution * self.tile_height as f64;
 
         let x_min = (self.x_adj(bounding_box.x_min()) / tile_w).floor() as i32;
-        let x_min = x_min.max(self.min_x_displayed_index(lod.resolution()));
+        let x_min = x_min.max(self.min_x_displayed_index(lod.resolution));
 
         let x_max_adj = self.x_adj(bounding_box.x_max());
         let x_add_one = if (x_max_adj % tile_w) < 0.001 { -1 } else { 0 };
 
         let x_max = (x_max_adj / tile_w) as i32 + x_add_one;
-        let x_max = x_max.min(self.max_x_displayed_index(lod.resolution()));
+        let x_max = x_max.min(self.max_x_displayed_index(lod.resolution));
 
         let (top, bottom) = if self.y_direction == VerticalDirection::TopToBottom {
             (bounding_box.y_min(), bounding_box.y_max())
@@ -137,16 +144,16 @@ impl TileSchema {
         };
 
         let y_min = (self.y_adj(bottom) / tile_h) as i32;
-        let y_min = y_min.max(self.min_y_index(lod.resolution()));
+        let y_min = y_min.max(self.min_y_index(lod.resolution));
 
         let y_max_adj = self.y_adj(top);
         let y_add_one = if (y_max_adj % tile_h) < 0.001 { -1 } else { 0 };
 
         let y_max = (y_max_adj / tile_h) as i32 + y_add_one;
-        let y_max = y_max.min(self.max_y_index(lod.resolution()));
+        let y_max = y_max.min(self.max_y_index(lod.resolution));
 
-        let schema_x_min = self.min_x_index(lod.resolution());
-        let schema_x_max = self.max_x_index(lod.resolution());
+        let schema_x_min = self.min_x_index(lod.resolution);
+        let schema_x_max = self.max_x_index(lod.resolution);
         let index_range = schema_x_max - schema_x_min + 1;
 
         let actual_x =
@@ -156,7 +163,7 @@ impl TileSchema {
             (y_min..=y_max).map(move |y| WrappingTileIndex {
                 x: actual_x(x),
                 y,
-                z: lod.z_index(),
+                z: lod.z_index,
                 display_x: x,
             })
         }))
@@ -264,15 +271,15 @@ mod tests {
     #[test]
     fn select_lod() {
         let schema = simple_schema();
-        assert_eq!(schema.select_lod(8.0).unwrap().z_index(), 0);
-        assert_eq!(schema.select_lod(9.0).unwrap().z_index(), 0);
-        assert_eq!(schema.select_lod(16.0).unwrap().z_index(), 0);
-        assert_eq!(schema.select_lod(7.99).unwrap().z_index(), 0);
-        assert_eq!(schema.select_lod(7.5).unwrap().z_index(), 1);
-        assert_eq!(schema.select_lod(4.1).unwrap().z_index(), 1);
-        assert_eq!(schema.select_lod(4.0).unwrap().z_index(), 1);
-        assert_eq!(schema.select_lod(1.5).unwrap().z_index(), 2);
-        assert_eq!(schema.select_lod(1.0).unwrap().z_index(), 2);
+        assert_eq!(schema.select_lod(8.0).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(9.0).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(16.0).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(7.99).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(7.5).unwrap().z_index, 1);
+        assert_eq!(schema.select_lod(4.1).unwrap().z_index, 1);
+        assert_eq!(schema.select_lod(4.0).unwrap().z_index, 1);
+        assert_eq!(schema.select_lod(1.5).unwrap().z_index, 2);
+        assert_eq!(schema.select_lod(1.0).unwrap().z_index, 2);
     }
 
     #[test]
