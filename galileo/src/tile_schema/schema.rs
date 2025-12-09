@@ -1,5 +1,7 @@
 //! Tile schema definition.
 
+use std::sync::Arc;
+
 use galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +27,7 @@ pub struct TileSchema {
     /// Rectangle that contains all tiles of the tile scheme.
     pub(super) bounds: Rect,
     /// Sorted set of levels of detail that specify resolutions for each z-level.
-    pub(super) lods: Vec<f64>,
+    pub(super) lods: Arc<Vec<f64>>,
     /// Width of a single tile in pixels.
     pub(super) tile_width: u32,
     /// Height of a single tile in pixels.
@@ -97,25 +99,15 @@ impl TileSchema {
             return None;
         }
 
-        let mut selected_lod = None;
-
-        for index in 0..self.lods.len() {
-            let Some(lod_resolution) = self.lod_resolution(index as u32) else {
-                continue;
-            };
-
-            selected_lod = Some(Lod {
-                resolution: lod_resolution,
-                z_index: index as u32,
-            });
-
-            let adjusted_resolution = lod_resolution * (1.0 - RESOLUTION_TOLERANCE);
-            if adjusted_resolution < resolution {
-                break;
-            }
-        }
-
-        selected_lod
+        let adj_resolution = resolution * (1.0 + RESOLUTION_TOLERANCE);
+        let index = self
+            .lods
+            .partition_point(|&resolution| resolution >= adj_resolution);
+        let index = index.min(self.lods.len() - 1);
+        Some(Lod {
+            resolution: self.lods[index],
+            z_index: index as u32,
+        })
     }
 
     fn iter_tiles_over_bbox(
@@ -251,10 +243,14 @@ mod tests {
     use crate::tile_schema::WrappingTileIndex;
 
     fn simple_schema() -> TileSchema {
+        schema_with_lods(vec![8.0, 4.0, 2.0])
+    }
+
+    fn schema_with_lods(lods: Vec<f64>) -> TileSchema {
         TileSchema {
             origin: Point2::default(),
             bounds: Rect::new(0.0, 0.0, 2048.0, 2048.0),
-            lods: vec![8.0, 4.0, 2.0],
+            lods: Arc::new(lods),
             tile_width: 256,
             tile_height: 256,
             y_direction: VerticalDirection::BottomToTop,
@@ -280,6 +276,34 @@ mod tests {
         assert_eq!(schema.select_lod(4.0).unwrap().z_index, 1);
         assert_eq!(schema.select_lod(1.5).unwrap().z_index, 2);
         assert_eq!(schema.select_lod(1.0).unwrap().z_index, 2);
+    }
+
+    #[test]
+    fn select_lod_skipped_levels() {
+        let schema = schema_with_lods(vec![f64::MAX, f64::MAX, 8.0, 4.0, 2.0]);
+        assert_eq!(schema.select_lod(8.0).unwrap().z_index, 2);
+        assert_eq!(schema.select_lod(9.0).unwrap().z_index, 2);
+        assert_eq!(schema.select_lod(16.0).unwrap().z_index, 2);
+        assert_eq!(schema.select_lod(7.99).unwrap().z_index, 2);
+        assert_eq!(schema.select_lod(7.5).unwrap().z_index, 3);
+        assert_eq!(schema.select_lod(4.1).unwrap().z_index, 3);
+        assert_eq!(schema.select_lod(4.0).unwrap().z_index, 3);
+        assert_eq!(schema.select_lod(1.5).unwrap().z_index, 4);
+        assert_eq!(schema.select_lod(1.0).unwrap().z_index, 4);
+    }
+
+    #[test]
+    fn select_lod_duplicate_levels() {
+        let schema = schema_with_lods(vec![16.0, 8.0, 8.0, 8.0, 8.0, 2.0]);
+        assert_eq!(schema.select_lod(16.0).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(17.0).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(15.99).unwrap().z_index, 0);
+        assert_eq!(schema.select_lod(8.1).unwrap().z_index, 1);
+        assert_eq!(schema.select_lod(8.0).unwrap().z_index, 1);
+        assert_eq!(schema.select_lod(7.99).unwrap().z_index, 1);
+        assert_eq!(schema.select_lod(2.1).unwrap().z_index, 5);
+        assert_eq!(schema.select_lod(2.0).unwrap().z_index, 5);
+        assert_eq!(schema.select_lod(1.0).unwrap().z_index, 5);
     }
 
     #[test]

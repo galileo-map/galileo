@@ -1,6 +1,7 @@
 //! Builder for [`TileSchema`].
 
 use core::f64;
+use std::sync::Arc;
 
 use galileo_types::cartesian::{Point2, Rect};
 
@@ -53,11 +54,17 @@ impl TileSchemaBuilder {
                 let top_resolution = self.bounds.width() / self.tile_width as f64;
 
                 let max_z_level = *z_levels.iter().max().unwrap_or(&0);
-                let mut lods = vec![f64::NAN; max_z_level as usize + 1];
+                let mut lods = vec![f64::MAX; max_z_level as usize + 1];
 
                 for z in z_levels {
                     let resolution = top_resolution / f64::powi(2.0, z as i32);
                     lods[z as usize] = resolution;
+                }
+
+                for i in 1..lods.len() {
+                    if lods[i] == f64::MAX {
+                        lods[i] = lods[i - 1];
+                    }
                 }
 
                 lods
@@ -74,7 +81,7 @@ impl TileSchemaBuilder {
         Ok(TileSchema {
             origin: self.origin,
             bounds: self.bounds,
-            lods,
+            lods: Arc::new(lods),
             tile_width: self.tile_width,
             tile_height: self.tile_height,
             y_direction: self.y_direction,
@@ -195,5 +202,55 @@ mod tests {
             "Got {:?}",
             result
         );
+    }
+
+    #[test]
+    fn skipped_first_z_levels_have_f64_max() {
+        let schema = TileSchemaBuilder::web_mercator(5..=10).build().unwrap();
+        assert_eq!(schema.lods.len(), 11);
+
+        for z in 0..5 {
+            assert_eq!(schema.lods[z], f64::MAX, "Level {} should have f64::MAX", z);
+        }
+
+        for z in 5..=10 {
+            let expected = 156543.03392802345 / 2f64.powi(z);
+            assert_abs_diff_eq!(schema.lods[z as usize], expected);
+        }
+    }
+
+    #[test]
+    fn skipped_middle_z_levels_use_previous_value() {
+        let schema = TileSchemaBuilder::web_mercator([1, 2, 3, 5])
+            .build()
+            .unwrap();
+        assert_eq!(schema.lods.len(), 6);
+
+        assert_eq!(schema.lods[0], f64::MAX);
+
+        assert_abs_diff_eq!(schema.lods[1], 156543.03392802345 / 2f64.powi(1));
+        assert_abs_diff_eq!(schema.lods[2], 156543.03392802345 / 2f64.powi(2));
+        assert_abs_diff_eq!(schema.lods[3], 156543.03392802345 / 2f64.powi(3));
+
+        let expected_level_3 = 156543.03392802345 / 2f64.powi(3);
+        assert_abs_diff_eq!(schema.lods[4], expected_level_3);
+
+        assert_abs_diff_eq!(schema.lods[5], 156543.03392802345 / 2f64.powi(5));
+    }
+
+    #[test]
+    fn skipped_multiple_middle_z_levels_use_previous_value() {
+        let schema = TileSchemaBuilder::web_mercator([0, 1, 5]).build().unwrap();
+        assert_eq!(schema.lods.len(), 6);
+
+        assert_abs_diff_eq!(schema.lods[0], 156543.03392802345 / 2f64.powi(0));
+        assert_abs_diff_eq!(schema.lods[1], 156543.03392802345 / 2f64.powi(1));
+
+        let expected_level_1 = 156543.03392802345 / 2f64.powi(1);
+        for z in 2..5 {
+            assert_abs_diff_eq!(schema.lods[z], expected_level_1);
+        }
+
+        assert_abs_diff_eq!(schema.lods[5], 156543.03392802345 / 2f64.powi(5));
     }
 }
