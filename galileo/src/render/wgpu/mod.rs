@@ -396,6 +396,7 @@ impl WgpuRenderer {
                 label: None,
                 memory_hints: Default::default(),
                 trace: wgpu::Trace::Off,
+                experimental_features: wgpu::ExperimentalFeatures::disabled(),
             })
             .await
             .expect("Failed to obtain WGPU device")
@@ -598,7 +599,10 @@ impl WgpuRenderer {
             }
         });
 
-        if let Err(err) = self.device.poll(wgpu::PollType::Wait) {
+        if let Err(err) = self.device.poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: Some(std::time::Duration::from_secs(60)),
+        }) {
             log::error!("polling device failed: {err:?}");
         }
 
@@ -652,6 +656,7 @@ impl WgpuRenderer {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &renderer_targets.multisampling_view,
+                        depth_slice: None,
                         resolve_target: Some(view),
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -762,6 +767,7 @@ impl WgpuRenderer {
                 label: Some("Horizon Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: texture_view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -921,6 +927,7 @@ impl Canvas for WgpuCanvas<'_> {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
+                    depth_slice: None,
                     resolve_target,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -1121,6 +1128,7 @@ impl Canvas for WgpuCanvas<'_> {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
+                    depth_slice: None,
                     resolve_target,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
