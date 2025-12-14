@@ -16,7 +16,7 @@ use crate::layer::data_provider::{
     FileCacheController, FileCachePathModifier, PersistentCacheController, UrlSource,
 };
 use crate::layer::Layer;
-use crate::tile_schema::TileIndex;
+use crate::tile_schema::{TileIndex, TileSchemaBuilder};
 use crate::{Color, Messenger, TileSchema};
 
 /// Constructor for a [`VectorTileLayer`].
@@ -24,7 +24,7 @@ use crate::{Color, Messenger, TileSchema};
 /// ```
 /// use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 ///
-/// # fn load_tile_schema() -> galileo::TileSchema { galileo::TileSchema::web(10) }
+/// # fn load_tile_schema() -> galileo::TileSchema { galileo::tile_schema::TileSchemaBuilder::web_mercator(0..=10).build().unwrap() }
 /// # fn load_style() -> galileo::layer::vector_tile_layer::style::VectorTileStyle {
 /// #     galileo::layer::vector_tile_layer::style::VectorTileStyle::default() }
 ///
@@ -311,7 +311,7 @@ impl VectorTileLayerBuilder {
     /// ```
     /// use galileo::layer::Layer;
     /// use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
-    /// use galileo::TileSchema;
+    /// use galileo::tile_schema::TileSchemaBuilder;
     ///
     /// let layer = VectorTileLayerBuilder::new_rest(
     ///     |index| {
@@ -320,10 +320,10 @@ impl VectorTileLayerBuilder {
     ///             index.z, index.x, index.y
     ///         )
     ///     })
-    ///     .with_tile_schema(TileSchema::web(10))
+    ///     .with_tile_schema(TileSchemaBuilder::web_mercator(0..=10).build().unwrap())
     ///     .build()?;
     ///
-    /// assert_eq!(*layer.tile_schema().as_ref().unwrap(), TileSchema::web(10));
+    /// assert_eq!(*layer.tile_schema().as_ref().unwrap(), TileSchemaBuilder::web_mercator(0..=10).build().unwrap());
     /// # Ok::<(), galileo::error::GalileoError>(())
     /// ```
     pub fn with_tile_schema(mut self, tile_schema: TileSchema) -> Self {
@@ -388,7 +388,11 @@ impl VectorTileLayerBuilder {
             attribution,
         } = self;
 
-        let tile_schema = tile_schema.unwrap_or_else(|| TileSchema::web(18));
+        let tile_schema = tile_schema.unwrap_or_else(|| {
+            TileSchemaBuilder::web_mercator(0..=18)
+                .build()
+                .expect("default tile schema is valid")
+        });
 
         let cache_controller: Option<Box<dyn PersistentCacheController<str, Bytes>>> = match cache {
             CacheType::None => None,
@@ -568,6 +572,9 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(*layer.tile_schema().as_ref().unwrap(), TileSchema::web(18));
+        assert_eq!(
+            *layer.tile_schema().as_ref().unwrap(),
+            TileSchemaBuilder::web_mercator(0..=18).build().unwrap()
+        );
     }
 }

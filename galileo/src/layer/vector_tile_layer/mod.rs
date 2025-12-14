@@ -301,9 +301,10 @@ mod tests {
     use super::*;
     use crate::platform::native::vt_processor::ThreadVtProcessor;
     use crate::tests::TestTileLoader;
+    use crate::tile_schema::TileSchemaBuilder;
 
     fn test_layer() -> VectorTileLayer {
-        let tile_schema = TileSchema::web(18);
+        let tile_schema = TileSchemaBuilder::web_mercator(0..=18).build().unwrap();
         let mut provider = VectorTileProvider::new(
             Arc::new(TestTileLoader {}),
             Arc::new(ThreadVtProcessor::new(tile_schema.clone())),
@@ -312,7 +313,7 @@ mod tests {
         let style_id = provider.add_style(VectorTileStyle::default());
         VectorTileLayer {
             tile_provider: provider.clone(),
-            tile_schema: TileSchema::web(18),
+            tile_schema: TileSchemaBuilder::web_mercator(0..18).build().unwrap(),
             style_id,
             displayed_tiles: TilesContainer::new(tile_schema, provider),
             prev_background: Default::default(),
