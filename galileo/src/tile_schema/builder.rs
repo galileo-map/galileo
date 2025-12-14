@@ -40,6 +40,18 @@ pub enum TileSchemaError {
         /// Tile height
         height: u32,
     },
+
+    /// Resolution too small.
+    ///
+    /// If the resolution is too small, it means that the tile indices would exceed the maximum
+    /// representable value (u64::MAX).
+    #[error("Resolution too small at z-level {z_level}: {resolution}")]
+    ResolutionTooSmall {
+        /// Z-level where resolution is too small
+        z_level: u32,
+        /// The resolution value that is too small
+        resolution: f64,
+    },
 }
 
 impl TileSchemaBuilder {
@@ -53,11 +65,25 @@ impl TileSchemaBuilder {
 
                 let top_resolution = self.bounds.width() / self.tile_width as f64;
 
+                // Resolution is bound by the maximum tile index that can be represented
+                let min_resolution = f64::min(
+                    self.bounds.width() / self.tile_width as f64 / u64::MAX as f64,
+                    self.bounds.height() / self.tile_height as f64 / u64::MAX as f64,
+                );
+
                 let max_z_level = *z_levels.iter().max().unwrap_or(&0);
                 let mut lods = vec![f64::MAX; max_z_level as usize + 1];
 
                 for z in z_levels {
                     let resolution = top_resolution / f64::powi(2.0, z as i32);
+
+                    if resolution < min_resolution {
+                        return Err(TileSchemaError::ResolutionTooSmall {
+                            z_level: z,
+                            resolution,
+                        });
+                    }
+
                     lods[z as usize] = resolution;
                 }
 
@@ -252,5 +278,26 @@ mod tests {
         }
 
         assert_abs_diff_eq!(schema.lods[5], 156543.03392802345 / 2f64.powi(5));
+    }
+
+    #[test]
+    fn resolution_at_boundary_of_precision() {
+        let result = TileSchemaBuilder::web_mercator(0..=64).build();
+        assert!(
+            result.is_ok(),
+            "Expected z=0..=64 to be valid, got {:?}",
+            result
+        );
+
+        let result = TileSchemaBuilder::web_mercator(0..=65).build();
+
+        assert!(
+            matches!(
+                result,
+                Err(TileSchemaError::ResolutionTooSmall { z_level: 65, .. })
+            ),
+            "Expected ResolutionTooSmall error, got {:?}",
+            result
+        );
     }
 }
