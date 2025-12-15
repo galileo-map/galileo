@@ -102,6 +102,12 @@ fn compare_numeric(a: &galileo_mvt::MvtValue, b: &str, cmp: impl Fn(f64, f64) ->
 pub struct StyleRule {
     /// If set, a feature must belong to the set layer. If not set, layer is not checked.
     pub layer_name: Option<String>,
+    /// Defines the maximum zoom of the layer.
+    #[serde(default)]
+    pub max_zoom: Option<u8>,
+    /// Defines the minimum zoom of the layer.
+    #[serde(default)]
+    pub min_zoom: Option<u8>,
     /// Specifies a set of attributes of a feature that must have the given values for this rule to be applied.
     #[serde(default)]
     pub properties: Vec<PropertyFilter>,
@@ -331,6 +337,8 @@ mod tests {
     fn serialize_with_bincode() {
         let rule = StyleRule {
             layer_name: None,
+            max_zoom: None,
+            min_zoom: None,
             properties: vec![],
             symbol: VectorTileSymbol::None,
         };

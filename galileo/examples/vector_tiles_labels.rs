@@ -43,6 +43,8 @@ pub(crate) fn run() {
     let labels_style = VectorTileStyle {
         rules: vec![StyleRule {
             layer_name: None,
+            max_zoom: None,
+            min_zoom: None,
             properties: Default::default(),
             symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
                 pattern: String::from("{name}"),
