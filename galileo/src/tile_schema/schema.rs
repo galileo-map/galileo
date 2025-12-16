@@ -233,6 +233,14 @@ impl TileSchema {
             (floored / self.tile_height as f64) as i32
         }
     }
+    /// Returns the resolution for the corresponding zoom level
+    pub fn zoom_resolution(&self, zoom: f64) -> Option<f64> {
+        let z_base = zoom.floor() as u32;
+        let frac = zoom - z_base as f64;
+
+        let base = self.lod_resolution(z_base)?;
+        Some(base / 2f64.powf(frac))
+    }
 }
 
 #[cfg(test)]
