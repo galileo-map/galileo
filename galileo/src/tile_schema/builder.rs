@@ -3,6 +3,7 @@
 use core::f64;
 use std::sync::Arc;
 
+use ahash::HashMap;
 use galileo_types::cartesian::{Point2, Rect};
 
 use super::schema::{TileSchema, VerticalDirection};
@@ -23,17 +24,18 @@ pub struct TileSchemaBuilder {
 #[derive(Debug)]
 enum Lods {
     Logarithmic(Vec<u32>),
+    Custom(HashMap<u32, f64>),
 }
 
 /// Errors that can occur during building a [`TileSchema`].
 #[derive(Debug, thiserror::Error)]
 pub enum TileSchemaError {
     /// No zoom levels provided
-    #[error("No zoom levels provided")]
+    #[error("no zoom levels provided")]
     NoZLevelsProvided,
 
     /// Invalid tile size
-    #[error("Invalid tile size: {width}x{height}")]
+    #[error("invalid tile size: {width}x{height}")]
     InvalidTileSize {
         /// Tile width
         width: u32,
@@ -45,18 +47,37 @@ pub enum TileSchemaError {
     ///
     /// If the resolution is too small, it means that the tile indices would exceed the maximum
     /// representable value (u64::MAX).
-    #[error("Resolution too small at z-level {z_level}: {resolution}")]
+    #[error("resolution too small at z-level {z_level}: {resolution}")]
     ResolutionTooSmall {
         /// Z-level where resolution is too small
         z_level: u32,
         /// The resolution value that is too small
         resolution: f64,
     },
+
+    /// Z-level resolutions are not decreasing
+    #[error("resolution at z-level {upper_level} ({upper_resolution}) cannot be smaller than resolution at z-level {lower_level} ({lower_resolution})")]
+    NotSortedZLevels {
+        /// Smaller z-level value
+        upper_level: u32,
+        /// Resolution of the `upper_level`
+        upper_resolution: f64,
+        /// Larger z-level value
+        lower_level: u32,
+        /// Resolution of the `lower_level`
+        lower_resolution: f64,
+    },
 }
 
 impl TileSchemaBuilder {
     /// Create a new builder with default parameters.
     pub fn build(self) -> Result<TileSchema, TileSchemaError> {
+        // Resolution is bound by the maximum tile index that can be represented
+        let min_resolution = f64::min(
+            self.bounds.width() / self.tile_width as f64 / u64::MAX as f64,
+            self.bounds.height() / self.tile_height as f64 / u64::MAX as f64,
+        );
+
         let lods = match self.lods {
             Lods::Logarithmic(z_levels) => {
                 if z_levels.is_empty() {
@@ -64,12 +85,6 @@ impl TileSchemaBuilder {
                 }
 
                 let top_resolution = self.bounds.width() / self.tile_width as f64;
-
-                // Resolution is bound by the maximum tile index that can be represented
-                let min_resolution = f64::min(
-                    self.bounds.width() / self.tile_width as f64 / u64::MAX as f64,
-                    self.bounds.height() / self.tile_height as f64 / u64::MAX as f64,
-                );
 
                 let max_z_level = *z_levels.iter().max().unwrap_or(&0);
                 let mut lods = vec![f64::MAX; max_z_level as usize + 1];
@@ -90,6 +105,45 @@ impl TileSchemaBuilder {
                 for i in 1..lods.len() {
                     if lods[i] == f64::MAX {
                         lods[i] = lods[i - 1];
+                    }
+                }
+
+                lods
+            }
+            Lods::Custom(z_levels) => {
+                if z_levels.is_empty() {
+                    return Err(TileSchemaError::NoZLevelsProvided);
+                }
+
+                let max_z_level = *z_levels.keys().max().unwrap_or(&0);
+                let mut lods = vec![f64::MAX; max_z_level as usize + 1];
+
+                for i in 0..lods.len() {
+                    match z_levels.get(&(i as u32)) {
+                        Some(&resolution) => {
+                            if resolution < min_resolution {
+                                return Err(TileSchemaError::ResolutionTooSmall {
+                                    z_level: i as u32,
+                                    resolution,
+                                });
+                            }
+
+                            if i > 0 && lods[i - 1] < resolution {
+                                return Err(TileSchemaError::NotSortedZLevels {
+                                    upper_level: i as u32 - 1,
+                                    upper_resolution: lods[i - 1],
+                                    lower_level: i as u32,
+                                    lower_resolution: resolution,
+                                });
+                            }
+
+                            lods[i] = resolution
+                        }
+                        None => {
+                            if i > 0 {
+                                lods[i] = lods[i - 1];
+                            }
+                        }
                     }
                 }
 
@@ -154,6 +208,16 @@ impl TileSchemaBuilder {
 
         self
     }
+
+    /// Sets the z-levels with specified resolution from the iterator.
+    ///
+    /// Z-levels are given as tuples of `(z-index, resolution)`. Smaller z-indexes must correspond
+    /// to larger resolution values. If z-levels are not sorted correctly, building the tile schema
+    /// would result in [`TileSchemaError::NotSortedZLevels`] error.
+    pub fn with_z_levels(mut self, z_levels: impl IntoIterator<Item = (u32, f64)>) -> Self {
+        self.lods = Lods::Custom(z_levels.into_iter().collect());
+        self
+    }
 }
 
 #[cfg(test)]
@@ -163,15 +227,17 @@ mod tests {
     use super::*;
     use crate::tile_schema::VerticalDirection;
 
+    const TOP_RESOLUTION: f64 = 156543.03392802345;
+
     #[test]
     fn schema_builder_normal_web_mercator() {
         let schema = TileSchemaBuilder::web_mercator(0..=20).build().unwrap();
         assert_eq!(schema.lods.len(), 21);
 
-        assert_abs_diff_eq!(schema.lods[0], 156543.03392802345);
+        assert_abs_diff_eq!(schema.lods[0], TOP_RESOLUTION);
 
         for z in 1..=20 {
-            let expected = 156543.03392802345 / 2f64.powi(z);
+            let expected = TOP_RESOLUTION / 2f64.powi(z);
             assert_abs_diff_eq!(schema.lods[z as usize], expected);
         }
 
@@ -208,8 +274,8 @@ mod tests {
         let schema = TileSchemaBuilder::web_mercator(5..=10).build().unwrap();
         assert_eq!(schema.lods.len(), 11);
 
-        assert_abs_diff_eq!(schema.lods[5], 156543.03392802345 / 2f64.powi(5));
-        assert_abs_diff_eq!(schema.lods[10], 156543.03392802345 / 2f64.powi(10));
+        assert_abs_diff_eq!(schema.lods[5], TOP_RESOLUTION / 2f64.powi(5));
+        assert_abs_diff_eq!(schema.lods[10], TOP_RESOLUTION / 2f64.powi(10));
     }
 
     #[test]
@@ -254,14 +320,14 @@ mod tests {
 
         assert_eq!(schema.lods[0], f64::MAX);
 
-        assert_abs_diff_eq!(schema.lods[1], 156543.03392802345 / 2f64.powi(1));
-        assert_abs_diff_eq!(schema.lods[2], 156543.03392802345 / 2f64.powi(2));
-        assert_abs_diff_eq!(schema.lods[3], 156543.03392802345 / 2f64.powi(3));
+        assert_abs_diff_eq!(schema.lods[1], TOP_RESOLUTION / 2f64.powi(1));
+        assert_abs_diff_eq!(schema.lods[2], TOP_RESOLUTION / 2f64.powi(2));
+        assert_abs_diff_eq!(schema.lods[3], TOP_RESOLUTION / 2f64.powi(3));
 
-        let expected_level_3 = 156543.03392802345 / 2f64.powi(3);
+        let expected_level_3 = TOP_RESOLUTION / 2f64.powi(3);
         assert_abs_diff_eq!(schema.lods[4], expected_level_3);
 
-        assert_abs_diff_eq!(schema.lods[5], 156543.03392802345 / 2f64.powi(5));
+        assert_abs_diff_eq!(schema.lods[5], TOP_RESOLUTION / 2f64.powi(5));
     }
 
     #[test]
@@ -269,15 +335,15 @@ mod tests {
         let schema = TileSchemaBuilder::web_mercator([0, 1, 5]).build().unwrap();
         assert_eq!(schema.lods.len(), 6);
 
-        assert_abs_diff_eq!(schema.lods[0], 156543.03392802345 / 2f64.powi(0));
-        assert_abs_diff_eq!(schema.lods[1], 156543.03392802345 / 2f64.powi(1));
+        assert_abs_diff_eq!(schema.lods[0], TOP_RESOLUTION / 2f64.powi(0));
+        assert_abs_diff_eq!(schema.lods[1], TOP_RESOLUTION / 2f64.powi(1));
 
-        let expected_level_1 = 156543.03392802345 / 2f64.powi(1);
+        let expected_level_1 = TOP_RESOLUTION / 2f64.powi(1);
         for z in 2..5 {
             assert_abs_diff_eq!(schema.lods[z], expected_level_1);
         }
 
-        assert_abs_diff_eq!(schema.lods[5], 156543.03392802345 / 2f64.powi(5));
+        assert_abs_diff_eq!(schema.lods[5], TOP_RESOLUTION / 2f64.powi(5));
     }
 
     #[test]
@@ -299,5 +365,72 @@ mod tests {
             "Expected ResolutionTooSmall error, got {:?}",
             result
         );
+    }
+
+    #[test]
+    fn custom_z_levels_equivalent_to_logarithmic() {
+        let mut lods = vec![];
+        const LEVELS: u32 = 32;
+
+        for i in 0..=LEVELS {
+            lods.push((i, TOP_RESOLUTION / 2f64.powi(i as i32)));
+        }
+
+        let tile_schema = TileSchemaBuilder::web_mercator(0..0)
+            .with_z_levels(lods)
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            tile_schema.lods,
+            TileSchemaBuilder::web_mercator(0..=LEVELS)
+                .build()
+                .unwrap()
+                .lods,
+        );
+    }
+
+    #[test]
+    fn custom_z_levels_check_for_min_resolution() {
+        let result = TileSchemaBuilder::web_mercator(0..0)
+            .with_z_levels([(0, TOP_RESOLUTION), (1, TOP_RESOLUTION / 2f64.powi(65))])
+            .build();
+        assert!(
+            matches!(
+                result,
+                Err(TileSchemaError::ResolutionTooSmall { z_level: 1, .. })
+            ),
+            "Unexpected schema build result: {result:?}"
+        );
+    }
+
+    #[test]
+    fn custom_z_levels_must_be_sorted() {
+        let mut lods = vec![];
+        const LEVELS: u32 = 32;
+
+        for i in 0..=LEVELS {
+            lods.push((i, TOP_RESOLUTION / 2f64.powi(i as i32)));
+        }
+
+        lods.swap(1, 2);
+        lods[1].0 = 1;
+        lods[2].0 = 2;
+
+        let result = TileSchemaBuilder::web_mercator(0..0)
+            .with_z_levels(lods)
+            .build();
+
+        assert!(
+            matches!(
+                result,
+                Err(TileSchemaError::NotSortedZLevels {
+                    upper_level: 1,
+                    lower_level: 2,
+                    ..
+                })
+            ),
+            "Unexpected schema build result: {result:?}"
+        )
     }
 }
