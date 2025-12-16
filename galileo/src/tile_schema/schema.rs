@@ -34,6 +34,8 @@ pub struct TileSchema {
     pub(super) tile_height: u32,
     /// Direction of the Y-axis.
     pub(super) y_direction: VerticalDirection,
+    /// Specifies whether tiles should be wrapped over x index.
+    pub(super) wrap_x: bool,
 }
 
 pub struct Lod {
@@ -173,8 +175,7 @@ impl TileSchema {
     }
 
     fn wrap_x(&self) -> bool {
-        // TODO: https://github.com/Maximkaaa/galileo/issues/221
-        true
+        self.wrap_x
     }
 
     fn min_x_displayed_index(&self, resolution: f64) -> i32 {
@@ -254,6 +255,7 @@ mod tests {
             tile_width: 256,
             tile_height: 256,
             y_direction: VerticalDirection::BottomToTop,
+            wrap_x: true,
         }
     }
 

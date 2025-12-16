@@ -19,6 +19,7 @@ pub struct TileSchemaBuilder {
     tile_width: u32,
     tile_height: u32,
     y_direction: VerticalDirection,
+    wrap_x: bool,
 }
 
 #[derive(Debug)]
@@ -165,6 +166,7 @@ impl TileSchemaBuilder {
             tile_width: self.tile_width,
             tile_height: self.tile_height,
             y_direction: self.y_direction,
+            wrap_x: self.wrap_x,
         })
     }
 
@@ -192,6 +194,7 @@ impl TileSchemaBuilder {
             tile_width: 0,
             tile_height: 0,
             y_direction: VerticalDirection::TopToBottom,
+            wrap_x: true,
         }
     }
 
@@ -216,6 +219,21 @@ impl TileSchemaBuilder {
     /// would result in [`TileSchemaError::NotSortedZLevels`] error.
     pub fn with_z_levels(mut self, z_levels: impl IntoIterator<Item = (u32, f64)>) -> Self {
         self.lods = Lods::Custom(z_levels.into_iter().collect());
+        self
+    }
+
+    /// If set to true, tiles will wrap around x axis of the schema bounds.
+    ///
+    /// This means, that if a tile requested for x coordinate that is larger than the maximum x of the
+    /// bounding box or smaller than the minimum x value, the tile index will be calculated by reducing
+    /// or increasing x coordinate by the whole number of bounding box widths. This produces an effect of
+    /// horizontally infinite map, where a user can pan as log as they want to the right or left.
+    ///
+    /// Note, that for wrapping to work property, bounds of the tile schema should cover the whole globe.
+    /// This is not enforced in `.build()` method validatation since tile schema is agnostic to the CRS
+    /// it will be used for.
+    pub fn wrap_x(mut self, shall_wrap: bool) -> Self {
+        self.wrap_x = shall_wrap;
         self
     }
 }
