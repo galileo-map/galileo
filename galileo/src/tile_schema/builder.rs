@@ -236,6 +236,32 @@ impl TileSchemaBuilder {
         self.wrap_x = shall_wrap;
         self
     }
+
+    /// Sets the origin point of the tiles.
+    /// 
+    /// Origin point is set in projection coordinates (for example, in Mercator meters for Mercator projection).
+    /// 
+    /// It is the point where the tile with index `(X: 0, Y: 0)` is located (for every Z index). If the schema
+    /// uses direction of Y indices from top to bottom, the origin point will be at the left top angle of the
+    /// tile. If the direction of Y indices is from bottom to top, the origin point will be at the left bottom
+    /// point of the tile.
+    /// 
+    /// ```
+    /// # use galileo::tile_schema::TileSchemaBuilder;
+    /// # use galileo::galileo_types::cartesian::Point2;
+    /// let tile_schema = TileSchemaBuilder::web_mercator(0..23)
+    ///     .origin(Point2::new(-20_037_508.342787, 20_037_508.342787))
+    ///     .build()
+    ///     .expect("tile schema is properly defined");
+    /// ```
+    /// 
+    /// Note that origin point doesn't have to be inside the schema bounds. For example, the origin may point to
+    /// the top left angle of the world map, but tiles might only be available for a specific region, and the
+    /// bounds will only contain that region. In this case tiles may have indicies starting not from 0.
+    pub fn origin(mut self, origin: Point2) -> Self {
+        self.origin = origin;
+        self
+    }
 }
 
 #[cfg(test)]
