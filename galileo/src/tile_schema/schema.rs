@@ -203,16 +203,16 @@ impl TileSchema {
         let pix_bound = (self.bounds.x_max() - self.origin.x()) / resolution;
         let floored = pix_bound.floor();
         if (pix_bound - floored).abs() < 0.1 {
-            (floored / self.tile_width as f64) as i32 - 1
+            (pix_bound / self.tile_width as f64) as i32 - 1
         } else {
-            (floored / self.tile_width as f64) as i32
+            (pix_bound / self.tile_width as f64) as i32
         }
     }
 
     fn min_y_index(&self, resolution: f64) -> i32 {
         match self.y_direction {
             VerticalDirection::TopToBottom => {
-                ((self.bounds.y_min() + self.origin.y()) / resolution / self.tile_height as f64)
+                ((self.origin.y() - self.bounds.y_max()) / resolution / self.tile_height as f64)
                     .floor() as i32
             }
             VerticalDirection::BottomToTop => {
@@ -224,14 +224,15 @@ impl TileSchema {
 
     fn max_y_index(&self, resolution: f64) -> i32 {
         let pix_bound = match self.y_direction {
-            VerticalDirection::TopToBottom => (self.bounds.y_max() + self.origin.y()) / resolution,
+            VerticalDirection::TopToBottom => (self.origin.y() - self.bounds.y_min()) / resolution,
             VerticalDirection::BottomToTop => (self.bounds.y_max() - self.origin.y()) / resolution,
         };
+
         let floored = pix_bound.floor();
         if (pix_bound - floored).abs() < 0.1 {
-            (floored / self.tile_height as f64) as i32 - 1
+            (pix_bound / self.tile_width as f64) as i32 - 1
         } else {
-            (floored / self.tile_height as f64) as i32
+            (pix_bound / self.tile_width as f64) as i32
         }
     }
 }
@@ -396,5 +397,98 @@ mod tests {
             schema.iter_tiles(&view).unwrap().next().unwrap().display_x,
             4
         );
+    }
+
+    #[test]
+    fn iter_tiles_origin_out_of_bounds() {
+        let schema = TileSchema {
+            origin: Point2::new(0.0, 0.0),
+            bounds: Rect::new(1000.0, 1000.0, 2000.0, 2000.0),
+            lods: Arc::new(vec![30.0, 10.0, 1.0]),
+            tile_width: 10,
+            tile_height: 10,
+            y_direction: VerticalDirection::BottomToTop,
+            wrap_x: false,
+        };
+
+        let tiles: Vec<_> = schema
+            .iter_tiles_over_bbox(10.0, Rect::new(0.0, 0.0, 500.0, 500.0))
+            .unwrap()
+            .collect();
+        assert!(
+            tiles.is_empty(),
+            "Expected empty tiles iter, but got: {tiles:?}"
+        );
+
+        let tiles: Vec<_> = schema
+            .iter_tiles_over_bbox(10.0, Rect::new(900.0, 900.0, 1100.0, 1100.0))
+            .unwrap()
+            .collect();
+
+        assert_eq!(tiles.len(), 1);
+        assert_eq!(tiles[0], WrappingTileIndex::new(10, 10, 1));
+
+        let tiles: Vec<_> = schema
+            .iter_tiles_over_bbox(30.0, Rect::new(900.0, 900.0, 950.0, 950.0))
+            .unwrap()
+            .collect();
+
+        assert_eq!(tiles.len(), 1);
+        assert_eq!(tiles[0], WrappingTileIndex::new(3, 3, 0));
+    }
+
+    #[test]
+    fn iter_tiles_origin_out_of_bounds_top_to_bottom() {
+        let schema = TileSchema {
+            origin: Point2::new(0.0, 3000.0),
+            bounds: Rect::new(1000.0, 1000.0, 2000.0, 2000.0),
+            lods: Arc::new(vec![30.0, 10.0, 1.0]),
+            tile_width: 10,
+            tile_height: 10,
+            y_direction: VerticalDirection::TopToBottom,
+            wrap_x: false,
+        };
+
+        let tiles: Vec<_> = schema
+            .iter_tiles_over_bbox(10.0, Rect::new(0.0, 0.0, 500.0, 500.0))
+            .unwrap()
+            .collect();
+        assert!(
+            tiles.is_empty(),
+            "Expected empty tiles iter, but got: {tiles:?}"
+        );
+
+        let tiles: Vec<_> = schema
+            .iter_tiles_over_bbox(10.0, Rect::new(900.0, 900.0, 1099.0, 1099.0))
+            .unwrap()
+            .collect();
+
+        println!("{tiles:?}");
+        assert_eq!(tiles.len(), 1);
+        assert_eq!(tiles[0], WrappingTileIndex::new(10, 19, 1));
+
+        let tiles: Vec<_> = schema
+            .iter_tiles_over_bbox(30.0, Rect::new(900.0, 900.0, 950.0, 950.0))
+            .unwrap()
+            .collect();
+
+        assert_eq!(tiles.len(), 1);
+        assert_eq!(tiles[0], WrappingTileIndex::new(3, 6, 0));
+    }
+
+    #[test]
+    fn tile_bbox_origin_out_of_bounds() {
+        let schema = TileSchema {
+            origin: Point2::new(0.0, 0.0),
+            bounds: Rect::new(1000.0, 1000.0, 2000.0, 2000.0),
+            lods: Arc::new(vec![300.0, 100.0, 10.0, 1.0]),
+            tile_width: 10,
+            tile_height: 10,
+            y_direction: VerticalDirection::BottomToTop,
+            wrap_x: false,
+        };
+
+        let bbox = schema.tile_bbox(WrappingTileIndex::new(10, 10, 2)).unwrap();
+        assert_eq!(bbox, Rect::new(1000.0, 1000.0, 1100.0, 1100.0));
     }
 }
