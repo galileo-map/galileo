@@ -322,6 +322,16 @@ impl<'a> EguiMapState {
         self.messenger.clone()
     }
 
+    /// Returns a reference to the Galileo renderer.
+    pub fn renderer(&self) -> &WgpuRenderer {
+        &self.renderer
+    }
+
+    /// Returns a mutable reference to the Galileo renderer.
+    pub fn renderer_mut(&mut self) -> &mut WgpuRenderer {
+        &mut self.renderer
+    }
+
     fn resize_map(&mut self, logical_size: Vec2, pixels_per_point: f32) {
         log::trace!(
             "Resizing map to logical size: {logical_size:?}, pixels_per_point: {pixels_per_point}"
