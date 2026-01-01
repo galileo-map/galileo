@@ -30,7 +30,7 @@ enum Lods {
 }
 
 /// Errors that can occur during building a [`TileSchema`].
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Copy, Clone)]
 pub enum TileSchemaError {
     /// No zoom levels provided
     #[error("no zoom levels provided")]
@@ -69,11 +69,30 @@ pub enum TileSchemaError {
         /// Resolution of the `lower_level`
         lower_resolution: f64,
     },
+
+    /// Tile bounds have invalid value
+    #[error("tile bounds have zero size or not finite: {0:?}")]
+    InvalidTileBounds(Rect),
+
+    /// World bounds have invalid value
+    #[error("world bounds have zero size or not finite: {0:?}")]
+    InvalidWorldBounds(Rect),
 }
 
 impl TileSchemaBuilder {
     /// Create a new builder with default parameters.
     pub fn build(self) -> Result<TileSchema, TileSchemaError> {
+        if !self.tile_bounds.width().is_normal() || !self.tile_bounds.height().is_normal() {
+            return Err(TileSchemaError::InvalidTileBounds(self.tile_bounds));
+        }
+
+        if self.wrap_x
+            && matches!(self.lods, Lods::Logarithmic(_))
+            && (!self.world_bounds.width().is_normal() || !self.world_bounds.height().is_normal())
+        {
+            return Err(TileSchemaError::InvalidWorldBounds(self.tile_bounds));
+        }
+
         // Resolution is bound by the maximum tile index that can be represented
         let min_resolution = f64::min(
             self.world_bounds.width() / self.tile_width as f64 / u64::MAX as f64,
@@ -162,7 +181,8 @@ impl TileSchemaBuilder {
 
         Ok(TileSchema {
             origin: self.origin,
-            bounds: self.tile_bounds,
+            tile_bounds: self.tile_bounds,
+            world_bounds: self.world_bounds,
             lods: Arc::new(lods),
             tile_width: self.tile_width,
             tile_height: self.tile_height,
@@ -236,7 +256,7 @@ impl TileSchemaBuilder {
     /// or increasing x coordinate by the whole number of bounding box widths. This produces an effect of
     /// horizontally infinite map, where a user can pan as log as they want to the right or left.
     ///
-    /// Note, that for wrapping to work property, bounds of the tile schema should cover the whole globe.
+    /// Note, that for wrapping to work property, world bounds of the tile schema should cover the whole globe.
     /// This is not enforced in `.build()` method validatation since tile schema is agnostic to the CRS
     /// it will be used for.
     pub fn wrap_x(mut self, shall_wrap: bool) -> Self {
@@ -262,7 +282,7 @@ impl TileSchemaBuilder {
     ///     .expect("tile schema is properly defined");
     /// ```
     ///
-    /// Note that origin point doesn't have to be inside the schema bounds. For example, the origin may point to
+    /// Note that origin point doesn't have to be inside the tile bounds. For example, the origin may point to
     /// the top left angle of the world map, but tiles might only be available for a specific region, and the
     /// bounds will only contain that region. In this case tiles may have indices starting not from 0.
     pub fn origin(mut self, origin: Point2) -> Self {
@@ -270,16 +290,16 @@ impl TileSchemaBuilder {
         self
     }
 
-    /// Sets a rectangle in projected coordinates for which tiles are available.
+    /// Sets the rectangle in projected coordinates for which tiles are available.
     ///
-    /// Tiles that lies outside of the bounds will not be requested from the source.
+    /// Tiles that lie outside of the bounds will not be requested from the source.
     ///
     /// ```
     /// # use galileo::tile_schema::TileSchemaBuilder;
     /// # use galileo::galileo_types::cartesian::Rect;
     /// let tile_schema = TileSchemaBuilder::web_mercator(0..23)
     ///     // only show tiles for Angola
-    ///     .bounds(Rect::new(1282761., -1975899., 2674573., -590691.))
+    ///     .tile_bounds(Rect::new(1282761., -1975899., 2674573., -590691.))
     ///     .build()
     ///     .expect("tile schema is properly defined");
     /// ```
@@ -287,15 +307,44 @@ impl TileSchemaBuilder {
     /// # Errors
     ///
     /// If either width or height of the bounds rectangle is `0`, `NaN` or `Infinity`, building the tile schema
-    /// will return an error `TileSchemaError::InvalidBounds`.
-    pub fn bounds(mut self, bounds: Rect) -> Self {
+    /// will return an error [`TileSchemaError::InvalidTileBounds`].
+    pub fn tile_bounds(mut self, bounds: Rect) -> Self {
         self.tile_bounds = bounds;
+        self
+    }
+
+    /// Sets the rectangle in projected coordinates, which includes the whole globe as defined by the target
+    /// projection.
+    ///
+    /// World bounds are used to calculate x coordinate of tiles when wrapping around 180 parallel, and to
+    /// calculate resolution levels for logarithmic z-levels. If wrapping is not used and z-levels are set
+    /// manually, this parameter is not required for correct calculations of the tile indices.
+    ///
+    /// ```
+    /// # use galileo::tile_schema::TileSchemaBuilder;
+    /// # use galileo::galileo_types::cartesian::Rect;
+    /// let tile_schema = TileSchemaBuilder::web_mercator(0..23)
+    ///     // square WebMercator projetion bounds
+    ///     .world_bounds(Rect::new(-20037508.342787, -20037508.342787, 20037508.342787, 20037508.342787))
+    ///     .build()
+    ///     .expect("tile schema is properly defined");
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// If either width or height of the bounds rectangle is `0`, `NaN` or `Infinity`, building the tile schema
+    /// will return an error `TileSchemaError::InvalidWorldBounds`. This check is skipped if neither wrapping nor
+    /// logarithmic z-levels are used for the schema.
+    pub fn world_bounds(mut self, bounds: Rect) -> Self {
+        self.world_bounds = bounds;
         self
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use core::f64;
+
     use approx::assert_abs_diff_eq;
 
     use super::*;
@@ -322,7 +371,7 @@ mod tests {
             Point2::new(-20037508.342787, 20037508.342787)
         );
         assert_eq!(
-            schema.bounds,
+            schema.tile_bounds,
             Rect::new(
                 -20037508.342787,
                 -20037508.342787,
@@ -506,5 +555,70 @@ mod tests {
             ),
             "Unexpected schema build result: {result:?}"
         )
+    }
+
+    #[test]
+    fn invalid_tile_bounds_return_error() {
+        let to_check = [
+            Rect::new(0.0, 0.0, 0.0, 1000.0),
+            Rect::new(0.0, 0.0, 1000.0, 0.0),
+            Rect::new(0.0, 0.0, f64::NAN, 1000.0),
+            Rect::new(0.0, 0.0, 0.0, f64::INFINITY),
+            Rect::new(f64::NEG_INFINITY, 0.0, 1000.0, 1000.0),
+        ];
+
+        for bounds in to_check {
+            let result = TileSchemaBuilder::web_mercator(0..18)
+                .tile_bounds(bounds)
+                .build();
+            assert!(
+                matches!(result, Err(TileSchemaError::InvalidTileBounds(_))),
+                "Error not returned for tile bounds: {bounds:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_world_bounds_return_error() {
+        let to_check = [
+            Rect::new(0.0, 0.0, 0.0, 1000.0),
+            Rect::new(0.0, 0.0, 1000.0, 0.0),
+            Rect::new(0.0, 0.0, f64::NAN, 1000.0),
+            Rect::new(0.0, 0.0, 0.0, f64::INFINITY),
+            Rect::new(f64::NEG_INFINITY, 0.0, 1000.0, 1000.0),
+        ];
+
+        for bounds in to_check {
+            let result = TileSchemaBuilder::web_mercator(0..18)
+                .world_bounds(bounds)
+                .build();
+            assert!(
+                matches!(result, Err(TileSchemaError::InvalidWorldBounds(_))),
+                "Error not returned for world bounds: {bounds:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_world_bounds_skipped_if_not_needed() {
+        let to_check = [
+            Rect::new(0.0, 0.0, 0.0, 1000.0),
+            Rect::new(0.0, 0.0, 1000.0, 0.0),
+            Rect::new(0.0, 0.0, f64::NAN, 1000.0),
+            Rect::new(0.0, 0.0, 0.0, f64::INFINITY),
+            Rect::new(f64::NEG_INFINITY, 0.0, 1000.0, 1000.0),
+        ];
+
+        for bounds in to_check {
+            let result = TileSchemaBuilder::web_mercator(0..18)
+                .world_bounds(bounds)
+                .wrap_x(false)
+                .with_z_levels([(0, 1000.0), (1, 500.0)])
+                .build();
+            assert!(
+                result.is_ok(),
+                "Error returned for world bounds: {bounds:?}"
+            );
+        }
     }
 }
