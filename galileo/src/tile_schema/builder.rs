@@ -30,7 +30,7 @@ enum Lods {
 }
 
 /// Errors that can occur during building a [`TileSchema`].
-#[derive(Debug, thiserror::Error, PartialEq, Copy, Clone)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
 pub enum TileSchemaError {
     /// No zoom levels provided
     #[error("no zoom levels provided")]
@@ -90,7 +90,7 @@ impl TileSchemaBuilder {
             && matches!(self.lods, Lods::Logarithmic(_))
             && (!self.world_bounds.width().is_normal() || !self.world_bounds.height().is_normal())
         {
-            return Err(TileSchemaError::InvalidWorldBounds(self.tile_bounds));
+            return Err(TileSchemaError::InvalidWorldBounds(self.world_bounds));
         }
 
         // Resolution is bound by the maximum tile index that can be represented

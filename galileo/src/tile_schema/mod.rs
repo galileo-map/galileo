@@ -1,4 +1,5 @@
-//! [`TileSchema`] is used by tile layers to calculate [tile indices](TileIndex) needed for a given ['MapView'].
+//! [`TileSchema`] is used by tile layers to calculate [tile indices](`TileIndex`) needed
+//! for a given [`MapView`](crate::view::MapView).
 
 mod builder;
 mod schema;

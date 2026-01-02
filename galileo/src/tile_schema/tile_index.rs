@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Tile index with additional virtual `display_x` index that can be used to wrap tiles
+/// Tile index with additional `virtual_x` index that can be used to wrap tiles
 /// over 180 longitude line.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize, Deserialize)]
 pub struct WrappingTileIndex {
@@ -13,7 +13,7 @@ pub struct WrappingTileIndex {
     /// Y index.
     pub y: i32,
     /// Virtual wrapping X index.
-    pub display_x: i32,
+    pub virtual_x: i32,
 }
 
 impl WrappingTileIndex {
@@ -23,7 +23,7 @@ impl WrappingTileIndex {
             x,
             y,
             z,
-            display_x: x,
+            virtual_x: x,
         }
     }
 }
@@ -46,12 +46,12 @@ impl TileIndex {
     }
 
     /// Converts the tile index into a wrapping tile index by setting `display_x` equal to `x`.
-    pub fn into_wrapping(&self) -> WrappingTileIndex {
+    pub fn into_wrapping(self) -> WrappingTileIndex {
         WrappingTileIndex {
             x: self.x,
             y: self.y,
             z: self.z,
-            display_x: self.x,
+            virtual_x: self.x,
         }
     }
 }

@@ -20,6 +20,25 @@ pub enum VerticalDirection {
 }
 
 /// Tile schema specifies how tile indices are calculated based on the map position and resolution.
+///
+/// # Additional notes
+///
+/// ## Equality
+///
+/// This type implements `PartialEq`, but internals rely heavily on floating numbers so all the
+/// limitation of floating numbers comparison apply to `TileSchema` also. It is usually fine to
+/// compare two instances created by the same code, but be aware of comparing schemas after
+/// seraializing/deserializing.
+///
+/// ## Deserialization
+///
+/// `TileSchema` supports serialization and deserialization as we need to be able to transfer
+/// it between workers/processes. But be aware that the type internal logic relies on the all
+/// parameters to be correctly difined. If constructed incorrectly, it may return nonsensical
+/// results when iterating tiles, possibly resulting in infinite iteration. So it is recommended
+/// not to use deserialization to construct `TileSchema` from any external sources or long-term
+/// storage. Use [`super::TileSchemaBuilder`] instead which does all necessary validation before
+/// created a schema.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TileSchema {
     /// Position where all tiles have `X == 0, Y == 0` indices.
@@ -56,6 +75,45 @@ impl TileSchema {
         }
     }
 
+    /// Origin point of the tiles.
+    ///
+    /// Origin point is set in projection coordinates (for example, in Mercator meters for Mercator projection).
+    ///
+    /// It is the point where the tile with index `(X: 0, Y: 0)` is located (for every Z index). If the schema
+    /// uses direction of Y indices from top to bottom, the origin point will be at the left top angle of the
+    /// tile. If the direction of Y indices is from bottom to top, the origin point will be at the left bottom
+    /// point of the tile.
+    pub fn origin(&self) -> Point2 {
+        self.origin
+    }
+
+    /// Rectangle in projected coordinates for which tiles are available.
+    ///
+    /// Tiles that lie outside of the bounds will not be requested from the source.
+    pub fn tile_bounds(&self) -> Rect {
+        self.tile_bounds
+    }
+
+    /// Rectangle in projected coordinates, which includes the whole globe as defined by the target
+    /// projection.
+    ///
+    /// World bounds are used to calculate x coordinate of tiles when wrapping around 180 parallel, and to
+    /// calculate resolution levels for logarithmic z-levels. If wrapping is not used and z-levels are set
+    /// manually, this parameter is not required for correct calculations of the tile indices.
+    pub fn world_bounds(&self) -> Rect {
+        self.world_bounds
+    }
+
+    /// If set to true, tiles will wrap around x axis of the schema bounds.
+    ///
+    /// This means, that if a tile requested for x coordinate that is larger than the maximum x of the
+    /// bounding box or smaller than the minimum x value, the tile index will be calculated by reducing
+    /// or increasing x coordinate by the whole number of bounding box widths. This produces an effect of
+    /// horizontally infinite map, where a user can pan as log as they want to the right or left.
+    pub fn wrap_x(&self) -> bool {
+        self.wrap_x
+    }
+
     /// Width of a single tile.
     pub fn tile_width(&self) -> u32 {
         self.tile_width
@@ -84,7 +142,7 @@ impl TileSchema {
 
     /// Returns the bounding rectangle of the given tile index, if the index is valid.
     pub fn tile_bbox(&self, index: WrappingTileIndex) -> Option<Rect> {
-        let x_index = index.display_x;
+        let x_index = index.virtual_x;
         let y_index = index.y;
 
         let resolution = self.lod_resolution(index.z)?;
@@ -175,7 +233,7 @@ impl TileSchema {
                         x: actual_x(x),
                         y,
                         z: lod.z_index,
-                        display_x: x,
+                        virtual_x: x,
                     })
                 }),
         )
@@ -190,10 +248,6 @@ impl TileSchema {
             VerticalDirection::TopToBottom => self.origin.y() - y,
             VerticalDirection::BottomToTop => y - self.origin.y(),
         }
-    }
-
-    fn wrap_x(&self) -> bool {
-        self.wrap_x
     }
 
     fn min_x_displayed_index(&self, resolution: f64) -> i32 {
@@ -434,13 +488,13 @@ mod tests {
         let view = get_view(8.0, bbox);
         assert_eq!(schema.iter_tiles(&view).unwrap().count(), 1);
         assert_eq!(
-            schema.iter_tiles(&view).unwrap().next().unwrap().display_x,
+            schema.iter_tiles(&view).unwrap().next().unwrap().virtual_x,
             1
         );
         let view = get_view(2.0, bbox);
         assert_eq!(schema.iter_tiles(&view).unwrap().count(), 4);
         assert_eq!(
-            schema.iter_tiles(&view).unwrap().next().unwrap().display_x,
+            schema.iter_tiles(&view).unwrap().next().unwrap().virtual_x,
             4
         );
     }
@@ -564,7 +618,7 @@ mod tests {
                 z: 0,
                 x: 0,
                 y: 0,
-                display_x: 0
+                virtual_x: 0
             }
         );
         assert_eq!(
@@ -573,7 +627,7 @@ mod tests {
                 z: 0,
                 x: 0,
                 y: 0,
-                display_x: 2
+                virtual_x: 2
             }
         );
     }
