@@ -32,13 +32,14 @@ pub enum VerticalDirection {
 ///
 /// ## Deserialization
 ///
-/// `TileSchema` supports serialization and deserialization as we need to be able to transfer
-/// it between workers/processes. But be aware that the type internal logic relies on the all
-/// parameters to be correctly difined. If constructed incorrectly, it may return nonsensical
-/// results when iterating tiles, possibly resulting in infinite iteration. So it is recommended
-/// not to use deserialization to construct `TileSchema` from any external sources or long-term
-/// storage. Use [`super::TileSchemaBuilder`] instead which does all necessary validation before
-/// created a schema.
+/// `TileSchema` supports serialization and deserialization as we need to be
+/// able to transfer it between workers/processes. But be aware that the type
+/// internal logic relies on the all parameters to be correctly defined. If
+/// constructed incorrectly, it may return nonsensical results when iterating
+/// tiles, possibly resulting in infinite iteration or panics. So it is
+/// recommended not to use deserialization to construct `TileSchema` from any
+/// external sources or long-term storage. Use [`super::TileSchemaBuilder`]
+/// instead which does all necessary validation before created a schema.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TileSchema {
     /// Position where all tiles have `X == 0, Y == 0` indices.
@@ -122,6 +123,28 @@ impl TileSchema {
     /// Height of a single tile.
     pub fn tile_height(&self) -> u32 {
         self.tile_height
+    }
+
+    /// Levels of detail of the tile schema.
+    ///
+    /// It returns an iterator of `(z-index, resolution)` items of all LODs defined for the schema.
+    pub fn lods(&self) -> impl Iterator<Item = (u32, f64)> + '_ {
+        let first_item = match self.lods[0] {
+            f64::MAX => None,
+            v => Some((0, v)),
+        };
+
+        std::iter::once(first_item)
+            .chain(self.lods.windows(2).enumerate().map(|(index, slice)| {
+                let prev_resolution = slice[0];
+                let resolution = slice[1];
+                if (prev_resolution - resolution).abs() > f64::EPSILON {
+                    Some((index as u32 + 1, resolution))
+                } else {
+                    None
+                }
+            }))
+            .flatten()
     }
 
     /// Direction of Y-indices of the tiles.
@@ -341,7 +364,7 @@ mod tests {
     use galileo_types::cartesian::Size;
 
     use super::*;
-    use crate::tile_schema::WrappingTileIndex;
+    use crate::tile_schema::{TileSchemaBuilder, WrappingTileIndex};
 
     fn simple_schema() -> TileSchema {
         schema_with_lods(vec![8.0, 4.0, 2.0])
@@ -630,5 +653,18 @@ mod tests {
                 virtual_x: 2
             }
         );
+    }
+
+    #[test]
+    fn iterate_lods() {
+        let schema = TileSchemaBuilder::web_mercator([1, 2, 4, 7])
+            .build()
+            .unwrap();
+        let lods: Vec<_> = schema.lods().collect();
+        assert_eq!(lods.len(), 4);
+        assert_eq!(lods[0].0, 1);
+        assert_eq!(lods[1].0, 2);
+        assert_eq!(lods[2].0, 4);
+        assert_eq!(lods[3].0, 7);
     }
 }
