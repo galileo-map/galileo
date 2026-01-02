@@ -95,8 +95,8 @@ impl TileSchemaBuilder {
 
         // Resolution is bound by the maximum tile index that can be represented
         let min_resolution = f64::min(
-            self.world_bounds.width() / self.tile_width as f64 / u64::MAX as f64,
-            self.world_bounds.height() / self.tile_height as f64 / u64::MAX as f64,
+            self.world_bounds.width() / self.tile_width as f64 / i64::MAX as f64,
+            self.world_bounds.height() / self.tile_height as f64 / i64::MAX as f64,
         );
 
         let lods = match self.lods {
@@ -245,7 +245,24 @@ impl TileSchemaBuilder {
         self
     }
 
-    fn logarithmic_z_levels(mut self, z_levels: impl IntoIterator<Item = u32>) -> Self {
+    /// Set z-levels of the tile schema with the logarithmic scale with base 2.
+    ///
+    /// This is the usual approach for most tile schemas to approach the levels of detail. It
+    /// considers the top level with z-index `0` to be a single tile that includes the whole
+    /// world map. Then the next level divides this tile into 4 parts (2x2 along x and y axis).
+    /// Next level further divides every tile into 4 and so on.
+    ///
+    /// With this approach the whole world map is divided into `2^z_level` tiles along each axis.
+    /// The resolution for each level is calculated accordingly.
+    ///
+    /// For the builder to be able to calculate logarithmic scale, it must have world bounds
+    /// specified correctly.
+    ///
+    /// The max z-level that can be set with logarithmic scale is limited by the number of X and Y
+    /// indices that can be expressed with `i64`, which for tiles of size 256 pixels in Web Mercator
+    /// projection equals `63`. If you have tiles with z-indices larger than this value, use `z-levels`
+    /// method instead to set resolutions manually.
+    pub fn logarithmic_z_levels(mut self, z_levels: impl IntoIterator<Item = u32>) -> Self {
         self.lods = Lods::Logarithmic(z_levels.into_iter().collect());
 
         self
@@ -493,19 +510,19 @@ mod tests {
 
     #[test]
     fn resolution_at_boundary_of_precision() {
-        let result = TileSchemaBuilder::web_mercator(0..=64).build();
+        let result = TileSchemaBuilder::web_mercator(0..=63).build();
         assert!(
             result.is_ok(),
             "Expected z=0..=64 to be valid, got {:?}",
             result
         );
 
-        let result = TileSchemaBuilder::web_mercator(0..=65).build();
+        let result = TileSchemaBuilder::web_mercator(0..=64).build();
 
         assert!(
             matches!(
                 result,
-                Err(TileSchemaError::ResolutionTooSmall { z_level: 65, .. })
+                Err(TileSchemaError::ResolutionTooSmall { z_level: 64, .. })
             ),
             "Expected ResolutionTooSmall error, got {:?}",
             result
