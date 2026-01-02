@@ -196,8 +196,8 @@ impl TileSchemaBuilder {
         const TILE_SIZE: u32 = 256;
 
         Self::web_mercator_base()
-            .with_logarithmic_z_levels(z_levels)
-            .with_rect_tile_size(TILE_SIZE)
+            .logarithmic_z_levels(z_levels)
+            .rect_tile_size(TILE_SIZE)
     }
 
     fn web_mercator_base() -> Self {
@@ -225,15 +225,27 @@ impl TileSchemaBuilder {
         }
     }
 
-    /// Set both tile width and height to `tile_size`.
-    pub fn with_rect_tile_size(mut self, tile_size: u32) -> Self {
+    /// Set both tile width and height to `tile_size` in pixels.
+    pub fn rect_tile_size(mut self, tile_size: u32) -> Self {
         self.tile_width = tile_size;
         self.tile_height = tile_size;
 
         self
     }
 
-    fn with_logarithmic_z_levels(mut self, z_levels: impl IntoIterator<Item = u32>) -> Self {
+    /// Set width of the tiles in pixels.
+    pub fn tile_width(mut self, width: u32) -> Self {
+        self.tile_width = width;
+        self
+    }
+
+    /// Set height of the tiles in pixels.
+    pub fn tile_height(mut self, height: u32) -> Self {
+        self.tile_height = height;
+        self
+    }
+
+    fn logarithmic_z_levels(mut self, z_levels: impl IntoIterator<Item = u32>) -> Self {
         self.lods = Lods::Logarithmic(z_levels.into_iter().collect());
 
         self
@@ -244,7 +256,7 @@ impl TileSchemaBuilder {
     /// Z-levels are given as tuples of `(z-index, resolution)`. Smaller z-indexes must correspond
     /// to larger resolution values. If z-levels are not sorted correctly, building the tile schema
     /// would result in [`TileSchemaError::NotSortedZLevels`] error.
-    pub fn with_z_levels(mut self, z_levels: impl IntoIterator<Item = (u32, f64)>) -> Self {
+    pub fn z_levels(mut self, z_levels: impl IntoIterator<Item = (u32, f64)>) -> Self {
         self.lods = Lods::Custom(z_levels.into_iter().collect());
         self
     }
@@ -414,7 +426,7 @@ mod tests {
     #[test]
     fn zero_tile_size() {
         let result = TileSchemaBuilder::web_mercator(0..=20)
-            .with_rect_tile_size(0)
+            .rect_tile_size(0)
             .build();
         assert!(
             matches!(
@@ -510,7 +522,7 @@ mod tests {
         }
 
         let tile_schema = TileSchemaBuilder::web_mercator(0..0)
-            .with_z_levels(lods)
+            .z_levels(lods)
             .build()
             .unwrap();
 
@@ -526,7 +538,7 @@ mod tests {
     #[test]
     fn custom_z_levels_check_for_min_resolution() {
         let result = TileSchemaBuilder::web_mercator(0..0)
-            .with_z_levels([(0, TOP_RESOLUTION), (1, TOP_RESOLUTION / 2f64.powi(65))])
+            .z_levels([(0, TOP_RESOLUTION), (1, TOP_RESOLUTION / 2f64.powi(65))])
             .build();
         assert!(
             matches!(
@@ -550,9 +562,7 @@ mod tests {
         lods[1].0 = 1;
         lods[2].0 = 2;
 
-        let result = TileSchemaBuilder::web_mercator(0..0)
-            .with_z_levels(lods)
-            .build();
+        let result = TileSchemaBuilder::web_mercator(0..0).z_levels(lods).build();
 
         assert!(
             matches!(
@@ -623,7 +633,7 @@ mod tests {
             let result = TileSchemaBuilder::web_mercator(0..18)
                 .world_bounds(bounds)
                 .wrap_x(false)
-                .with_z_levels([(0, 1000.0), (1, 500.0)])
+                .z_levels([(0, 1000.0), (1, 500.0)])
                 .build();
             assert!(
                 result.is_ok(),
