@@ -66,6 +66,15 @@ impl TileSchema {
         self.tile_height
     }
 
+    /// Direction of Y-indices of the tiles.
+    ///
+    /// The direction is specified relative to the projected coordinates direction. We consider negative Y
+    /// coordinates of the projection to be at the bottom and positive at the top. So if
+    /// `VerticalDirection::TopToBottom` is set, tiles with Y index 0 will be at the very top of the map.
+    pub fn y_direction(&self) -> VerticalDirection {
+        self.y_direction
+    }
+
     /// Iterate over tile indices that should be displayed for the given map view.
     pub fn iter_tiles(&self, view: &MapView) -> Option<impl Iterator<Item = WrappingTileIndex>> {
         let resolution = view.resolution();

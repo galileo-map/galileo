@@ -339,6 +339,16 @@ impl TileSchemaBuilder {
         self.world_bounds = bounds;
         self
     }
+
+    /// Sets direction of Y-indices of the tiles.
+    ///
+    /// The direction is specified relative to the projected coordinates direction. We consider negative Y
+    /// coordinates of the projection to be at the bottom and positive at the top. So if
+    /// `VerticalDirection::TopToBottom` is set, tiles with Y index 0 will be at the very top of the map.
+    pub fn y_direction(mut self, direction: VerticalDirection) -> Self {
+        self.y_direction = direction;
+        self
+    }
 }
 
 #[cfg(test)]
@@ -620,5 +630,14 @@ mod tests {
                 "Error returned for world bounds: {bounds:?}"
             );
         }
+    }
+
+    #[test]
+    fn setting_y_direction() {
+        let schema = TileSchemaBuilder::web_mercator(0..18)
+            .y_direction(VerticalDirection::BottomToTop)
+            .build()
+            .unwrap();
+        assert_eq!(schema.y_direction(), VerticalDirection::BottomToTop);
     }
 }
