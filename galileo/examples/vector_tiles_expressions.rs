@@ -4,7 +4,6 @@
 use std::sync::Arc;
 
 use egui::FontDefinitions;
-use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
 use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::vector_tile_layer::style::{StyleRule, VectorTileStyle};
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
@@ -12,7 +11,7 @@ use galileo::layer::VectorTileLayer;
 use galileo::render::text::text_service::TextService;
 use galileo::render::text::RustybuzzRasterizer;
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
-use galileo::{Map, MapBuilder};
+use galileo::MapBuilder;
 use galileo_egui::{EguiMap, EguiMapState};
 use parking_lot::RwLock;
 
@@ -109,29 +108,8 @@ pub(crate) fn run() {
 
     let layer = Arc::new(RwLock::new(layer));
 
-    let layer_copy = layer.clone();
-    let handler = move |ev: &UserEvent, map: &mut Map| match ev {
-        UserEvent::Click(MouseButton::Left, mouse_event) => {
-            let view = map.view().clone();
-            if let Some(position) = map
-                .view()
-                .screen_to_map(mouse_event.screen_pointer_position)
-            {
-                let features = layer_copy.read().get_features_at(&position, &view);
-
-                for (layer, feature) in features {
-                    println!("{layer}, {:?}", feature.properties);
-                }
-            }
-
-            EventPropagation::Stop
-        }
-        _ => EventPropagation::Propagate,
-    };
-
     let map = MapBuilder::default().with_layer(layer.clone()).build();
     galileo_egui::InitBuilder::new(map)
-        .with_handlers([Box::new(handler) as Box<dyn UserEventHandler>])
         .with_app_builder(|egui_map_state, _| Box::new(App::new(egui_map_state, layer)))
         .init()
         .expect("failed to initialize");
@@ -143,12 +121,12 @@ fn stepped_interpolation_style() -> StyleRule {
   "symbol": {
     "polygon": {
       "fill_color": {
-        "default_value": "#00ff00ff",
+        "default_value": "#3d835cff",
         "step_values": [
-          {"resolution": 200.0, "step_value": "#ff0000ff"},
-          {"resolution": 400.0, "step_value": "#00ff00ff"},
-          {"resolution": 600.0, "step_value": "#ff0ff0ff"}
-        ]
+          {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
+          {"resolution": 611.4962262813416, "step_value": "#29546dff"},
+          {"resolution": 38.21851414258385, "step_value": "#3d835cff"}
+       ]
       }
     }
   }
@@ -165,10 +143,11 @@ fn linear_interpolation_style() -> StyleRule {
       "fill_color": {
         "interpolate": {
           "linear":{
+            "default_value": "#3d835cff",
             "step_values": [
-              {"resolution": 200.0, "step_value": "#ff0000ff"},
-              {"resolution": 400.0, "step_value": "#00ff00ff"},
-              {"resolution": 600.0, "step_value": "#ff0ff0ff"}
+              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
+              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
+              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
             ]
           }
         }
@@ -190,9 +169,9 @@ fn exponential_interpolation_style() -> StyleRule {
           "exponential":{
             "base": 2,
             "step_values": [
-              {"resolution": 200.0, "step_value": "#ff0000ff"},
-              {"resolution": 400.0, "step_value": "#00ff00ff"},
-              {"resolution": 600.0, "step_value": "#ff0ff0ff"}
+              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
+              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
+              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
             ]
           }
         }
