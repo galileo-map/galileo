@@ -164,6 +164,17 @@ impl StyleValue<f64> {
     }
 }
 
+impl StyleValue<f32> {
+    /// Evaluates value of Number depending upon the type of expression used.
+    pub fn get_value(&self, current_resolution: f64) -> f32 {
+        match self {
+            StyleValue::Simple(t) => *t,
+            StyleValue::Interpolate(expression) => expression.evaluate(current_resolution),
+            StyleValue::Steps(expression) => expression.evaluate(current_resolution),
+        }
+    }
+}
+
 impl<T> InterpolateExpression<T> {
     /// Returns a new instance of `InterpolateExpression`
     pub fn new(interpolation_args: InterpolationArgs<T>) -> Self {
@@ -205,6 +216,22 @@ trait InterpolatableValue: Copy {
     fn get_component(&self, component: &Self::COMPONENTS) -> f64;
     /// Value to be interpolated
     fn set_component(&mut self, component: &Self::COMPONENTS, value: f64);
+}
+
+impl InterpolatableValue for f32 {
+    type COMPONENTS = ();
+
+    fn iter_components() -> impl Iterator<Item = Self::COMPONENTS> {
+        std::iter::once(())
+    }
+
+    fn get_component(&self, _component: &Self::COMPONENTS) -> f64 {
+        *self as f64
+    }
+
+    fn set_component(&mut self, _component: &Self::COMPONENTS, value: f64) {
+        *self = value as f32
+    }
 }
 
 impl InterpolatableValue for f64 {

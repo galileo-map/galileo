@@ -5,8 +5,9 @@ use galileo::layer::vector_tile_layer::style::{
     StyleRule, VectorTileLabelSymbol, VectorTileStyle, VectorTileSymbol,
 };
 use galileo::layer::vector_tile_layer::{VectorTileLayer, VectorTileLayerBuilder};
+use galileo::render::text::builder::TextStyleBuilder;
 use galileo::render::text::text_service::TextService;
-use galileo::render::text::{FontWeight, RustybuzzRasterizer, TextStyle};
+use galileo::render::text::{FontWeight, RustybuzzRasterizer};
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
 use galileo::{Color, MapBuilder};
 
@@ -48,7 +49,7 @@ pub(crate) fn run() {
             properties: Default::default(),
             symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
                 pattern: String::from("{name}"),
-                text_style: TextStyle {
+                text_style: TextStyleBuilder {
                     font_family: vec![
                         "Noto Sans".to_string(),
                         "Noto Sans Arabic".to_string(),
@@ -57,14 +58,14 @@ pub(crate) fn run() {
                         "Noto Sans KR".to_string(),
                         "Noto Sans JP".to_string(),
                     ],
-                    font_size: 12.0,
-                    font_color: Color::BLACK,
+                    font_size: 12.0.into(),
+                    font_color: Color::BLACK.into(),
                     horizontal_alignment: Default::default(),
                     vertical_alignment: Default::default(),
                     weight: FontWeight::BOLD,
                     style: Default::default(),
-                    outline_width: 2.0,
-                    outline_color: Color::WHITE,
+                    outline_width: 2.0.into(),
+                    outline_color: Color::WHITE.into(),
                 },
             }),
         }],

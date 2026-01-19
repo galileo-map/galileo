@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::render::point_paint::PointPaint;
-use crate::render::text::TextStyle;
+use crate::render::text::builder::TextStyleBuilder;
 use crate::render::{LineCap, LinePaint, PolygonPaint};
 use crate::Color;
 
@@ -329,7 +329,7 @@ pub struct VectorTileLabelSymbol {
     /// Text of the label with substitutes for feature attributes.
     pub pattern: String,
     /// Style of the text.
-    pub text_style: TextStyle,
+    pub text_style: TextStyleBuilder,
 }
 
 #[cfg(test)]
