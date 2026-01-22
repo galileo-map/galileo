@@ -129,7 +129,7 @@ fn stepped_interpolation_style() -> StyleRule {
        ]
       }
     }
-    }
+  }
 }"##,
     )
     .expect("invalid style json")

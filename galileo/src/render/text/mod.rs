@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::Color;
 
-pub mod builder;
 pub(crate) mod font_provider;
 pub mod text_service;
 

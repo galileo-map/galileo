@@ -2,10 +2,9 @@
 
 use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::vector_tile_layer::style::{
-    StyleRule, VectorTileLabelSymbol, VectorTileStyle, VectorTileSymbol,
+    StyleRule, VectorTileLabelSymbol, VectorTileStyle, VectorTileSymbol, VtTextStyle,
 };
 use galileo::layer::vector_tile_layer::{VectorTileLayer, VectorTileLayerBuilder};
-use galileo::render::text::builder::TextStyleBuilder;
 use galileo::render::text::text_service::TextService;
 use galileo::render::text::{FontWeight, RustybuzzRasterizer};
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
@@ -49,7 +48,7 @@ pub(crate) fn run() {
             properties: Default::default(),
             symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
                 pattern: String::from("{name}"),
-                text_style: TextStyleBuilder {
+                text_style: VtTextStyle {
                     font_family: vec![
                         "Noto Sans".to_string(),
                         "Noto Sans Arabic".to_string(),
