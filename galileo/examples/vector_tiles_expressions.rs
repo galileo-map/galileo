@@ -41,6 +41,9 @@ impl eframe::App for App {
                     if ui.button("Exponential Interpolation").clicked() {
                         self.set_style(with_overlay_rule(exponential_interpolation_style()));
                     }
+                    if ui.button("Cubic Interpolation").clicked() {
+                        self.set_style(with_overlay_rule(cubic_interpolation_style()));
+                    }
                     if ui.button("Stepped Interpolation").clicked() {
                         self.set_style(with_overlay_rule(stepped_interpolation_style()));
                     }
@@ -168,6 +171,30 @@ fn exponential_interpolation_style() -> StyleRule {
         "interpolate": {
           "exponential":{
             "base": 2,
+            "step_values": [
+              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
+              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
+              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
+            ]
+          }
+        }
+      }
+    }
+  }
+}"##,
+    )
+    .expect("invalid style json")
+}
+
+fn cubic_interpolation_style() -> StyleRule {
+    serde_json::from_str(
+        r##"{
+  "symbol": {
+    "polygon": {
+      "fill_color": {
+        "interpolate": {
+          "cubic":{
+          "control_points": [0.25, 0.0, 0.75, 1.0],
             "step_values": [
               {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
               {"resolution": 611.4962262813416, "step_value": "#29546dff"},
