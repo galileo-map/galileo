@@ -3,7 +3,6 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use galileo_types::cartesian::Vector2;
 use provider::RasterTileProvider;
 use web_time::Duration;
 
@@ -161,12 +160,7 @@ impl Layer for RasterTileLayer {
         let displayed_tiles = self.tile_container.tiles.lock();
         let to_render: Vec<_> = displayed_tiles
             .values()
-            .filter_map(|v| {
-                let tile_bbox = self.tile_schema.tile_bbox(v.index)?;
-                let offset = Vector2::new(tile_bbox.x_min() as f32, tile_bbox.y_max() as f32);
-
-                Some(BundleToDraw::new(&*v.bundle, v.opacity, offset))
-            })
+            .map(|v| BundleToDraw::with_opacity(&*v.bundle, v.opacity))
             .collect();
 
         canvas.draw_bundles(&to_render, RenderOptions::default());

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use galileo_types::cartesian::Rect;
 use maybe_sync::{MaybeSend, MaybeSync};
 use parking_lot::Mutex;
 use quick_cache::sync::Cache;
@@ -168,12 +167,10 @@ impl RasterTileProvider {
         let tiles = self.tiles.lock();
         for index in indices {
             if let Some(TileState::Loaded(image)) = tiles.get(index) {
-                let Some(resolution) = self.tile_schema.lod_resolution(index.z) else {
+                let Some(tile_bbox) = self.tile_schema.tile_bbox(index.into_wrapping()) else {
+                    log::warn!("Failed to get bbox for tile {index:?}");
                     continue;
                 };
-                let width = self.tile_schema.tile_width() as f64;
-                let height = self.tile_schema.tile_height() as f64;
-                let tile_bbox = Rect::new(0.0, 0.0, width * resolution, -height * resolution);
 
                 let mut bundle = RenderBundle::default();
                 bundle.add_image(
