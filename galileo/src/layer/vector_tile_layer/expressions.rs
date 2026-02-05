@@ -263,7 +263,7 @@ impl<T> InterpolateExpression<T> {
                     .step_values()
                     .iter()
                     .map(|val| {
-                        let z = tile_schema.resolution_z(val.basis)?;
+                        let z = tile_schema.select_lod(val.basis)?.z_index;
                         Some(StepValue {
                             basis: z.into(),
                             step_value: val.step_value,
@@ -277,14 +277,10 @@ impl<T> InterpolateExpression<T> {
                 // generates a iterating window of 2 step values
                 // and compares the current_z_level.
 
-                if let Some(current_z) = tile_schema.resolution_z(current_resolution) {
-                    let current_z_f64 = current_z as f64;
+                let current_z_f64 = tile_schema.select_lod(current_resolution)?.z_index as f64;
 
-                    if current_z_f64 < z_step_values[0].basis {
-                        z_step_values[0].step_value
-                    } else {
-                        z_step_values[z_step_values.len() - 1].step_value
-                    }
+                if current_z_f64 < z_step_values[0].basis {
+                    z_step_values[0].step_value
                 } else {
                     z_step_values[z_step_values.len() - 1].step_value
                 }
@@ -382,9 +378,7 @@ impl<T: InterpolatableValue> InterpolateExpression<T> {
         if let Some(basis_value_range) = self.get_basis_range(current_resolution, tile_schema) {
             let current_basis = match self.operation_base {
                 OperationBase::Resolution => current_resolution,
-                OperationBase::Zlevel => tile_schema
-                    .resolution_z(current_resolution)
-                    .map(|z| z as f64)?,
+                OperationBase::Zlevel => tile_schema.select_lod(current_resolution)?.z_index as f64,
             };
             Some(self.interpolate_value(current_basis, &basis_value_range))
         } else {
@@ -455,12 +449,12 @@ impl<T: InterpolatableValue> InterpolateExpression<T> {
                 }),
 
             OperationBase::Zlevel => {
-                let current_z_level = tile_schema.resolution_z(current_resolution)?;
+                let current_z_level = tile_schema.select_lod(current_resolution)?.z_index;
                 // transforms resolution into z_levels
                 let mut z_step_values: Vec<_> = step_values
                     .iter()
                     .map(|val| {
-                        let z = tile_schema.resolution_z(val.basis)?;
+                        let z = tile_schema.select_lod(val.basis)?.z_index;
                         Some(StepValue {
                             basis: z.into(),
                             step_value: val.step_value,
@@ -1562,6 +1556,51 @@ mod resolution_tests {
             assert_eq!(
                 expr.evaluate(25.0, &default_tile_schema()).unwrap(),
                 Color::from_hex("#1d1d1d")
+            );
+        }
+    }
+}
+#[cfg(test)]
+mod zlevel_tests {
+
+    use crate::tile_schema::TileSchemaBuilder;
+
+    fn default_tile_schema() -> TileSchema {
+        TileSchemaBuilder::web_mercator(2..16)
+            .rect_tile_size(1024)
+            .build()
+            .expect("invalid tile schema")
+    }
+    use super::*;
+
+    #[test]
+    fn linear_interpolation() {
+        let args: LinearInterpolationArgs<f64> = LinearInterpolationArgs::new(
+            vec![
+                StepValue {
+                    basis: default_tile_schema().lod_resolution(2).unwrap(),
+                    step_value: 2.0,
+                },
+                StepValue {
+                    basis: default_tile_schema().lod_resolution(10).unwrap(),
+                    step_value: 10.0,
+                },
+            ]
+            .into_iter(),
+        )
+        .expect("failed to create interpolation arguments");
+
+        let expr =
+            InterpolateExpression::new(InterpolationArgs::Linear(args), OperationBase::Zlevel);
+
+        for i in 2..11 {
+            assert_eq!(
+                expr.evaluate(
+                    default_tile_schema().lod_resolution(i).unwrap(),
+                    &default_tile_schema()
+                )
+                .unwrap(),
+                i as f64
             );
         }
     }

@@ -62,7 +62,7 @@ pub struct TileSchema {
 
 pub struct Lod {
     resolution: f64,
-    z_index: u32,
+    pub(crate) z_index: u32,
 }
 
 impl TileSchema {
@@ -74,17 +74,6 @@ impl TileSchema {
         } else {
             None
         }
-    }
-
-    pub(crate) fn resolution_z(&self, resolution: f64) -> Option<u32> {
-        if !resolution.is_finite() || self.lods.is_empty() {
-            return None;
-        }
-        let adj_resolution = resolution * (1.0 + RESOLUTION_TOLERANCE);
-        Some(
-            self.lods
-                .partition_point(|&resolution| resolution >= adj_resolution) as u32,
-        )
     }
 
     /// Origin point of the tiles.
@@ -199,7 +188,7 @@ impl TileSchema {
     }
 
     /// Select a level of detail for the given resolution.
-    fn select_lod(&self, resolution: f64) -> Option<Lod> {
+    pub(crate) fn select_lod(&self, resolution: f64) -> Option<Lod> {
         if !resolution.is_finite() || self.lods.is_empty() {
             return None;
         }
