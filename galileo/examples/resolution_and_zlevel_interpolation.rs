@@ -146,9 +146,9 @@ fn zlevel_based_interpolation() -> StyleRule {
           "cubic":{
           "control_points": [0.25, 0.0, 0.75, 1.0],
             "step_values": [
-              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
-              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
-              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
+              {"resolution": 2, "step_value": "#81C4EC"},
+              {"resolution": 6, "step_value": "#29546dff"},
+              {"resolution": 12, "step_value": "#3d835cff"}
             ]
           }
         },

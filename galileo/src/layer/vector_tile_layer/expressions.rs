@@ -258,22 +258,12 @@ impl<T> InterpolateExpression<T> {
                 }
             }
             OperationBase::Zlevel => {
-                let mut z_step_values: Vec<_> = self
+                let z_step_values: Vec<_> = self
                     .interpolation_args
                     .step_values()
                     .iter()
-                    .map(|val| {
-                        let z = tile_schema.select_lod(val.basis)?.z_index;
-                        Some(StepValue {
-                            basis: z.into(),
-                            step_value: val.step_value,
-                        })
-                    })
-                    .collect::<Option<Vec<_>>>()?;
+                    .collect::<Vec<_>>();
 
-                // zlevels are have to be reversed as resolution is
-                // inversely proportional to values
-                z_step_values.sort();
                 // generates a iterating window of 2 step values
                 // and compares the current_z_level.
 
@@ -295,6 +285,7 @@ pub(crate) enum Channel {
     B,
     A,
 }
+
 /// This trait is used to define interpolatability for a type
 /// on implementing this, `InterpolateExpression` allows for the use of evaluate method.
 trait InterpolatableValue: Copy {
@@ -450,24 +441,9 @@ impl<T: InterpolatableValue> InterpolateExpression<T> {
 
             OperationBase::Zlevel => {
                 let current_z_level = tile_schema.select_lod(current_resolution)?.z_index;
-                // transforms resolution into z_levels
-                let mut z_step_values: Vec<_> = step_values
+                step_values
                     .iter()
-                    .map(|val| {
-                        let z = tile_schema.select_lod(val.basis)?.z_index;
-                        Some(StepValue {
-                            basis: z.into(),
-                            step_value: val.step_value,
-                        })
-                    })
-                    .collect::<Option<Vec<_>>>()?;
-
-                // zlevels are have to be reversed as resolution is
-                // inversely proportional to values
-                z_step_values.sort();
-                // generates a iterating window of 2 step values
-                // and compares the current_z_level.
-                z_step_values
+                    .collect::<Vec<_>>()
                     .windows(2)
                     .find(|w| {
                         current_z_level >= w[0].basis as u32 && current_z_level <= w[1].basis as u32
@@ -1578,11 +1554,11 @@ mod zlevel_tests {
         let args: LinearInterpolationArgs<f64> = LinearInterpolationArgs::new(
             vec![
                 StepValue {
-                    basis: default_tile_schema().lod_resolution(2).unwrap(),
+                    basis: 2.0,
                     step_value: 2.0,
                 },
                 StepValue {
-                    basis: default_tile_schema().lod_resolution(10).unwrap(),
+                    basis: 10.0,
                     step_value: 10.0,
                 },
             ]
@@ -1596,7 +1572,9 @@ mod zlevel_tests {
         for i in 2..11 {
             assert_eq!(
                 expr.evaluate(
-                    default_tile_schema().lod_resolution(i).unwrap(),
+                    default_tile_schema()
+                        .lod_resolution(i)
+                        .expect("Unexpected z-level"),
                     &default_tile_schema()
                 )
                 .unwrap(),
