@@ -12,7 +12,7 @@ use crate::layer::tiles::TileProvider;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
 use crate::messenger::Messenger;
 use crate::render::{Canvas, PackedBundle};
-use crate::tile_schema::TileIndex;
+use crate::tile_schema::{TileIndex, WrappingTileIndex};
 
 pub mod loader;
 pub mod processor;
@@ -56,8 +56,12 @@ impl Clone for VectorTileProvider {
 }
 
 impl TileProvider<VtStyleId> for VectorTileProvider {
-    fn get_tile(&self, index: TileIndex, style_id: VtStyleId) -> Option<Arc<dyn PackedBundle>> {
-        VectorTileProvider::get_tile(self, index, style_id)
+    fn get_tile(
+        &self,
+        index: WrappingTileIndex,
+        style_id: VtStyleId,
+    ) -> Option<Arc<dyn PackedBundle>> {
+        VectorTileProvider::get_tile(self, index.into(), style_id)
     }
 }
 

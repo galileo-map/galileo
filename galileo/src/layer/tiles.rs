@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::TileSchema;
 use crate::render::PackedBundle;
-use crate::tile_schema::{TileIndex, WrappingTileIndex};
+use crate::tile_schema::WrappingTileIndex;
 
 const DEFAULT_FADE_IN_DURATION: Duration = Duration::from_millis(300);
 
@@ -29,7 +29,11 @@ impl<StyleId: Copy> DisplayedTile<StyleId> {
 }
 
 pub(crate) trait TileProvider<StyleId> {
-    fn get_tile(&self, index: TileIndex, style_id: StyleId) -> Option<Arc<dyn PackedBundle>>;
+    fn get_tile(
+        &self,
+        index: WrappingTileIndex,
+        style_id: StyleId,
+    ) -> Option<Arc<dyn PackedBundle>>;
 }
 
 pub(crate) struct TilesContainer<StyleId, Provider>
@@ -92,7 +96,7 @@ where
                 needed_tiles.push(displayed.clone());
                 tile_indices.insert((index, style_id));
             } else {
-                match self.tile_provider.get_tile(index.into(), style_id) {
+                match self.tile_provider.get_tile(index, style_id) {
                     None => {
                         if let Some(bbox) = self.tile_schema.tile_bbox(index) {
                             to_substitute.push(bbox);
