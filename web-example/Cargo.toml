@@ -29,7 +29,7 @@ console_error_panic_hook = { workspace = true }
 csv = { workspace = true }
 eframe = { workspace = true, optional = true }
 egui = { workspace = true, optional = true }
-galileo = { workspace = true }
+galileo = { workspace = true, default-features = true }
 galileo-egui = { workspace = true }
 galileo-types = { workspace = true }
 geozero = { workspace = true, optional = true }
