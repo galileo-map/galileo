@@ -12,7 +12,7 @@ readme = "../README.md"
 exclude = ["examples"]
 
 [features]
-default = ["wgpu", "serde", "winit", "_tests", "rustybuzz", "image", "reqwest-default-tls"]
+default = ["wgpu", "winit", "_tests", "rustybuzz", "image", "reqwest-default-tls"]
 wgpu = ["dep:wgpu", "raw-window-handle"]
 geojson = ["dep:geojson", "galileo-types/geojson"]
 rustybuzz = ["dep:rustybuzz"]
@@ -46,7 +46,7 @@ quick_cache = { workspace = true }
 raw-window-handle = { workspace = true, optional = true }
 regex = { workspace = true }
 rustybuzz = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["std", "derive", "rc"] }
+serde = { workspace = true, features = ["std", "derive", "rc"] }
 serde_json = { workspace = true }
 strfmt = { workspace = true }
 thiserror = { workspace = true }
