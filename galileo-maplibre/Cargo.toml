@@ -1,0 +1,18 @@
+[package]
+name = "galileo-maplibre"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+documentation = "https://docs.rs/galileo-mvt"
+description = "Galileo layer based on Maplibre (Mapbox) style specification"
+readme = "./README.md"
+
+[dependencies]
+galileo = { workspace = true, default-features = true }
+log = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_ignored = { workspace = true }
+serde_json = { workspace = true }
