@@ -77,6 +77,8 @@ impl FontProvider for SystemFontProvider {
 
     fn load_fonts_folder(&self, path: PathBuf) {
         let fs_source = FsSource::in_path(path);
+        log::info!("Loaded fonts: {:?}", fs_source.all_families());
+
         let mut source = self.source.lock();
         let prev_source = std::mem::replace(&mut *source, MultiSource::from_sources(vec![]));
         *source = MultiSource::from_sources(vec![

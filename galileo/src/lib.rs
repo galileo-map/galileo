@@ -86,7 +86,6 @@ pub mod control;
 pub mod decoded_image;
 pub mod error;
 pub mod layer;
-mod lod;
 mod map;
 mod messenger;
 pub mod platform;
@@ -104,7 +103,6 @@ pub use color::Color;
 // Reexport galileo_types
 pub use galileo_types;
 pub use layer::feature_layer::symbol;
-pub use lod::Lod;
 pub use map::{LayerCollection, Map, MapBuilder};
 pub use messenger::{DummyMessenger, Messenger};
 pub use tile_schema::TileSchema;

@@ -81,6 +81,16 @@ impl MvtValue {
             MvtValue::Unknown => false,
         }
     }
+
+    pub fn as_f64(&self) -> Option<f64> {
+        match &self {
+            MvtValue::Float(v) => Some(*v as f64),
+            MvtValue::Double(v) => Some(*v),
+            MvtValue::Int64(v) => Some(*v as f64),
+            MvtValue::Uint64(v) => Some(*v as f64),
+            _ => None,
+        }
+    }
 }
 
 pub type Point = Point2<f32>;

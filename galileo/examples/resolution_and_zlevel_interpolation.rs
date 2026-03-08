@@ -1,17 +1,17 @@
-//! This example shows how to create and work with vector tile layers.
+//! This example show cases the two possible operating basis on interpolation
+//! With Z-levels and Resolution
 
 use std::sync::Arc;
 
 use egui::FontDefinitions;
-use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
 use galileo::layer::data_provider::remove_parameters_modifier;
-use galileo::layer::vector_tile_layer::style::VectorTileStyle;
+use galileo::layer::vector_tile_layer::style::{StyleRule, VectorTileStyle};
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::layer::VectorTileLayer;
 use galileo::render::text::text_service::TextService;
 use galileo::render::text::RustybuzzRasterizer;
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
-use galileo::{Map, MapBuilder};
+use galileo::MapBuilder;
 use galileo_egui::{EguiMap, EguiMapState};
 use parking_lot::RwLock;
 
@@ -35,15 +35,22 @@ impl eframe::App for App {
             .title_bar(false)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    if ui.button("Default style").clicked() {
-                        self.set_style(default_style());
+                    if ui.button("Resolution").clicked() {
+                        self.set_style(with_overlay_rule(resolution_based_interpolation()));
                     }
-                    if ui.button("Gray style").clicked() {
-                        self.set_style(gray_style());
+                    if ui.button("ZLevel").clicked() {
+                        self.set_style(with_overlay_rule(zlevel_based_interpolation()));
                     }
                 });
             });
     }
+}
+
+fn with_overlay_rule(overlay: StyleRule) -> VectorTileStyle {
+    let mut base: VectorTileStyle =
+        serde_json::from_str(include_str!("data/vt_style.json")).expect("invalid style json");
+    base.rules.insert(0, overlay);
+    base
 }
 
 impl App {
@@ -76,7 +83,8 @@ pub(crate) fn run() {
         panic!("Set the MapTiler API key into VT_API_KEY library when building this example");
     };
 
-    let style = default_style();
+    let style =
+        serde_json::from_str(include_str!("data/vt_style.json")).expect("invalid style json");
     let layer = VectorTileLayerBuilder::new_rest(move |&index: &TileIndex| {
         format!(
             "https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf?key={api_key}",
@@ -97,61 +105,60 @@ pub(crate) fn run() {
 
     let layer = Arc::new(RwLock::new(layer));
 
-    let layer_copy = layer.clone();
-    let handler = move |ev: &UserEvent, map: &mut Map| match ev {
-        UserEvent::Click(MouseButton::Left, mouse_event) => {
-            let view = map.view().clone();
-            if let Some(position) = map
-                .view()
-                .screen_to_map(mouse_event.screen_pointer_position)
-            {
-                let features = layer_copy.read().get_features_at(&position, &view);
-
-                for (layer, feature) in features {
-                    println!("{layer}, {:?}", feature.properties);
-                }
-            }
-
-            EventPropagation::Stop
-        }
-        _ => EventPropagation::Propagate,
-    };
-
     let map = MapBuilder::default().with_layer(layer.clone()).build();
     galileo_egui::InitBuilder::new(map)
-        .with_handlers([Box::new(handler) as Box<dyn UserEventHandler>])
         .with_app_builder(|egui_map_state, _| Box::new(App::new(egui_map_state, layer)))
         .init()
         .expect("failed to initialize");
 }
 
-fn default_style() -> VectorTileStyle {
-    serde_json::from_str(include_str!("data/vt_style.json")).expect("invalid style json")
-}
-
-fn gray_style() -> VectorTileStyle {
-    let style_str = r##"
-{
-  "rules": [
-    {
-      "symbol": {
-        "line": {
-          "stroke_color": "#000000ff",
-          "width": 0.5
-        }
-      }
-    },
-    {
-      "symbol": {
-        "polygon": {
-          "fill_color": "#999999ff"
+fn resolution_based_interpolation() -> StyleRule {
+    serde_json::from_str(
+        r##"{
+  "symbol": {
+    "polygon": {
+      "fill_color": {
+        "interpolate": {
+          "cubic":{
+          "control_points": [0.25, 0.0, 0.75, 1.0],
+            "step_values": [
+              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
+              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
+              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
+            ]
+          }
         }
       }
     }
-  ],
-  "background": "#ffffffff"
-}"##;
-    serde_json::from_str(style_str).expect("invalid style json")
+  }
+}"##,
+    )
+    .expect("invalid style json")
+}
+
+fn zlevel_based_interpolation() -> StyleRule {
+    serde_json::from_str(
+        r##"{
+  "symbol": {
+    "polygon": {
+      "fill_color": {
+        "interpolate": {
+          "cubic":{
+          "control_points": [0.25, 0.0, 0.75, 1.0],
+            "step_values": [
+              {"resolution": 2, "step_value": "#81C4EC"},
+              {"resolution": 6, "step_value": "#29546dff"},
+              {"resolution": 12, "step_value": "#3d835cff"}
+            ]
+          }
+        },
+          "operation_base":"z_level"
+      }
+    }
+  }
+}"##,
+    )
+    .expect("invalid style json")
 }
 
 fn tile_schema() -> TileSchema {

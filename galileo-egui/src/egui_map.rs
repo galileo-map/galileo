@@ -8,7 +8,7 @@ use egui::{Event, Image, ImageSource, Sense, TextureId, Ui, Vec2};
 use egui_wgpu::wgpu::{FilterMode, TextureView};
 use egui_wgpu::RenderState;
 use galileo::control::{
-    EventProcessor, MapController, MouseButton, RawUserEvent, UserEventHandler,
+    EventProcessor, MapController, MouseButton, RawUserEvent, TouchEvent, UserEventHandler,
 };
 use galileo::galileo_types::cartesian::{Point2, Size};
 use galileo::galileo_types::geo::impls::GeoPoint2d;
@@ -322,6 +322,16 @@ impl<'a> EguiMapState {
         self.messenger.clone()
     }
 
+    /// Returns a reference to the Galileo renderer.
+    pub fn renderer(&self) -> &WgpuRenderer {
+        &self.renderer
+    }
+
+    /// Returns a mutable reference to the Galileo renderer.
+    pub fn renderer_mut(&mut self) -> &mut WgpuRenderer {
+        &mut self.renderer
+    }
+
     fn resize_map(&mut self, logical_size: Vec2, pixels_per_point: f32) {
         log::trace!(
             "Resizing map to logical size: {logical_size:?}, pixels_per_point: {pixels_per_point}"
@@ -433,6 +443,24 @@ impl<'a> EguiMapState {
                 }
 
                 Some(RawUserEvent::Scroll(zoom))
+            }
+            Event::Touch {
+                device_id: _,
+                id,
+                phase,
+                pos,
+                force: _,
+            } => {
+                let event = TouchEvent {
+                    touch_id: id.0,
+                    position: Point2::new(pos.x as f64, pos.y as f64),
+                };
+                match phase {
+                    egui::TouchPhase::Start => Some(RawUserEvent::TouchStart(event)),
+                    egui::TouchPhase::Move => Some(RawUserEvent::TouchMove(event)),
+                    egui::TouchPhase::End => Some(RawUserEvent::TouchEnd(event)),
+                    egui::TouchPhase::Cancel => Some(RawUserEvent::TouchEnd(event)),
+                }
             }
 
             _ => None,

@@ -8,7 +8,7 @@ use crate::layer::attribution::Attribution;
 use crate::layer::data_provider::{
     FileCacheController, FileCachePathModifier, PersistentCacheController, UrlSource,
 };
-use crate::tile_schema::TileIndex;
+use crate::tile_schema::{TileIndex, TileSchemaBuilder};
 use crate::{Messenger, TileSchema};
 
 /// Constructor for a [`RasterTileLayer`].
@@ -345,7 +345,7 @@ impl RasterTileLayerBuilder {
     ///
     /// ```
     /// use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-    /// use galileo::TileSchema;
+    /// use galileo::tile_schema::TileSchemaBuilder;
     ///
     /// let layer = RasterTileLayerBuilder::new_rest(
     ///     |index| {
@@ -354,10 +354,10 @@ impl RasterTileLayerBuilder {
     ///             index.z, index.x, index.y
     ///         )
     ///     })
-    ///     .with_tile_schema(TileSchema::web(10))
+    ///     .with_tile_schema(TileSchemaBuilder::web_mercator(0..=10).build().unwrap())
     ///     .build()?;
     ///
-    /// assert_eq!(*layer.tile_schema(), TileSchema::web(10));
+    /// assert_eq!(*layer.tile_schema(), TileSchemaBuilder::web_mercator(0..=10).build().unwrap());
     /// # Ok::<(), galileo::error::GalileoError>(())
     /// ```
     pub fn with_tile_schema(mut self, tile_schema: TileSchema) -> Self {
@@ -403,7 +403,11 @@ impl RasterTileLayerBuilder {
             attribution,
         } = self;
 
-        let tile_schema = tile_schema.unwrap_or_else(|| TileSchema::web(18));
+        let tile_schema = tile_schema.unwrap_or_else(|| {
+            TileSchemaBuilder::web_mercator(0..=18)
+                .build()
+                .expect("default tile schema is valid")
+        });
 
         let cache_controller: Option<Box<dyn PersistentCacheController<str, Bytes>>> = match cache {
             CacheType::None => None,
@@ -533,6 +537,9 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(*layer.tile_schema(), TileSchema::web(18));
+        assert_eq!(
+            *layer.tile_schema(),
+            TileSchemaBuilder::web_mercator(0..=18).build().unwrap()
+        );
     }
 }

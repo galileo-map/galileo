@@ -248,10 +248,11 @@ mod tests {
     use super::*;
     use crate::layer::raster_tile_layer::RestTileLoader;
     use crate::layer::RasterTileLayer;
+    use crate::tile_schema::TileSchemaBuilder;
     use crate::TileSchema;
 
     fn test_tile_schema() -> TileSchema {
-        TileSchema::web(18)
+        TileSchemaBuilder::web_mercator(0..=18).build().unwrap()
     }
 
     fn test_tile_layer() -> RasterTileLayer {

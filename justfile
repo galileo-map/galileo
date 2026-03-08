@@ -95,3 +95,12 @@ get_fonts:
   unzip fonts.zip -d galileo/examples/data
   rm fonts.zip
 
+# Run the raster tiles example
+[group('Examples shortcuts')]
+rt:
+  cargo run --example raster_tiles
+
+# Run the vector tiles example
+[group('Examples shortcuts')]
+vt:
+  cargo run --example vector_tiles

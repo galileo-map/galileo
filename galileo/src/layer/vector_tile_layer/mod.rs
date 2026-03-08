@@ -26,6 +26,7 @@ use crate::view::MapView;
 use crate::Color;
 
 mod builder;
+pub mod expressions;
 pub mod style;
 pub mod tile_provider;
 mod vector_tile;
@@ -71,7 +72,7 @@ impl Layer for VectorTileLayer {
         let displayed_tiles = self.displayed_tiles.tiles.lock();
         let to_render: Vec<_> =
             std::iter::once(BundleToDraw::with_opacity(&*background_bundle, 1.0))
-                .chain(displayed_tiles.iter().filter_map(|v| {
+                .chain(displayed_tiles.values().filter_map(|v| {
                     let bbox = self.tile_schema.tile_bbox(v.index)?;
                     Some(BundleToDraw::new(
                         &*v.bundle,
@@ -301,9 +302,10 @@ mod tests {
     use super::*;
     use crate::platform::native::vt_processor::ThreadVtProcessor;
     use crate::tests::TestTileLoader;
+    use crate::tile_schema::TileSchemaBuilder;
 
     fn test_layer() -> VectorTileLayer {
-        let tile_schema = TileSchema::web(18);
+        let tile_schema = TileSchemaBuilder::web_mercator(0..=18).build().unwrap();
         let mut provider = VectorTileProvider::new(
             Arc::new(TestTileLoader {}),
             Arc::new(ThreadVtProcessor::new(tile_schema.clone())),
@@ -312,7 +314,7 @@ mod tests {
         let style_id = provider.add_style(VectorTileStyle::default());
         VectorTileLayer {
             tile_provider: provider.clone(),
-            tile_schema: TileSchema::web(18),
+            tile_schema: TileSchemaBuilder::web_mercator(0..18).build().unwrap(),
             style_id,
             displayed_tiles: TilesContainer::new(tile_schema, provider),
             prev_background: Default::default(),

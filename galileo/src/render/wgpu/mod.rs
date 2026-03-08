@@ -396,7 +396,7 @@ impl WgpuRenderer {
                 label: None,
                 memory_hints: Default::default(),
                 trace: wgpu::Trace::Off,
-                experimental_features: Default::default(),
+                experimental_features: wgpu::ExperimentalFeatures::disabled(),
             })
             .await
             .expect("Failed to obtain WGPU device")
@@ -601,7 +601,7 @@ impl WgpuRenderer {
 
         if let Err(err) = self.device.poll(wgpu::PollType::Wait {
             submission_index: None,
-            timeout: None,
+            timeout: Some(std::time::Duration::from_secs(60)),
         }) {
             log::error!("polling device failed: {err:?}");
         }
