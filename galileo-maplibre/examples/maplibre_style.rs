@@ -7,7 +7,10 @@ fn main() {
 }
 
 pub(crate) fn run() {
+    env_logger::init();
+
     galileo_egui::InitBuilder::new(create_map())
+        .with_logging(false)
         .init()
         .expect("failed to initialize");
 }

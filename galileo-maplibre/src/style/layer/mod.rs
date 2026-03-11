@@ -70,6 +70,60 @@ pub enum Layer {
     Clip(ClipLayer),
 }
 
+impl Layer {
+    /// The layer's unique identifier.
+    pub fn id(&self) -> &str {
+        match self {
+            Layer::Background(l) => &l.id,
+            Layer::Fill(l) => &l.id,
+            Layer::Line(l) => &l.id,
+            Layer::Symbol(l) => &l.id,
+            Layer::Raster(l) => &l.id,
+            Layer::Circle(l) => &l.id,
+            Layer::FillExtrusion(l) => &l.id,
+            Layer::Heatmap(l) => &l.id,
+            Layer::Hillshade(l) => &l.id,
+            Layer::Sky(l) => &l.id,
+            Layer::Slot(l) => &l.id,
+            Layer::Clip(l) => &l.id,
+        }
+    }
+
+    /// The name of the source this layer draws from, if any.
+    pub fn source(&self) -> Option<&str> {
+        match self {
+            Layer::Background(_) | Layer::Sky(_) | Layer::Slot(_) => None,
+            Layer::Fill(l) => l.source.as_deref(),
+            Layer::Line(l) => l.source.as_deref(),
+            Layer::Symbol(l) => l.source.as_deref(),
+            Layer::Raster(l) => l.source.as_deref(),
+            Layer::Circle(l) => l.source.as_deref(),
+            Layer::FillExtrusion(l) => l.source.as_deref(),
+            Layer::Heatmap(l) => l.source.as_deref(),
+            Layer::Hillshade(l) => l.source.as_deref(),
+            Layer::Clip(l) => l.source.as_deref(),
+        }
+    }
+
+    /// The Maplibre layer type name as it appears in the style spec (e.g. `"fill"`, `"line"`).
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Layer::Background(_) => "background",
+            Layer::Fill(_) => "fill",
+            Layer::Line(_) => "line",
+            Layer::Symbol(_) => "symbol",
+            Layer::Raster(_) => "raster",
+            Layer::Circle(_) => "circle",
+            Layer::FillExtrusion(_) => "fill-extrusion",
+            Layer::Heatmap(_) => "heatmap",
+            Layer::Hillshade(_) => "hillshade",
+            Layer::Sky(_) => "sky",
+            Layer::Slot(_) => "slot",
+            Layer::Clip(_) => "clip",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use common::{DEFAULT_MAXZOOM, DEFAULT_MINZOOM};

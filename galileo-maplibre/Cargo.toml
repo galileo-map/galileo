@@ -11,6 +11,7 @@ description = "Galileo layer based on Maplibre (Mapbox) style specification"
 readme = "./README.md"
 
 [dependencies]
+csscolorparser = { workspace = true }
 galileo = { workspace = true, default-features = true }
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -18,4 +19,5 @@ serde_ignored = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+env_logger = { workspace = true }
 galileo-egui = { path = "../galileo-egui", features = ["init"] }
