@@ -100,6 +100,11 @@ get_fonts:
 rt:
   cargo run --example raster_tiles
 
+# Run the maplibre style example
+[group('Examples shortcuts')]
+ml:
+  cargo run -p galileo-maplibre --example maplibre_style
+
 # Run the vector tiles example
 [group('Examples shortcuts')]
 vt:

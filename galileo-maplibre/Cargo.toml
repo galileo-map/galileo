@@ -16,3 +16,6 @@ log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_ignored = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+galileo-egui = { path = "../galileo-egui", features = ["init"] }
