@@ -1,3 +1,5 @@
+//! CSS color parsing and serde helpers for [`galileo::Color`].
+
 use galileo::Color;
 
 /// Parses a CSS color string into a [`Color`].
@@ -12,6 +14,29 @@ pub fn parse_css_color(s: &str) -> Option<Color> {
         (c.b * 255.0).round() as u8,
         (c.a * 255.0).round() as u8,
     ))
+}
+
+/// Deserializes an `Option<Color>` from a JSON string using CSS color parsing.
+///
+/// Intended for use with `#[serde(deserialize_with = "crate::style::color::deserialize_opt")]`.
+/// Logs a warning and returns `None` for invalid color strings.
+pub fn deserialize_opt<'de, D>(deserializer: D) -> Result<Option<Color>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let opt: Option<String> = Option::deserialize(deserializer)?;
+    match opt {
+        None => Ok(None),
+        Some(ref s) => {
+            if let Some(color) = parse_css_color(s) {
+                Ok(Some(color))
+            } else {
+                log::warn!("Failed to parse CSS color '{s}'; ignoring");
+                Ok(None)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -52,5 +77,16 @@ mod tests {
     fn hsla() {
         let c = parse_css_color("hsla(0, 100%, 50%, 0.5)").unwrap();
         assert_eq!((c.r(), c.g(), c.b(), c.a()), (255, 0, 0, 128));
+    }
+
+    #[test]
+    fn named_color() {
+        let c = parse_css_color("red").unwrap();
+        assert_eq!((c.r(), c.g(), c.b()), (255, 0, 0));
+    }
+
+    #[test]
+    fn invalid_color_returns_none() {
+        assert!(parse_css_color("not-a-color").is_none());
     }
 }

@@ -1,4 +1,3 @@
-pub mod color;
 pub mod layer;
 pub mod style;
 

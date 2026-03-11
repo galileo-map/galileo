@@ -1,5 +1,6 @@
 //! Fill and fill-extrusion layer types.
 
+use galileo::Color;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -7,6 +8,7 @@ use super::common::{
     default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom, deserialize_minzoom,
     CommonLayout,
 };
+use crate::style::color::deserialize_opt as deserialize_opt_color;
 
 /// Paint properties for a `fill` layer.
 #[derive(Debug, Clone, PartialEq, Deserialize, Default)]
@@ -15,13 +17,23 @@ pub struct FillPaint {
     #[serde(rename = "fill-antialias", skip_serializing_if = "Option::is_none")]
     pub fill_antialias: Option<Value>,
 
-    /// Fill colour. Supports expressions.
-    #[serde(rename = "fill-color", skip_serializing_if = "Option::is_none")]
-    pub fill_color: Option<Value>,
+    /// Fill colour.
+    #[serde(
+        rename = "fill-color",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_opt_color"
+    )]
+    pub fill_color: Option<Color>,
 
-    /// Outline colour. Supports expressions.
-    #[serde(rename = "fill-outline-color", skip_serializing_if = "Option::is_none")]
-    pub fill_outline_color: Option<Value>,
+    /// Outline colour.
+    #[serde(
+        rename = "fill-outline-color",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_opt_color"
+    )]
+    pub fill_outline_color: Option<Color>,
 
     /// Opacity of the entire fill layer. Supports expressions.
     #[serde(rename = "fill-opacity", skip_serializing_if = "Option::is_none")]

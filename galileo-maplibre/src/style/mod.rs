@@ -8,6 +8,7 @@
 //! # Submodules
 //! - [`source`] — data source definitions (`vector`, `raster`, `geojson`, …)
 
+pub mod color;
 pub mod expression;
 pub(super) mod helpers;
 pub mod layer;

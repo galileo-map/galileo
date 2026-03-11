@@ -7,7 +7,6 @@ use galileo::tile_schema::TileSchemaBuilder;
 use galileo::Color;
 use serde_json::Value;
 
-use crate::color::parse_css_color;
 use crate::layer::UNSUPPORTED;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer};
 use crate::style::source::VectorSource;
@@ -96,7 +95,7 @@ fn fill_rule(fill: &FillLayer) -> Option<StyleRule> {
         }
     };
 
-    let fill_color = extract_literal_color(&fill.paint.fill_color, &fill.id, "fill-color")?;
+    let fill_color = fill.paint.fill_color?;
     let opacity = extract_literal_f64(&fill.paint.fill_opacity, &fill.id, "fill-opacity");
     let color = apply_opacity(fill_color, opacity.unwrap_or(1.0));
 
@@ -107,31 +106,6 @@ fn fill_rule(fill: &FillLayer) -> Option<StyleRule> {
         }),
         ..Default::default()
     })
-}
-
-/// Extracts a color from a paint property that must be a literal CSS color string.
-/// Logs and returns `None` for expressions, functions, or unparsable values.
-fn extract_literal_color(value: &Option<Value>, layer_id: &str, prop: &str) -> Option<Color> {
-    match value {
-        None => None,
-        Some(Value::String(s)) => match parse_css_color(s) {
-            Some(c) => Some(c),
-            None => {
-                log::warn!(
-                    "Failed to parse color '{s}' for property '{prop}' in layer '{layer_id}'."
-                );
-                None
-            }
-        },
-        Some(_) => {
-            log::info!(
-                "{UNSUPPORTED} Property '{prop}' in layer '{layer_id}' uses an expression or \
-                 function, which is not yet supported. Open a GitHub issue or PR if support is \
-                 desirable."
-            );
-            None
-        }
-    }
 }
 
 /// Extracts a number from a paint property that must be a literal JSON number.

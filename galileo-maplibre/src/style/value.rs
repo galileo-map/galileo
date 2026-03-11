@@ -26,68 +26,21 @@
 //! | [`f64`]   | `number`          | JSON number         |
 //! | [`bool`]  | `boolean`         | JSON boolean        |
 //! | [`String`]| `string`          | JSON string         |
-//! | [`Color`] | `color`           | JSON string         |
 //!
 //! # Serde strategy
 //!
 //! `StyleValue<T>` is deserialized with `#[serde(untagged)]`.  Serde tries
 //! each variant in order:
 //! - `Literal(T)` — succeeds when the JSON is a primitive that directly
-//!   deserializes as `T` (number → `f64`, string → `Color`/`String`, bool →
-//!   `bool`).
+//!   deserializes as `T` (number → `f64`, string → `String`, bool → `bool`).
 //! - `Expression(Expr)` — succeeds when the JSON is an array.
 //! - `Function(Function<T>)` — succeeds when the JSON is an object (it
 //!   must have a `"stops"` key; other objects are an error).
-
-use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::expression::Expr;
-
-/// A MapLibre color value.
-///
-/// Colors appear in the JSON as strings in one of several CSS-compatible
-/// formats: hex (`#rrggbb`, `#rgb`, `#rrggbbaa`), `rgb(r,g,b)`,
-/// `rgba(r,g,b,a)`, `hsl(h,s%,l%)`, `hsla(h,s%,l%,a)`, or a named CSS
-/// color keyword such as `"red"`.
-///
-/// This type stores the original string verbatim.  Parsing to RGBA components
-/// is the responsibility of the renderer and is not performed here.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Color(pub String);
-
-impl Color {
-    /// Create a `Color` from any string-like value.
-    pub fn new(s: impl Into<String>) -> Self {
-        Self(s.into())
-    }
-
-    /// Borrow the underlying color string.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for Color {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl From<&str> for Color {
-    fn from(s: &str) -> Self {
-        Self(s.to_owned())
-    }
-}
-
-impl From<String> for Color {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
 
 /// The interpolation type for a legacy [`Function`].
 ///
@@ -332,57 +285,11 @@ impl From<&str> for StyleValue<String> {
     }
 }
 
-impl From<Color> for StyleValue<Color> {
-    fn from(v: Color) -> Self {
-        Self::Literal(v)
-    }
-}
-
-impl<'a> From<&'a str> for StyleValue<Color> {
-    fn from(v: &'a str) -> Self {
-        Self::Literal(Color::from(v))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
     use super::*;
-
-    #[test]
-    fn color_from_hex() {
-        let c = Color::from("#ff0000");
-        assert_eq!(c.as_str(), "#ff0000");
-        assert_eq!(c.to_string(), "#ff0000");
-    }
-
-    #[test]
-    fn color_from_rgb() {
-        let c = Color::new("rgb(255,0,0)");
-        assert_eq!(c.as_str(), "rgb(255,0,0)");
-    }
-
-    #[test]
-    fn color_from_hsl() {
-        let c = Color::new("hsl(47,79%,94%)");
-        assert_eq!(c.as_str(), "hsl(47,79%,94%)");
-    }
-
-    #[test]
-    fn color_from_named() {
-        let c = Color::from("red");
-        assert_eq!(c.as_str(), "red");
-    }
-
-    #[test]
-    fn color_serde_roundtrip() {
-        let c = Color::from("#aabbcc");
-        let json = serde_json::to_string(&c).unwrap();
-        assert_eq!(json, "\"#aabbcc\"");
-        let back: Color = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, c);
-    }
 
     #[test]
     fn expression_operator_and_args() {
@@ -572,60 +479,6 @@ mod tests {
     }
 
     #[test]
-    fn color_literal_hex() {
-        let v: StyleValue<Color> = serde_json::from_value(json!("#ff0000")).unwrap();
-        assert_eq!(v.as_literal(), Some(&Color::from("#ff0000")));
-    }
-
-    #[test]
-    fn color_literal_hsl() {
-        let v: StyleValue<Color> = serde_json::from_value(json!("hsl(47,79%,94%)")).unwrap();
-        assert_eq!(v.as_literal().map(|c| c.as_str()), Some("hsl(47,79%,94%)"));
-    }
-
-    #[test]
-    fn color_expression() {
-        let v: StyleValue<Color> = serde_json::from_value(json!([
-            "match",
-            ["get", "class"],
-            "residential",
-            "#f00",
-            "#000"
-        ]))
-        .unwrap();
-        assert!(v.is_expression());
-        assert_eq!(v.as_expression().and_then(|e| e.operator()), Some("match"));
-    }
-
-    #[test]
-    fn color_function_stops() {
-        let raw = json!({"stops": [[6, "hsl(47,79%,94%)"], [14, "hsl(42,49%,93%)"]]});
-        let v: StyleValue<Color> = serde_json::from_value(raw).unwrap();
-        assert!(v.is_function());
-        let f = v.as_function().unwrap();
-        assert_eq!(f.stops.len(), 2);
-        assert_eq!(f.stops[0].output, json!("hsl(47,79%,94%)"));
-    }
-
-    #[test]
-    fn color_function_with_base() {
-        let raw = json!({"base": 1.0, "stops": [[6, "hsl(47,79%,94%)"], [14, "#aaa"]]});
-        let v: StyleValue<Color> = serde_json::from_value(raw).unwrap();
-        let f = v.as_function().unwrap();
-        assert_eq!(f.base, Some(1.0));
-    }
-
-    #[test]
-    fn maptiler_background_color_function() {
-        // From maptiler_fmt.json — background-color with zoom stops
-        let raw = json!({"stops": [[6, "hsl(47,79%,94%)"], [14, "hsl(42,49%,93%)"]]});
-        let v: StyleValue<Color> = serde_json::from_value(raw).unwrap();
-        let f = v.as_function().unwrap();
-        assert_eq!(f.stops[0].input, json!(6));
-        assert_eq!(f.stops[1].input, json!(14));
-    }
-
-    #[test]
     fn maptiler_fill_opacity_function() {
         // From maptiler_fmt.json — fill-opacity with zoom stops
         let raw = json!({"stops": [[0, 1], [8, 0.1]]});
@@ -644,14 +497,6 @@ mod tests {
     }
 
     #[test]
-    fn roundtrip_color_literal() {
-        let original = json!("#aabbcc");
-        let v: StyleValue<Color> = serde_json::from_value(original.clone()).unwrap();
-        let back = serde_json::to_value(&v).unwrap();
-        assert_eq!(back, original);
-    }
-
-    #[test]
     fn roundtrip_expression() {
         let original = json!(["interpolate", ["linear"], ["zoom"], 5, 1.0, 10, 4.0]);
         let v: StyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
@@ -661,8 +506,8 @@ mod tests {
 
     #[test]
     fn roundtrip_function() {
-        let original = json!({"base": 1.5, "stops": [[0, "#fff"], [10, "#000"]]});
-        let v: StyleValue<Color> = serde_json::from_value(original.clone()).unwrap();
+        let original = json!({"base": 1.5, "stops": [[0, 0.0], [10, 1.0]]});
+        let v: StyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&v).unwrap();
         assert_eq!(back, original);
     }
@@ -675,12 +520,5 @@ mod tests {
             StyleValue::from("butt").as_literal(),
             Some(&"butt".to_owned())
         );
-        assert_eq!(
-            StyleValue::from(Color::from("red")).as_literal(),
-            Some(&Color::from("red"))
-        );
-        // &str → StyleValue<Color>
-        let sc: StyleValue<Color> = StyleValue::from("blue");
-        assert_eq!(sc.as_literal(), Some(&Color::from("blue")));
     }
 }
