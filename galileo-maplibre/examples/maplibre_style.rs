@@ -16,8 +16,12 @@ pub(crate) fn run() {
 }
 
 fn create_map() -> galileo::Map {
-    let style_json = include_str!("../data/maptiler_fmt.json");
-    let layer = MaplibreLayer::from_json(style_json).expect("failed to parse style");
+    let Some(api_key) = std::option_env!("VT_API_KEY") else {
+        panic!("Set the MapTiler API key into VT_API_KEY library when building this example");
+    };
+
+    let style_json = include_str!("../data/maptiler_fmt.json").replace("{VT_API_KEY}", api_key);
+    let layer = MaplibreLayer::from_json(&style_json).expect("failed to parse style");
 
     MapBuilder::default()
         .with_latlon(37.566, 128.9784)

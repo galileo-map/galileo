@@ -8,7 +8,7 @@
       "type": "vector"
     },
     "maptiler_planet": {
-      "url": "https://api.maptiler.com/tiles/v3/tiles.json?key=mNLmXyaTH4gRlwJHSYWp",
+      "url": "https://api.maptiler.com/tiles/v3/tiles.json?key={VT_API_KEY}",
       "type": "vector"
     }
   },
@@ -8378,7 +8378,7 @@
     },
     "spaceColor": "hsl(203, 100%, 85%)"
   },
-  "glyphs": "https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=mNLmXyaTH4gRlwJHSYWp",
+  "glyphs": "https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key={VT_API_KEY}",
   "sprite": "https://api.maptiler.com/maps/streets-v2/sprite",
   "bearing": 0,
   "pitch": 0,

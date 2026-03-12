@@ -1,5 +1,5 @@
 set dotenv-load := true
-export VT_API_KEY := env('VT_API_KEY', "")
+VT_API_KEY := env('VT_API_KEY', "")
 
 [private]
 default:
@@ -13,7 +13,7 @@ run_web_example NAME profile="release":
 
 # Compiles given web example into the folder `target/web_examples/<NAME>`
 [group('Web Examples')]
-build_web_example NAME profile="release" $VT_API_KEY=`echo $VT_API_KEY`:
+build_web_example NAME profile="release" $VT_API_KEY=VT_API_KEY:
   @ echo {{ if VT_API_KEY == "" { "WARNING: VT_API_KEY is not set. Vector tile layers will not work." } else { "VT_API_KEY is set" } }}
 
   rm -rf target/web_examples/{{NAME}}
