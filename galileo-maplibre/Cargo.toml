@@ -21,3 +21,4 @@ serde_json = { workspace = true }
 [dev-dependencies]
 env_logger = { workspace = true }
 galileo-egui = { path = "../galileo-egui", features = ["init"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }

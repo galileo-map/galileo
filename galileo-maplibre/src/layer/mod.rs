@@ -7,6 +7,8 @@ use galileo::render::Canvas;
 use galileo::{MapView, Messenger};
 
 use crate::style::layer::Layer as MaplibreStyleLayer;
+use crate::style::source::{Source, VectorSource};
+use crate::tiles::TileJson;
 use crate::MaplibreStyle;
 
 pub mod vector_tile;
@@ -23,20 +25,68 @@ pub struct MaplibreLayer {
 }
 
 impl MaplibreLayer {
-    /// Parses a Maplibre style JSON string and creates a new layer.
-    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+    /// Parses a Maplibre style JSON string, resolves any TileJSON source URLs, and creates a new
+    /// layer. Sources that specify a `url` (TileJSON endpoint) are fetched using the platform
+    /// service; sources with direct `tiles` arrays are used as-is.
+    pub async fn from_json(json: &str) -> Result<Self, serde_json::Error> {
         let style: MaplibreStyle = serde_json::from_str(json)?;
-        Ok(Self::from_style(style))
+        Ok(Self::from_style(style).await)
     }
 
-    /// Creates a new layer from a parsed [`MaplibreStyle`].
-    pub fn from_style(style: MaplibreStyle) -> Self {
+    /// Creates a new layer from a parsed [`MaplibreStyle`], resolving any TileJSON source URLs.
+    pub async fn from_style(mut style: MaplibreStyle) -> Self {
+        resolve_tilejson_sources(&mut style).await;
         let inner = build_inner_layers(&style);
         Self {
             inner,
             messenger: None,
         }
     }
+}
+
+/// For each vector source whose tile URLs are specified only as a TileJSON `url`, downloads the
+/// TileJSON and populates the source's `tiles` (and zoom range) from it.
+async fn resolve_tilejson_sources(style: &mut MaplibreStyle) {
+    for (name, source) in &mut style.sources {
+        if let Source::Vector(ref mut vector_source) = source {
+            if vector_source.tiles.is_none() {
+                if let Some(resolved) = fetch_tilejson(name, vector_source).await {
+                    vector_source.tiles = Some(resolved.tiles);
+                    if resolved.minzoom > 0 {
+                        vector_source.minzoom = resolved.minzoom as f64;
+                    }
+                    if resolved.maxzoom < 30 {
+                        vector_source.maxzoom = resolved.maxzoom as f64;
+                    }
+                }
+            }
+        }
+    }
+}
+
+use galileo::platform::PlatformService;
+
+/// Downloads and parses a TileJSON document for the given source. Returns `None` on failure.
+async fn fetch_tilejson(source_name: &str, source: &VectorSource) -> Option<TileJson> {
+    let url = source.url.as_ref()?;
+    println!("Fetching");
+    let bytes = galileo::platform::instance()
+        .load_bytes_from_url(url)
+        .await
+        .map_err(|err| {
+            log::warn!("Failed to fetch TileJSON for source '{source_name}' from '{url}': {err}");
+        })
+        .ok()?;
+
+    println!("Fetched");
+    let res = serde_json::from_slice::<TileJson>(&bytes)
+        .map_err(|err| {
+            log::warn!("Failed to parse TileJSON for source '{source_name}' from '{url}': {err}");
+        })
+        .ok();
+    println!("Parsed");
+
+    res
 }
 
 /// Groups style layers by source (preserving first-seen order) and tries to create a Galileo
@@ -85,10 +135,9 @@ fn build_inner_layers(style: &MaplibreStyle) -> Vec<Box<dyn Layer>> {
 
 fn try_create_source_layer(
     source_name: &str,
-    source: &crate::style::source::Source,
+    source: &Source,
     layers: &[&MaplibreStyleLayer],
 ) -> Option<Box<dyn Layer>> {
-    use crate::style::source::Source;
     match source {
         Source::Vector(vector_source) => {
             vector_tile::try_create(source_name, vector_source, layers)
