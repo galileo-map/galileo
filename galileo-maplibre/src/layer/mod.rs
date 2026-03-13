@@ -7,8 +7,8 @@ use galileo::render::Canvas;
 use galileo::{MapView, Messenger};
 
 use crate::style::layer::Layer as MaplibreStyleLayer;
-use crate::style::source::{Source, VectorSource};
-use crate::tiles::TileJson;
+use crate::style::source::{Source, TileScheme, VectorSource};
+use crate::tiles::{Scheme, TileJson};
 use crate::MaplibreStyle;
 
 pub mod vector_tile;
@@ -58,6 +58,16 @@ async fn resolve_tilejson_sources(style: &mut MaplibreStyle) {
                     if resolved.maxzoom < 30 {
                         vector_source.maxzoom = resolved.maxzoom as f64;
                     }
+                    if vector_source.bounds.is_none() {
+                        vector_source.bounds = resolved.bounds;
+                    }
+                    if vector_source.attribution.is_none() {
+                        vector_source.attribution = resolved.attribution;
+                    }
+                    vector_source.scheme = match resolved.scheme {
+                        Scheme::Xyz => TileScheme::Xyz,
+                        Scheme::Tms => TileScheme::Tms,
+                    };
                 }
             }
         }
@@ -69,7 +79,6 @@ use galileo::platform::PlatformService;
 /// Downloads and parses a TileJSON document for the given source. Returns `None` on failure.
 async fn fetch_tilejson(source_name: &str, source: &VectorSource) -> Option<TileJson> {
     let url = source.url.as_ref()?;
-    println!("Fetching");
     let bytes = galileo::platform::instance()
         .load_bytes_from_url(url)
         .await
@@ -78,13 +87,11 @@ async fn fetch_tilejson(source_name: &str, source: &VectorSource) -> Option<Tile
         })
         .ok()?;
 
-    println!("Fetched");
     let res = serde_json::from_slice::<TileJson>(&bytes)
         .map_err(|err| {
             log::warn!("Failed to parse TileJSON for source '{source_name}' from '{url}': {err}");
         })
         .ok();
-    println!("Parsed");
 
     res
 }
@@ -166,8 +173,12 @@ impl Layer for MaplibreLayer {
         }
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
-        self.messenger = Some(Arc::from(messenger));
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
+        for layer in &mut self.inner {
+            layer.set_messenger(Arc::clone(&messenger));
+        }
+
+        self.messenger = Some(messenger);
     }
 
     fn as_any(&self) -> &dyn Any {

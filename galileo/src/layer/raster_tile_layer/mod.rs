@@ -185,8 +185,8 @@ impl Layer for RasterTileLayer {
         }
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
-        self.messenger = Some(Arc::from(messenger));
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
+        self.messenger = Some(messenger);
     }
 
     fn as_any(&self) -> &dyn Any {

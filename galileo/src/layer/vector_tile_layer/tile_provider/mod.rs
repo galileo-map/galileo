@@ -172,8 +172,8 @@ impl VectorTileProvider {
     }
 
     /// Set messenger to use to notify about tile updates.
-    pub fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
-        self.messenger = Some(messenger.into());
+    pub fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
+        self.messenger = Some(messenger);
     }
 
     /// Notifies the messenger about a change to be processed by the map.

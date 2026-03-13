@@ -93,7 +93,7 @@ impl Layer for VectorTileLayer {
         }
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
         self.tile_provider.set_messenger(messenger);
     }
 

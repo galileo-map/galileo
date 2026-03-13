@@ -432,7 +432,7 @@ impl VectorTileLayerBuilder {
 
         let mut layer = VectorTileLayer::new(provider, style, tile_schema, attribution);
         if let Some(messenger) = messenger {
-            layer.set_messenger(messenger);
+            layer.set_messenger(messenger.into());
         }
 
         Ok(layer)

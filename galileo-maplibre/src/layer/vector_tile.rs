@@ -1,30 +1,32 @@
+use galileo::galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
+use galileo::galileo_types::geo::impls::GeoPoint2d;
+use galileo::galileo_types::geo::{Crs, NewGeoPoint, Projection};
 use galileo::layer::vector_tile_layer::style::{
     StyleRule, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
 };
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::layer::VectorTileLayer;
-use galileo::tile_schema::TileSchemaBuilder;
+use galileo::tile_schema::{TileSchema, TileSchemaBuilder, VerticalDirection};
 use galileo::Color;
 use serde_json::Value;
 
 use crate::layer::UNSUPPORTED;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer};
-use crate::style::source::VectorSource;
+use crate::style::source::{TileScheme, VectorSource};
 
 /// Tries to create a [`VectorTileLayer`] from a Maplibre vector source and the style layers that
-/// reference it. Returns `None` if the source cannot be used (e.g. no direct tile URLs).
+/// reference it. Returns `None` if the source cannot be used (e.g. no tile URLs available).
 pub fn try_create(
     source_name: &str,
     source: &VectorSource,
     layers: &[&MaplibreStyleLayer],
 ) -> Option<VectorTileLayer> {
-    let tile_url = match tile_url_template(source) {
-        Some(url) => url,
-        None => {
+    let tile_urls = match source.tiles.as_deref() {
+        Some([_, ..]) => source.tiles.clone().unwrap(),
+        _ => {
             log::info!(
-                "{UNSUPPORTED} Vector source '{source_name}' uses a TileJSON URL rather than \
-                 direct tile URLs, which is not yet supported. Open a GitHub issue or PR if \
-                 support is desirable."
+                "{UNSUPPORTED} Vector source '{source_name}' has no tile URLs; skipping. \
+                 Open a GitHub issue or PR if support is desirable."
             );
             return None;
         }
@@ -36,15 +38,13 @@ pub fn try_create(
         background: Color::TRANSPARENT,
     };
 
-    let min_z = source.minzoom as u32;
-    let max_z = source.maxzoom as u32;
-    let tile_schema = TileSchemaBuilder::web_mercator(min_z..=max_z)
-        .build()
-        .ok()?;
+    let tile_schema = build_tile_schema(source)?;
 
     VectorTileLayerBuilder::new_rest(move |index| {
-        tile_url
-            .replace("{z}", &index.z.to_string())
+        // When multiple URLs are provided they are equivalent mirrors; balance across them
+        // using (x + y) mod n, which distributes evenly and is stable per tile.
+        let url = &tile_urls[(index.x + index.y).rem_euclid(tile_urls.len() as i32) as usize];
+        url.replace("{z}", &index.z.to_string())
             .replace("{x}", &index.x.to_string())
             .replace("{y}", &index.y.to_string())
     })
@@ -54,9 +54,27 @@ pub fn try_create(
     .ok()
 }
 
-/// Returns the first direct tile URL template from the source, if available.
-fn tile_url_template(source: &VectorSource) -> Option<String> {
-    source.tiles.as_ref()?.first().cloned()
+/// Builds a Web Mercator [`TileSchema`] from a vector source's zoom range, scheme, and bounds.
+fn build_tile_schema(source: &VectorSource) -> Option<TileSchema> {
+    let min_z = source.minzoom as u32;
+    let max_z = source.maxzoom as u32;
+
+    let y_direction = match source.scheme {
+        TileScheme::Xyz => VerticalDirection::TopToBottom,
+        TileScheme::Tms => VerticalDirection::BottomToTop,
+    };
+
+    let mut builder = TileSchemaBuilder::web_mercator(min_z..=max_z)
+        .rect_tile_size(1024)
+        .y_direction(y_direction);
+
+    if let Some(bounds) = source.bounds {
+        if let Some(rect) = wgs84_bounds_to_mercator(bounds) {
+            builder = builder.tile_bounds(rect);
+        }
+    }
+
+    builder.build().ok()
 }
 
 /// Converts each supported style layer into a [`StyleRule`], logging unsupported ones.
@@ -67,6 +85,11 @@ fn build_rules(layers: &[&MaplibreStyleLayer]) -> Vec<StyleRule> {
             MaplibreStyleLayer::Fill(fill) => {
                 if let Some(rule) = fill_rule(fill) {
                     rules.push(rule);
+                    log::debug!(
+                        "Maplibre layer '{}' of type '{}' is added as a VT style rule",
+                        layer.id(),
+                        layer.type_name()
+                    );
                 }
             }
             other => {
@@ -132,4 +155,15 @@ fn apply_opacity(color: Color, opacity: f64) -> Color {
         color.b(),
         (color.a() as f64 * opacity).round() as u8,
     )
+}
+
+/// Converts WGS84 bounding box `[west, south, east, north]` (degrees) to a Web Mercator [`Rect`]
+/// in projected meters, suitable for use with [`TileSchemaBuilder::tile_bounds`].
+fn wgs84_bounds_to_mercator(bounds: [f64; 4]) -> Option<Rect> {
+    let projection: Box<dyn Projection<InPoint = GeoPoint2d, OutPoint = Point2>> =
+        Crs::EPSG3857.get_projection()?;
+    let [west, south, east, north] = bounds;
+    let sw = projection.project(&GeoPoint2d::latlon(south, west))?;
+    let ne = projection.project(&GeoPoint2d::latlon(north, east))?;
+    Some(Rect::new(sw.x(), sw.y(), ne.x(), ne.y()))
 }

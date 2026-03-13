@@ -38,7 +38,7 @@ pub trait Layer: MaybeSend + MaybeSync {
     fn prepare(&self, view: &MapView);
     /// Sets the messenger for the layer. Messenger is used to notify the application when the layer thinks it should
     /// be updated on the screen.
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>);
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>);
     /// A map stores layers as trait objects. This method can be used to convert the trait object into the concrete type.
     fn as_any(&self) -> &dyn Any;
     /// A map stores layers as trait objects. This method can be used to convert the trait object into the concrete type.
@@ -60,7 +60,7 @@ impl<T: Layer + 'static> Layer for Arc<RwLock<T>> {
         self.read().prepare(view)
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
         self.write().set_messenger(messenger)
     }
 
@@ -96,7 +96,7 @@ impl Layer for TestLayer {
         unimplemented!()
     }
 
-    fn set_messenger(&mut self, _messenger: Box<dyn Messenger>) {
+    fn set_messenger(&mut self, _messenger: Arc<dyn Messenger>) {
         unimplemented!()
     }
 

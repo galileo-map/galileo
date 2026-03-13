@@ -171,7 +171,7 @@ impl<'a> EguiMapState {
 
         map.set_messenger(Some(messenger.clone()));
         for layer in map.layers_mut().iter_mut() {
-            layer.set_messenger(Box::new(messenger.clone()));
+            layer.set_messenger(Arc::new(messenger.clone()));
         }
 
         // Set a default size so that render target can be created.

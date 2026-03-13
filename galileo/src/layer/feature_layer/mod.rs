@@ -3,6 +3,7 @@
 use std::any::Any;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use galileo_types::cartesian::{
     CartesianPoint2d, NewCartesianPoint2d, NewCartesianPoint3d, Point2, Point3, Rect,
@@ -55,7 +56,7 @@ where
     symbol: S,
     crs: Crs,
     lods: Vec<Lod>,
-    messenger: RwLock<Option<Box<dyn Messenger>>>,
+    messenger: RwLock<Option<Arc<dyn Messenger>>>,
     options: FeatureLayerOptions,
 
     space: PhantomData<Space>,
@@ -380,7 +381,7 @@ where
         // do nothing
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
         *self.messenger.write() = Some(messenger);
     }
 
@@ -443,7 +444,7 @@ where
         // do nothing
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
         *self.messenger.write() = Some(messenger);
     }
 
@@ -495,7 +496,7 @@ where
         // do nothing
     }
 
-    fn set_messenger(&mut self, messenger: Box<dyn Messenger>) {
+    fn set_messenger(&mut self, messenger: Arc<dyn Messenger>) {
         *self.messenger.write() = Some(messenger);
     }
 
