@@ -1,12 +1,13 @@
 //! Thread vt processor.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use galileo_mvt::MvtTile;
 use parking_lot::RwLock;
 
+use crate::TileSchema;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
 use crate::layer::vector_tile_layer::tile_provider::processor::{
     TileProcessingError, VectorTileProcessor,
@@ -14,7 +15,6 @@ use crate::layer::vector_tile_layer::tile_provider::processor::{
 use crate::layer::vector_tile_layer::tile_provider::{VtProcessor, VtStyleId};
 use crate::render::render_bundle::RenderBundle;
 use crate::tile_schema::TileIndex;
-use crate::TileSchema;
 
 /// Vector tile processor that uses a thread pool to run vector tile tessellation in parallel.
 pub struct ThreadVtProcessor {

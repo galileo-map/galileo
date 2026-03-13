@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 use egui::FontDefinitions;
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
-use galileo::layer::data_provider::remove_parameters_modifier;
-use galileo::layer::vector_tile_layer::style::VectorTileStyle;
-use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::layer::VectorTileLayer;
-use galileo::render::text::text_service::TextService;
+use galileo::layer::data_provider::remove_parameters_modifier;
+use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
+use galileo::layer::vector_tile_layer::style::VectorTileStyle;
 use galileo::render::text::RustybuzzRasterizer;
+use galileo::render::text::text_service::TextService;
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
 use galileo::{Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};

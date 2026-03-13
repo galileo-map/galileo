@@ -1,5 +1,5 @@
-use crate::cartesian::traits::cartesian_point::CartesianPoint2d;
 use crate::cartesian::Point2;
+use crate::cartesian::traits::cartesian_point::CartesianPoint2d;
 use crate::contour::ClosedContour;
 use crate::polygon::Polygon;
 use crate::segment::Segment;

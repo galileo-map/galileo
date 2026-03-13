@@ -4,8 +4,8 @@ use std::cell::{LazyCell, RefCell};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
 use bytes::Bytes;
 use futures::channel::oneshot;
@@ -13,15 +13,15 @@ use futures::channel::oneshot::Sender;
 use galileo_mvt::MvtTile;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch::Receiver;
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 use web_sys::Worker;
 
+use crate::TileSchema;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
 use crate::layer::vector_tile_layer::tile_provider::processor::TileProcessingError;
 use crate::render::render_bundle::RenderBundle;
 use crate::tile_schema::TileIndex;
-use crate::TileSchema;
 
 const WORKER_URL: &str = "./vt_worker.js";
 const WORKER_COUNT: usize = 4;
@@ -311,7 +311,9 @@ impl WebWorkerService {
                         let channel = pending_requests.borrow_mut().remove(&response.request_id);
                         if let Some(channel) = channel {
                             if let Err(err) = channel.send(Ok(v)) {
-                                log::error!("Failed to send result of web worker execution through channel: {err:?}");
+                                log::error!(
+                                    "Failed to send result of web worker execution through channel: {err:?}"
+                                );
                             }
 
                             log::trace!(
@@ -343,14 +345,14 @@ mod worker {
     use wasm_bindgen::{JsCast, JsValue};
 
     use super::{WebWorkerRequest, WebWorkerRequestId, WebWorkerRequestPayload, WebWorkerResponse};
+    use crate::TileSchema;
     use crate::layer::vector_tile_layer::style::VectorTileStyle;
-    use crate::layer::vector_tile_layer::tile_provider::processor::TileProcessingError;
     use crate::layer::vector_tile_layer::tile_provider::VtProcessor;
+    use crate::layer::vector_tile_layer::tile_provider::processor::TileProcessingError;
     use crate::platform::web::web_workers::WebWorkerResponsePayload;
     use crate::render::render_bundle::RenderBundle;
     use crate::render::text::{RustybuzzRasterizer, TextService};
     use crate::tile_schema::TileIndex;
-    use crate::TileSchema;
 
     #[wasm_bindgen]
     pub fn init_vt_worker() {

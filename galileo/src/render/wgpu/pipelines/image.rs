@@ -6,10 +6,10 @@ use wgpu::{
     TextureFormat,
 };
 
+use crate::render::RenderOptions;
 use crate::render::render_bundle::world_set::ImageVertex;
 use crate::render::wgpu::pipelines::default_targets;
-use crate::render::wgpu::{pipelines, DisplayInstance};
-use crate::render::RenderOptions;
+use crate::render::wgpu::{DisplayInstance, pipelines};
 
 const INDICES: &[u16] = &[1, 0, 2, 1, 2, 3];
 

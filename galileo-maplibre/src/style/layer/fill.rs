@@ -5,8 +5,8 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::common::{
-    default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom, deserialize_minzoom,
-    CommonLayout,
+    CommonLayout, default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom,
+    deserialize_minzoom,
 };
 use crate::style::color::deserialize_opt as deserialize_opt_color;
 

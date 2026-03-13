@@ -1,7 +1,7 @@
 //! Data sources for layers.
 
 mod file_cache;
-pub use file_cache::{remove_parameters_modifier, FileCacheController, FileCachePathModifier};
+pub use file_cache::{FileCacheController, FileCachePathModifier, remove_parameters_modifier};
 use maybe_sync::{MaybeSend, MaybeSync};
 
 use crate::error::GalileoError;

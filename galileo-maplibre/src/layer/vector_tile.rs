@@ -1,18 +1,24 @@
+use galileo::Color;
 use galileo::galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use galileo::galileo_types::geo::impls::GeoPoint2d;
 use galileo::galileo_types::geo::{Crs, NewGeoPoint, Projection};
+use galileo::layer::VectorTileLayer;
+use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
+use galileo::layer::vector_tile_layer::expressions::{
+    ExponentialInterpolationArgs, InterpolateExpression, InterpolationArgs, OperationBase,
+    StepValue, StyleValue,
+};
 use galileo::layer::vector_tile_layer::style::{
     StyleRule, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
 };
-use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
-use galileo::layer::VectorTileLayer;
 use galileo::tile_schema::{TileSchema, TileSchemaBuilder, VerticalDirection};
-use galileo::Color;
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::layer::UNSUPPORTED;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer};
 use crate::style::source::{TileScheme, VectorSource};
+use crate::style::value::{FunctionStop, MlStyleValue};
 
 /// Tries to create a [`VectorTileLayer`] from a Maplibre vector source and the style layers that
 /// reference it. Returns `None` if the source cannot be used (e.g. no tile URLs available).
@@ -33,10 +39,8 @@ pub fn try_create(
     };
 
     let rules = build_rules(layers);
-    let style = VectorTileStyle {
-        rules,
-        background: Color::TRANSPARENT,
-    };
+    let background = get_background(layers);
+    let style = VectorTileStyle { rules, background };
 
     let tile_schema = build_tile_schema(source)?;
 
@@ -54,6 +58,110 @@ pub fn try_create(
     .ok()
 }
 
+/// Finds background layer and returns its color.
+///
+/// Maptiler supports having background layer in any position, and just adds filling of the
+/// entire tile. WE don't support this currently, and always put background at the back.
+fn get_background(layers: &[&MaplibreStyleLayer]) -> StyleValue<Color> {
+    const DEFAULT_TILE_BACKGROUND: StyleValue<Color> = StyleValue::Simple(Color::TRANSPARENT);
+
+    let layer = match layers {
+        [] => return DEFAULT_TILE_BACKGROUND,
+        [MaplibreStyleLayer::Background(layer), ..] => layer,
+        layers => {
+            let bg_layer = layers.iter().find_map(|l| {
+                if let MaplibreStyleLayer::Background(background) = l {
+                    Some(background)
+                } else {
+                    None
+                }
+            });
+
+            if let Some(layer) = bg_layer {
+                log::info!(
+                    "{UNSUPPORTED} Background layer '{}' is in not the first layer in the list. \
+                    This is not yet supported. Background will be applied to the bottom of the tile.",
+                    layer.id,
+                );
+
+                layer
+            } else {
+                return DEFAULT_TILE_BACKGROUND;
+            }
+        }
+    };
+
+    let Some(color) = &layer.paint.background_color else {
+        return DEFAULT_TILE_BACKGROUND;
+    };
+
+    get_color_value(color, layer.paint.background_opacity.as_ref())
+        .unwrap_or(DEFAULT_TILE_BACKGROUND)
+}
+
+fn get_color_value(
+    color: &MlStyleValue<Color>,
+    opacity: Option<&MlStyleValue<f64>>,
+) -> Option<StyleValue<Color>> {
+    let galileo_color = get_galileo_value(color)?;
+    let Some(galileo_opacity) = opacity.and_then(get_galileo_value) else {
+        return Some(galileo_color);
+    };
+
+    match (galileo_color, galileo_opacity) {
+        (StyleValue::Simple(c), StyleValue::Simple(o)) => Some(c.with_alpha_float(o).into()),
+        (StyleValue::Simple(c), StyleValue::Interpolate(o)) => Some(StyleValue::Interpolate(
+            o.map(|opacity| c.with_alpha_float(opacity)),
+        )),
+        (StyleValue::Simple(c), StyleValue::Steps(o)) => Some(StyleValue::Steps(
+            o.map(|opacity| c.with_alpha_float(opacity)),
+        )),
+        (StyleValue::Interpolate(c), StyleValue::Simple(o)) => Some(StyleValue::Interpolate(
+            c.map(|color| color.with_alpha_float(o)),
+        )),
+        (StyleValue::Steps(c), StyleValue::Simple(o)) => {
+            Some(StyleValue::Steps(c.map(|color| color.with_alpha_float(o))))
+        }
+        _ => {
+            log::info!(
+                "{UNSUPPORTED} Color values with both color and opacity interpolation are not yet supported",
+            );
+            None
+        }
+    }
+}
+
+fn get_galileo_value<T: Copy + Default + std::fmt::Debug>(
+    value: &MlStyleValue<T>,
+) -> Option<StyleValue<T>>
+where
+    for<'de> FunctionStop<T>: Deserialize<'de>,
+{
+    match value {
+        MlStyleValue::Literal(v) => Some((*v).into()),
+        MlStyleValue::Expression(expr) => {
+            log::info!(
+                "{UNSUPPORTED} Expressions of type {:?} are not yet supported",
+                expr.operator(),
+            );
+            None
+        }
+        MlStyleValue::Function(function) => {
+            let steps = function.stops.iter().map(|stop| StepValue {
+                basis: stop.input,
+                step_value: stop.output,
+            });
+            let args = InterpolationArgs::Exponential(
+                ExponentialInterpolationArgs::new(function.base, steps).ok()?,
+            );
+            Some(StyleValue::Interpolate(InterpolateExpression::new(
+                args,
+                OperationBase::Zlevel,
+            )))
+        }
+    }
+}
+
 /// Builds a Web Mercator [`TileSchema`] from a vector source's zoom range, scheme, and bounds.
 fn build_tile_schema(source: &VectorSource) -> Option<TileSchema> {
     let min_z = source.minzoom as u32;
@@ -68,10 +176,10 @@ fn build_tile_schema(source: &VectorSource) -> Option<TileSchema> {
         .rect_tile_size(1024)
         .y_direction(y_direction);
 
-    if let Some(bounds) = source.bounds {
-        if let Some(rect) = wgs84_bounds_to_mercator(bounds) {
-            builder = builder.tile_bounds(rect);
-        }
+    if let Some(bounds) = source.bounds
+        && let Some(rect) = wgs84_bounds_to_mercator(bounds)
+    {
+        builder = builder.tile_bounds(rect);
     }
 
     builder.build().ok()

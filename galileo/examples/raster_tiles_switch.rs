@@ -1,8 +1,8 @@
 //! This example shows how to switch tile layers at runtime.
 
+use galileo::layer::RasterTileLayer;
 use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use galileo::layer::RasterTileLayer;
 use galileo::tile_schema::TileIndex;
 use galileo::{DummyMessenger, MapBuilder, Messenger};
 use galileo_egui::{EguiMap, EguiMapState};

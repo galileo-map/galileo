@@ -1,5 +1,5 @@
-use galileo::layer::feature_layer::Feature;
 use galileo::Color;
+use galileo::layer::feature_layer::Feature;
 use galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use galileo_types::geo::impls::GeoPoint2d;
 use galileo_types::geo::{GeoPoint, NewGeoPoint, Projection};

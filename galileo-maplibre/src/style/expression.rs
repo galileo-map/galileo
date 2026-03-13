@@ -1103,7 +1103,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                     other => {
                         return Err(format!(
                             "expression \"let\": binding name must be a string, got {other}"
-                        ))
+                        ));
                     }
                 };
                 let val = box_expr(args.remove(0))?;
@@ -1118,7 +1118,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 other => {
                     return Err(format!(
                         "expression \"var\": name must be a string, got {other}"
-                    ))
+                    ));
                 }
             };
             Ok(Expr::Var(name))

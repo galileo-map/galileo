@@ -1,11 +1,11 @@
+use galileo_types::MultiContour;
 use galileo_types::cartesian::Point3;
 use galileo_types::geometry::Geom;
-use galileo_types::MultiContour;
 
+use crate::Color;
 use crate::layer::feature_layer::symbol::Symbol;
 use crate::render::render_bundle::RenderBundle;
 use crate::render::{LineCap, LinePaint};
-use crate::Color;
 
 /// Renders a contour as a line of fixed width.
 #[derive(Debug, Copy, Clone)]

@@ -1,9 +1,9 @@
+use galileo_types::Disambig;
 use galileo_types::cartesian::{Point2, Point3};
 use galileo_types::geo::impls::GeoPoint2d;
 use galileo_types::geometry::Geometry;
 use galileo_types::geometry_type::GeometryType;
 use galileo_types::impls::{Contour, MultiContour, MultiPolygon, Polygon};
-use galileo_types::Disambig;
 
 /// A feature is an arbitrary geographic object.
 pub trait Feature {

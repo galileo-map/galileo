@@ -68,10 +68,10 @@ impl WebVtLoader {
 
         log::info!("Loaded tile from url: {url}");
 
-        if let Some(cache) = &self.cache {
-            if let Err(error) = cache.insert(url, &bytes) {
-                log::warn!("Failed to write persistent cache entry: {error:?}");
-            }
+        if let Some(cache) = &self.cache
+            && let Err(error) = cache.insert(url, &bytes)
+        {
+            log::warn!("Failed to write persistent cache entry: {error:?}");
         }
 
         Ok(bytes)

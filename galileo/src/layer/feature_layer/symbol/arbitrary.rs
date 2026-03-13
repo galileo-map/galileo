@@ -1,9 +1,9 @@
 use galileo_types::cartesian::Point3;
 use galileo_types::geometry::Geom;
 
+use crate::Color;
 use crate::render::render_bundle::RenderBundle;
 use crate::symbol::{CirclePointSymbol, SimpleContourSymbol, SimplePolygonSymbol, Symbol};
-use crate::Color;
 
 /// Renders any type of the geometry with the set inner symbols.
 #[derive(Debug, Clone)]

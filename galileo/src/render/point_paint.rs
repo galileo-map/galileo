@@ -7,10 +7,10 @@ use galileo_types::cartesian::{Point2, Size, Vector2};
 use galileo_types::impls::ClosedContour;
 use serde::{Deserialize, Serialize};
 
+use crate::Color;
 use crate::decoded_image::DecodedImage;
 use crate::render::text::TextStyle;
 use crate::render::{LineCap, LinePaint};
-use crate::Color;
 
 /// Specifies the way a point should be drawn to the map.
 #[derive(Debug, Clone, Serialize, Deserialize)]

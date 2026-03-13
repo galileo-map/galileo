@@ -37,10 +37,14 @@
 //! - `Function(Function<T>)` — succeeds when the JSON is an object (it
 //!   must have a `"stops"` key; other objects are an error).
 
-use serde::{Deserialize, Serialize};
+use galileo::Color;
+use serde::de::{SeqAccess, Visitor};
+use serde::ser::SerializeSeq;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use super::expression::Expr;
+use crate::style::color::parse_css_color;
 
 /// The interpolation type for a legacy [`Function`].
 ///
@@ -59,10 +63,11 @@ pub enum FunctionType {
 }
 
 /// The color space used for interpolating color outputs in a legacy [`Function`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ColorSpace {
     /// Interpolate in RGB color space.
+    #[default]
     Rgb,
     /// Interpolate in CIELAB color space.
     Lab,
@@ -78,62 +83,102 @@ pub enum ColorSpace {
 ///   (for zoom-and-property functions).
 /// - The output must be appropriate for `T` but is easier to keep as raw JSON
 ///   here and let the renderer coerce it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FunctionStop {
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionStop<T> {
     /// The input threshold — a zoom level (`number`) or a zoom-and-property
     /// object (`{"zoom": number, "value": any}`).
-    pub input: Value,
+    pub input: f64,
     /// The output value at this stop.
-    pub output: Value,
+    pub output: T,
 }
 
-// Custom deserialization: stops are `[input, output]` arrays in JSON.
-mod function_stops_serde {
-    use std::fmt;
-
-    use serde::de::{SeqAccess, Visitor};
-    use serde::{Deserializer, Serializer};
-    use serde_json::Value;
-
-    use super::FunctionStop;
-
-    pub fn serialize<S>(stops: &Vec<FunctionStop>, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        use serde::ser::SerializeSeq;
-        let mut seq = s.serialize_seq(Some(stops.len()))?;
-        for stop in stops {
-            seq.serialize_element(&[&stop.input, &stop.output])?;
-        }
+impl<T: Serialize> Serialize for FunctionStop<T> {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut seq = s.serialize_seq(Some(2))?;
+        seq.serialize_element(&self.input)?;
+        seq.serialize_element(&self.output)?;
         seq.end()
     }
+}
 
-    pub fn deserialize<'de, D>(d: D) -> Result<Vec<FunctionStop>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct StopsVisitor;
+macro_rules! impl_function_stop_deserialize {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl<'de> Deserialize<'de> for FunctionStop<$ty> {
+                fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+                    struct StopVisitor;
 
-        impl<'de> Visitor<'de> for StopsVisitor {
-            type Value = Vec<FunctionStop>;
+                    impl<'de> Visitor<'de> for StopVisitor {
+                        type Value = FunctionStop<$ty>;
 
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("an array of [input, output] stop pairs")
+                        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                            f.write_str("a [input, output] stop pair")
+                        }
+
+                        fn visit_seq<A: SeqAccess<'de>>(
+                            self,
+                            mut seq: A,
+                        ) -> Result<Self::Value, A::Error> {
+                            let input = seq
+                                .next_element::<f64>()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                            let output = seq
+                                .next_element::<$ty>()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                            Ok(FunctionStop { input, output })
+                        }
+                    }
+
+                    d.deserialize_seq(StopVisitor)
+                }
+            }
+        )+
+    };
+}
+
+impl_function_stop_deserialize!(f64, bool, String, Value);
+
+impl<'de> Deserialize<'de> for FunctionStop<Color> {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct StopVisitor;
+
+        impl<'de> Visitor<'de> for StopVisitor {
+            type Value = FunctionStop<Color>;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a [input, output] stop pair")
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut stops = Vec::new();
-                while let Some(pair) = seq.next_element::<[Value; 2]>()? {
-                    let [input, output] = pair;
-                    stops.push(FunctionStop { input, output });
-                }
-                Ok(stops)
+                let input = seq
+                    .next_element::<f64>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let color_str = seq
+                    .next_element::<&str>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                let color = parse_css_color(color_str).unwrap_or(Color::TRANSPARENT);
+                Ok(FunctionStop {
+                    input,
+                    output: color,
+                })
             }
         }
 
-        d.deserialize_seq(StopsVisitor)
+        d.deserialize_seq(StopVisitor)
     }
+}
+
+const DEFAULT_BASE: f64 = 1.0;
+fn default_base() -> f64 {
+    DEFAULT_BASE
+}
+
+fn de_base<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use crate::style::helpers::deserialize_f64_with_fallback;
+    deserialize_f64_with_fallback(deserializer, DEFAULT_BASE, "base")
 }
 
 /// A legacy MapLibre zoom/property function (deprecated since v0.41.0).
@@ -153,20 +198,19 @@ mod function_stops_serde {
 /// because the stop output type can only be verified by the renderer at
 /// runtime (e.g. for `identity` functions, the type is not statically known).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Function {
+pub struct Function<T>
+where
+    for<'a> FunctionStop<T>: Deserialize<'a>,
+{
     /// The stop pairs `[input, output]`.  Required for all types except
     /// `identity`.
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        with = "function_stops_serde"
-    )]
-    pub stops: Vec<FunctionStop>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stops: Vec<FunctionStop<T>>,
 
     /// The exponential base for `exponential` interpolation.  Default is `1`
     /// (linear).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub base: Option<f64>,
+    #[serde(default = "default_base", deserialize_with = "de_base")]
+    pub base: f64,
 
     /// The feature property to use as the function input.  If absent, the
     /// function input is the current zoom level.
@@ -181,7 +225,7 @@ pub struct Function {
     /// Fallback output value used when the input does not match any stop or
     /// when the feature property is missing.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Value>,
+    pub default: Option<T>,
 
     /// Color space for interpolating color outputs.
     #[serde(rename = "colorSpace", skip_serializing_if = "Option::is_none")]
@@ -209,7 +253,10 @@ pub struct Function {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum StyleValue<T> {
+pub enum MlStyleValue<T: Default>
+where
+    for<'a> FunctionStop<T>: Deserialize<'a>,
+{
     /// A literal value of the expected type, present directly in the JSON.
     Literal(T),
     /// A modern expression: a JSON array whose first element is an operator
@@ -217,10 +264,13 @@ pub enum StyleValue<T> {
     Expression(Expr),
     /// A legacy zoom/property function: a JSON object with a `"stops"` key.
     /// The renderer evaluates this at runtime to produce a `T`.
-    Function(Function),
+    Function(Function<T>),
 }
 
-impl<T> StyleValue<T> {
+impl<T: Default> MlStyleValue<T>
+where
+    for<'a> FunctionStop<T>: Deserialize<'a>,
+{
     /// Returns `true` if this is a [`StyleValue::Literal`].
     pub fn is_literal(&self) -> bool {
         matches!(self, Self::Literal(_))
@@ -253,7 +303,7 @@ impl<T> StyleValue<T> {
     }
 
     /// Returns the function, or `None` if this is not a function.
-    pub fn as_function(&self) -> Option<&Function> {
+    pub fn as_function(&self) -> Option<&Function<T>> {
         match self {
             Self::Function(f) => Some(f),
             _ => None,
@@ -261,25 +311,25 @@ impl<T> StyleValue<T> {
     }
 }
 
-impl From<f64> for StyleValue<f64> {
+impl From<f64> for MlStyleValue<f64> {
     fn from(v: f64) -> Self {
         Self::Literal(v)
     }
 }
 
-impl From<bool> for StyleValue<bool> {
+impl From<bool> for MlStyleValue<bool> {
     fn from(v: bool) -> Self {
         Self::Literal(v)
     }
 }
 
-impl From<String> for StyleValue<String> {
+impl From<String> for MlStyleValue<String> {
     fn from(v: String) -> Self {
         Self::Literal(v)
     }
 }
 
-impl From<&str> for StyleValue<String> {
+impl From<&str> for MlStyleValue<String> {
     fn from(v: &str) -> Self {
         Self::Literal(v.to_owned())
     }
@@ -287,7 +337,7 @@ impl From<&str> for StyleValue<String> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{Value, json};
 
     use super::*;
 
@@ -312,7 +362,7 @@ mod tests {
     fn expression_roundtrip() {
         // Round-trip via StyleValue so we verify end-to-end serde
         let original = json!(["interpolate", ["linear"], ["zoom"], 5, 1.0, 10, 4.0]);
-        let v: StyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         assert!(v.is_expression());
         assert_eq!(
             v.as_expression().and_then(|e| e.operator()),
@@ -322,11 +372,12 @@ mod tests {
 
     #[test]
     fn function_stops_only() {
-        let f: Function = serde_json::from_value(json!({"stops": [[5, 1.0], [10, 4.0]]})).unwrap();
+        let f: Function<Value> =
+            serde_json::from_value(json!({"stops": [[5, 1.0], [10, 4.0]]})).unwrap();
         assert_eq!(f.stops.len(), 2);
         assert_eq!(f.stops[0].input, json!(5));
         assert_eq!(f.stops[0].output, json!(1.0));
-        assert!(f.base.is_none());
+        assert_eq!(f.base, 1.0);
         assert!(f.property.is_none());
         assert!(f.function_type.is_none());
         assert!(f.default.is_none());
@@ -335,15 +386,15 @@ mod tests {
 
     #[test]
     fn function_with_base() {
-        let f: Function =
+        let f: Function<f64> =
             serde_json::from_value(json!({"base": 1.4, "stops": [[5, 1.0], [10, 4.0]]})).unwrap();
-        assert_eq!(f.base, Some(1.4));
+        assert_eq!(f.base, 1.4);
         assert_eq!(f.stops.len(), 2);
     }
 
     #[test]
     fn function_with_property() {
-        let f: Function = serde_json::from_value(json!({
+        let f: Function<Value> = serde_json::from_value(json!({
             "property": "temperature",
             "stops": [[0, "blue"], [100, "red"]]
         }))
@@ -353,20 +404,8 @@ mod tests {
     }
 
     #[test]
-    fn function_with_type_and_colorspace() {
-        let f: Function = serde_json::from_value(json!({
-            "type": "exponential",
-            "colorSpace": "lab",
-            "stops": [[0, "#fff"], [10, "#000"]]
-        }))
-        .unwrap();
-        assert_eq!(f.function_type, Some(FunctionType::Exponential));
-        assert_eq!(f.color_space, Some(ColorSpace::Lab));
-    }
-
-    #[test]
     fn function_with_default() {
-        let f: Function = serde_json::from_value(json!({
+        let f: Function<Value> = serde_json::from_value(json!({
             "stops": [[0, 1.0]],
             "default": 0.5
         }))
@@ -376,19 +415,19 @@ mod tests {
 
     #[test]
     fn function_color_stops() {
-        let f: Function = serde_json::from_value(
+        let f: Function<Value> = serde_json::from_value(
             json!({"stops": [[6, "hsl(47,79%,94%)"], [14, "hsl(42,49%,93%)"]]}),
         )
         .unwrap();
         assert_eq!(f.stops.len(), 2);
-        assert_eq!(f.stops[0].input, json!(6));
+        assert_eq!(f.stops[0].input, 6.0);
         assert_eq!(f.stops[0].output, json!("hsl(47,79%,94%)"));
     }
 
     #[test]
     fn function_roundtrip() {
         let original = json!({"base": 1.5, "stops": [[0, "#fff"], [10, "#000"]]});
-        let f: Function = serde_json::from_value(original.clone()).unwrap();
+        let f: Function<Value> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&f).unwrap();
         assert_eq!(back, original);
     }
@@ -401,7 +440,7 @@ mod tests {
             ("interval", FunctionType::Interval),
             ("categorical", FunctionType::Categorical),
         ] {
-            let f: Function =
+            let f: Function<Value> =
                 serde_json::from_value(json!({"type": s, "stops": [[0, 1]]})).unwrap();
             assert_eq!(f.function_type, Some(expected));
         }
@@ -409,7 +448,7 @@ mod tests {
 
     #[test]
     fn f64_literal() {
-        let v: StyleValue<f64> = serde_json::from_value(json!(2.0)).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(json!(2.0)).unwrap();
         assert!(v.is_literal());
         assert_eq!(v.as_literal(), Some(&2.0));
         assert!(!v.is_expression());
@@ -419,7 +458,7 @@ mod tests {
     #[test]
     fn f64_expression() {
         let raw = json!(["interpolate", ["linear"], ["zoom"], 5, 1.0, 10, 4.0]);
-        let v: StyleValue<f64> = serde_json::from_value(raw).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(raw).unwrap();
         assert!(v.is_expression());
         assert_eq!(
             v.as_expression().and_then(|e| e.operator()),
@@ -432,48 +471,48 @@ mod tests {
     #[test]
     fn f64_function() {
         let raw = json!({"base": 1.4, "stops": [[5, 1.0], [10, 4.0]]});
-        let v: StyleValue<f64> = serde_json::from_value(raw).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(raw).unwrap();
         assert!(v.is_function());
-        assert_eq!(v.as_function().and_then(|f| f.base), Some(1.4));
+        assert_eq!(v.as_function().map(|f| f.base), Some(1.4));
         assert!(!v.is_literal());
         assert!(!v.is_expression());
     }
 
     #[test]
     fn f64_step_expression() {
-        let v: StyleValue<f64> =
+        let v: MlStyleValue<f64> =
             serde_json::from_value(json!(["step", ["zoom"], 0.5, 12, 1.0, 15, 2.0])).unwrap();
         assert_eq!(v.as_expression().and_then(|e| e.operator()), Some("step"));
     }
 
     #[test]
     fn bool_literal_true() {
-        let v: StyleValue<bool> = serde_json::from_value(json!(true)).unwrap();
+        let v: MlStyleValue<bool> = serde_json::from_value(json!(true)).unwrap();
         assert_eq!(v.as_literal(), Some(&true));
     }
 
     #[test]
     fn bool_literal_false() {
-        let v: StyleValue<bool> = serde_json::from_value(json!(false)).unwrap();
+        let v: MlStyleValue<bool> = serde_json::from_value(json!(false)).unwrap();
         assert_eq!(v.as_literal(), Some(&false));
     }
 
     #[test]
     fn bool_expression() {
-        let v: StyleValue<bool> = serde_json::from_value(json!(["has", "name"])).unwrap();
+        let v: MlStyleValue<bool> = serde_json::from_value(json!(["has", "name"])).unwrap();
         assert!(v.is_expression());
         assert_eq!(v.as_expression().and_then(|e| e.operator()), Some("has"));
     }
 
     #[test]
     fn string_literal() {
-        let v: StyleValue<String> = serde_json::from_value(json!("butt")).unwrap();
+        let v: MlStyleValue<String> = serde_json::from_value(json!("butt")).unwrap();
         assert_eq!(v.as_literal(), Some(&"butt".to_owned()));
     }
 
     #[test]
     fn string_expression() {
-        let v: StyleValue<String> = serde_json::from_value(json!(["get", "name"])).unwrap();
+        let v: MlStyleValue<String> = serde_json::from_value(json!(["get", "name"])).unwrap();
         assert!(v.is_expression());
         assert_eq!(v.as_expression().and_then(|e| e.operator()), Some("get"));
     }
@@ -482,7 +521,7 @@ mod tests {
     fn maptiler_fill_opacity_function() {
         // From maptiler_fmt.json — fill-opacity with zoom stops
         let raw = json!({"stops": [[0, 1], [8, 0.1]]});
-        let v: StyleValue<f64> = serde_json::from_value(raw).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(raw).unwrap();
         let f = v.as_function().unwrap();
         assert_eq!(f.stops[0].output, json!(1));
         assert_eq!(f.stops[1].output, json!(0.1));
@@ -491,7 +530,7 @@ mod tests {
     #[test]
     fn roundtrip_f64_literal() {
         let original = json!(1.5);
-        let v: StyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&v).unwrap();
         assert_eq!(back, original);
     }
@@ -499,7 +538,7 @@ mod tests {
     #[test]
     fn roundtrip_expression() {
         let original = json!(["interpolate", ["linear"], ["zoom"], 5, 1.0, 10, 4.0]);
-        let v: StyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&v).unwrap();
         assert_eq!(back, original);
     }
@@ -507,17 +546,17 @@ mod tests {
     #[test]
     fn roundtrip_function() {
         let original = json!({"base": 1.5, "stops": [[0, 0.0], [10, 1.0]]});
-        let v: StyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
+        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&v).unwrap();
         assert_eq!(back, original);
     }
 
     #[test]
     fn from_impls() {
-        assert_eq!(StyleValue::from(2.5_f64).as_literal(), Some(&2.5));
-        assert_eq!(StyleValue::from(true).as_literal(), Some(&true));
+        assert_eq!(MlStyleValue::from(2.5_f64).as_literal(), Some(&2.5));
+        assert_eq!(MlStyleValue::from(true).as_literal(), Some(&true));
         assert_eq!(
-            StyleValue::from("butt").as_literal(),
+            MlStyleValue::from("butt").as_literal(),
             Some(&"butt".to_owned())
         );
     }

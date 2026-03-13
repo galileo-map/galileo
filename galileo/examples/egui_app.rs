@@ -3,8 +3,8 @@
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::{Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
-use galileo_types::geo::impls::GeoPoint2d;
 use galileo_types::geo::GeoPoint;
+use galileo_types::geo::impls::GeoPoint2d;
 
 const STORAGE_KEY: &str = "galileo_egui_app_example";
 

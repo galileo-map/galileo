@@ -45,7 +45,9 @@ impl PersistentCacheController<str, Bytes> for FileCacheController {
                     Ok(())
                 }
                 Err(err) => {
-                    debug!("Failed to add {key} entry to the cache failed {file_path:?} - failed to create folder: {err:?}");
+                    debug!(
+                        "Failed to add {key} entry to the cache failed {file_path:?} - failed to create folder: {err:?}"
+                    );
                     Err(err.into())
                 }
             },

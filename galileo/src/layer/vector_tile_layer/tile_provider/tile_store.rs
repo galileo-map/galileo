@@ -8,8 +8,8 @@ use quick_cache::{DefaultHashBuilder, Lifecycle, Weighter};
 use tokio::sync::OnceCell;
 
 use crate::layer::vector_tile_layer::tile_provider::VtStyleId;
-use crate::render::render_bundle::RenderBundle;
 use crate::render::PackedBundle;
+use crate::render::render_bundle::RenderBundle;
 use crate::tile_schema::TileIndex;
 
 const DEFAULT_CACHE_CAPACITY: usize = 50 * 2usize.pow(20);

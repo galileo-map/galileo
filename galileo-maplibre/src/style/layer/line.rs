@@ -4,8 +4,8 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::common::{
-    default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom, deserialize_minzoom,
-    deserialize_visibility_or_default, Visibility,
+    Visibility, default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom,
+    deserialize_minzoom, deserialize_visibility_or_default,
 };
 
 /// Paint properties for a `line` layer.

@@ -7,23 +7,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use galileo_mvt::{MvtFeature, MvtGeometry};
+use galileo_types::MultiPolygon;
 use galileo_types::cartesian::{CartesianPoint2d, Point2, Point3, Vector2};
 use galileo_types::geometry::CartesianGeometry2d;
 use galileo_types::impls::{ClosedContour, Polygon};
-use galileo_types::MultiPolygon;
 use parking_lot::Mutex;
 pub use vector_tile::VectorTile;
 
+use crate::Color;
+use crate::layer::Layer;
 use crate::layer::attribution::Attribution;
+use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
 use crate::layer::vector_tile_layer::tile_provider::{VectorTileProvider, VtStyleId};
-use crate::layer::Layer;
 use crate::messenger::Messenger;
 use crate::render::render_bundle::RenderBundle;
 use crate::render::{BundleToDraw, Canvas, PackedBundle, PolygonPaint, RenderOptions};
 use crate::tile_schema::{TileIndex, TileSchema};
 use crate::view::MapView;
-use crate::Color;
 
 mod builder;
 pub mod expressions;
@@ -54,9 +55,9 @@ impl std::fmt::Debug for VectorTileLayer {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 struct PreviousBackground {
-    color: Color,
+    color: StyleValue<Color>,
     replaced_at: web_time::Instant,
 }
 
@@ -169,7 +170,7 @@ impl VectorTileLayer {
         let new_style_id = self.tile_provider.add_style(style);
         if let Some(curr_style) = self.tile_provider.get_style(self.style_id) {
             *self.prev_background.lock() = Some(PreviousBackground {
-                color: curr_style.background,
+                color: curr_style.background.clone(),
                 replaced_at: web_time::Instant::now(),
             });
         }
@@ -264,8 +265,11 @@ impl VectorTileLayer {
         );
         let style = self.tile_provider.get_style(self.style_id)?;
 
+        let resolution = self.tile_schema.select_lod(view.resolution())?.resolution;
+
         let mut prev_background = self.prev_background.lock();
-        let color = match *prev_background {
+        let new_color = style.background.get_value(resolution, &self.tile_schema)?;
+        let color = match &*prev_background {
             Some(prev) => {
                 let k = web_time::Instant::now()
                     .duration_since(prev.replaced_at)
@@ -274,16 +278,13 @@ impl VectorTileLayer {
 
                 if k >= 1.0 {
                     *prev_background = None;
-                    style.background
+                    new_color
                 } else {
-                    prev.color.blend(
-                        style
-                            .background
-                            .with_alpha((style.background.a() as f32 * k) as u8),
-                    )
+                    let prev_color = prev.color.get_value(resolution, &self.tile_schema)?;
+                    prev_color.blend(new_color.with_alpha((new_color.a() as f32 * k) as u8))
                 }
             }
-            None => style.background,
+            None => new_color,
         };
 
         bundle.add_polygon(&bounds, &PolygonPaint { color }, view.resolution());

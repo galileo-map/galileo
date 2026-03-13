@@ -2,9 +2,9 @@
 //! [`InitBuilder`].
 
 use eframe::AppCreator;
+use galileo::Map;
 use galileo::control::UserEventHandler;
 use galileo::render::HorizonOptions;
-use galileo::Map;
 
 use crate::EguiMapState;
 
@@ -132,7 +132,7 @@ impl InitBuilder {
     pub fn with_app_builder(
         mut self,
         app_builder: impl FnOnce(EguiMapState, &eframe::CreationContext<'_>) -> Box<dyn eframe::App>
-            + 'static,
+        + 'static,
     ) -> Self {
         self.app_builder = Some(Box::new(app_builder));
         self

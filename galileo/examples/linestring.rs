@@ -4,11 +4,11 @@ use galileo::layer::feature_layer::{FeatureLayer, FeatureLayerOptions};
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::symbol::SimpleContourSymbol;
 use galileo::{Color, Map, MapBuilder};
+use galileo_types::Disambig;
 use galileo_types::geo::impls::GeoPoint2d;
 use galileo_types::geo::{Crs, NewGeoPoint};
 use galileo_types::geometry_type::GeoSpace2d;
 use galileo_types::impls::Contour;
-use galileo_types::Disambig;
 use geojson::FeatureCollection;
 
 #[cfg(not(target_arch = "wasm32"))]

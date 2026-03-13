@@ -3,6 +3,7 @@
 use galileo_mvt::{MvtFeature, MvtGeometry};
 use serde::{Deserialize, Serialize};
 
+use crate::Color;
 use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::render::point_paint::PointPaint;
 use crate::render::text::{
@@ -10,7 +11,6 @@ use crate::render::text::{
 };
 use crate::render::{LineCap, LinePaint, PolygonPaint};
 use crate::tile_schema::TileSchema;
-use crate::Color;
 
 /// Style of a vector tile layer. This specifies how each feature in a tile should be rendered.
 ///
@@ -22,7 +22,7 @@ pub struct VectorTileStyle {
     pub rules: Vec<StyleRule>,
 
     /// Background color of tiles.
-    pub background: Color,
+    pub background: StyleValue<Color>,
 }
 
 impl VectorTileStyle {
@@ -66,7 +66,7 @@ impl VectorTileStyle {
                 return false;
             }
 
-            let filter_check_passed = rule.properties.iter().all(|filter| {
+            rule.properties.iter().all(|filter| {
                 let value = feature.properties.get(&filter.property_name);
                 match (&filter.operator, value) {
                     (PropertyFilterOperator::Equal(value), Some(v)) => v.eq_str(value),
@@ -95,18 +95,16 @@ impl VectorTileStyle {
 
                     _ => false,
                 }
-            });
-
-            filter_check_passed
+            })
         })
     }
 }
 
 fn compare_numeric(a: &galileo_mvt::MvtValue, b: &str, cmp: impl Fn(f64, f64) -> bool) -> bool {
-    if let Some(a_num) = a.as_f64() {
-        if let Ok(b_num) = b.parse::<f64>() {
-            return cmp(a_num, b_num);
-        }
+    if let Some(a_num) = a.as_f64()
+        && let Ok(b_num) = b.parse::<f64>()
+    {
+        return cmp(a_num, b_num);
     }
 
     false

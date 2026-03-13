@@ -1,4 +1,4 @@
-use geo_types::{point, CoordNum};
+use geo_types::{CoordNum, point};
 use nalgebra::Scalar;
 use num_traits::{Bounded, Float, FromPrimitive};
 

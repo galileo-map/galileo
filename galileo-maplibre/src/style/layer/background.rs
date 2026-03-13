@@ -1,22 +1,24 @@
 //! Background layer types.
 
+use galileo::Color;
 use serde::Deserialize;
 use serde_json::Value;
 
 use super::common::{
-    default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom, deserialize_minzoom,
-    CommonLayout,
+    CommonLayout, default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom,
+    deserialize_minzoom,
 };
+use crate::style::value::MlStyleValue;
 
 /// Paint properties for a background layer.
 #[derive(Debug, Clone, PartialEq, Deserialize, Default)]
 pub struct BackgroundPaint {
     /// The colour with which the background will be drawn.
     #[serde(rename = "background-color")]
-    pub background_color: Option<Value>,
+    pub background_color: Option<MlStyleValue<Color>>,
     /// The opacity at which the background will be drawn.
     #[serde(rename = "background-opacity")]
-    pub background_opacity: Option<Value>,
+    pub background_opacity: Option<MlStyleValue<f64>>,
     /// Name of image in sprite to use for drawing an image background.
     #[serde(rename = "background-pattern")]
     pub background_pattern: Option<Value>,

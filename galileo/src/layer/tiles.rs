@@ -1,15 +1,15 @@
 use std::hash::Hash;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use ahash::HashSet;
 use ordered_hash_map::OrderedHashMap;
 use parking_lot::Mutex;
 
+use crate::TileSchema;
 use crate::render::PackedBundle;
 use crate::tile_schema::{TileIndex, WrappingTileIndex};
-use crate::TileSchema;
 
 const DEFAULT_FADE_IN_DURATION: Duration = Duration::from_millis(300);
 

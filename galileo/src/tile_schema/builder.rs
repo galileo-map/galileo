@@ -58,7 +58,9 @@ pub enum TileSchemaError {
     },
 
     /// Z-level resolutions are not decreasing
-    #[error("resolution at z-level {upper_level} ({upper_resolution}) cannot be smaller than resolution at z-level {lower_level} ({lower_resolution})")]
+    #[error(
+        "resolution at z-level {upper_level} ({upper_resolution}) cannot be smaller than resolution at z-level {lower_level} ({lower_resolution})"
+    )]
     NotSortedZLevels {
         /// Smaller z-level value
         upper_level: u32,

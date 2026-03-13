@@ -2,17 +2,17 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use galileo_types::MultiPoint;
 use galileo_types::cartesian::{Point3, Vector2};
 use galileo_types::geometry::Geom;
-use galileo_types::MultiPoint;
 use image::EncodableLayout;
 
+use crate::Color;
 use crate::decoded_image::DecodedImage;
 use crate::error::GalileoError;
 use crate::layer::feature_layer::symbol::Symbol;
 use crate::render::point_paint::{MarkerStyle, PointPaint};
 use crate::render::render_bundle::RenderBundle;
-use crate::Color;
 
 /// Renders a point as a circle of fixes size.
 #[derive(Debug, Copy, Clone)]

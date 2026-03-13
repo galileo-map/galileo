@@ -1,10 +1,10 @@
 use std::mem::size_of;
 use std::sync::Arc;
 
+use galileo_types::Polygon;
 use galileo_types::cartesian::{CartesianPoint2d, CartesianPoint3d, Point2, Vector2};
 use galileo_types::contour::Contour;
 use galileo_types::impls::ClosedContour;
-use galileo_types::Polygon;
 use lyon::lyon_tessellation::{
     BuffersBuilder, FillOptions, FillTessellator, FillVertex, FillVertexConstructor, LineJoin,
     Side, StrokeOptions, StrokeTessellator, StrokeVertex, StrokeVertexConstructor, VertexBuffers,
@@ -17,11 +17,11 @@ use lyon::tessellation::VertexSource;
 use num_traits::AsPrimitive;
 use serde::{Deserialize, Serialize};
 
+use crate::Color;
 use crate::decoded_image::DecodedImage;
 use crate::render::point_paint::{CircleFill, PointPaint, PointShape, SectorParameters};
 use crate::render::text::{TextService, TextShaping, TextStyle};
 use crate::render::{ImagePaint, LinePaint, PolygonPaint};
-use crate::Color;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct WorldRenderSet {

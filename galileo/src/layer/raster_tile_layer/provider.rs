@@ -4,9 +4,10 @@ use bytes::Bytes;
 use galileo_types::cartesian::Rect;
 use maybe_sync::{MaybeSend, MaybeSync};
 use parking_lot::Mutex;
-use quick_cache::sync::Cache;
 use quick_cache::GuardResult;
+use quick_cache::sync::Cache;
 
+use crate::TileSchema;
 use crate::decoded_image::DecodedImage;
 use crate::error::GalileoError;
 use crate::layer::data_provider::{PersistentCacheController, UrlSource};
@@ -15,7 +16,6 @@ use crate::platform::PlatformService;
 use crate::render::render_bundle::RenderBundle;
 use crate::render::{Canvas, ImagePaint, PackedBundle};
 use crate::tile_schema::TileIndex;
-use crate::TileSchema;
 
 /// Provider of tlies for a [`RusterTileLayer`](super::RasterTileLayer).
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -85,10 +85,10 @@ impl RestTileLoader {
     async fn download_tile(&self, index: TileIndex) -> Result<Bytes, GalileoError> {
         let url = (self.url_source)(&index);
 
-        if let Some(cache) = &self.cache {
-            if let Some(data) = cache.get(&url) {
-                return Ok(data);
-            }
+        if let Some(cache) = &self.cache
+            && let Some(data) = cache.get(&url)
+        {
+            return Ok(data);
         }
 
         if self.offline_mode {
@@ -100,10 +100,10 @@ impl RestTileLoader {
             .load_bytes_from_url(&url)
             .await?;
 
-        if let Some(cache) = &self.cache {
-            if let Err(error) = cache.insert(&url, &data) {
-                log::warn!("Failed to write persistent cache entry: {error:?}");
-            }
+        if let Some(cache) = &self.cache
+            && let Err(error) = cache.insert(&url, &data)
+        {
+            log::warn!("Failed to write persistent cache entry: {error:?}");
         }
 
         Ok(data)

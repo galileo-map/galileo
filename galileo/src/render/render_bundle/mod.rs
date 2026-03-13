@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
+use galileo_types::Polygon;
 use galileo_types::cartesian::{CartesianPoint3d, Point2, Vector2};
 use galileo_types::contour::Contour;
-use galileo_types::Polygon;
 use num_traits::AsPrimitive;
 use screen_set::ScreenRenderSet;
 use serde::{Deserialize, Serialize};

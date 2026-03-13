@@ -246,10 +246,10 @@ mod tests {
     use galileo_types::latlon;
 
     use super::*;
-    use crate::layer::raster_tile_layer::RestTileLoader;
-    use crate::layer::RasterTileLayer;
-    use crate::tile_schema::TileSchemaBuilder;
     use crate::TileSchema;
+    use crate::layer::RasterTileLayer;
+    use crate::layer::raster_tile_layer::RestTileLoader;
+    use crate::tile_schema::TileSchemaBuilder;
 
     fn test_tile_schema() -> TileSchema {
         TileSchemaBuilder::web_mercator(0..=18).build().unwrap()

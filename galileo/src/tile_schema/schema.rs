@@ -61,7 +61,7 @@ pub struct TileSchema {
 }
 
 pub struct Lod {
-    resolution: f64,
+    pub(crate) resolution: f64,
     pub(crate) z_index: u32,
 }
 

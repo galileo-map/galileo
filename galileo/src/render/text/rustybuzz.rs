@@ -4,8 +4,8 @@ use galileo_types::cartesian::Vector2;
 use lyon::lyon_tessellation::{
     BuffersBuilder, FillOptions, FillTessellator, FillVertex, FillVertexConstructor, VertexBuffers,
 };
-use lyon::path::path::Builder;
 use lyon::path::Path;
+use lyon::path::path::Builder;
 use lyon::tessellation::{StrokeOptions, StrokeTessellator, StrokeVertexConstructor};
 use rustybuzz::ttf_parser::{self, GlyphId, OutlineBuilder, Tag};
 use rustybuzz::{Direction, UnicodeBuffer};
@@ -13,8 +13,8 @@ use rustybuzz::{Direction, UnicodeBuffer};
 use super::font_provider::FontProvider;
 use super::text_service::FontServiceError;
 use super::{FontProperties, GlyphVertex};
-use crate::render::text::{TessellatedGlyph, TextRasterizer, TextShaping, TextStyle};
 use crate::Color;
+use crate::render::text::{TessellatedGlyph, TextRasterizer, TextShaping, TextStyle};
 
 /// Font service provider that uses `rustybuzz` crate to shape and vectorize text
 #[derive(Default)]

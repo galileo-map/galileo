@@ -15,7 +15,7 @@ use galileo_types::cartesian::{Point2, Point3, Vector2};
 use galileo_types::geo::{Crs, Projection};
 use galileo_types::geometry::Geom;
 use galileo_types::geometry_type::CartesianSpace2d;
-use galileo_types::{latlon, CartesianGeometry2d, Geometry};
+use galileo_types::{CartesianGeometry2d, Geometry, latlon};
 use parking_lot::RwLock;
 
 const YELLOW_PIN: &[u8] = include_bytes!("data/pin-yellow.png");
@@ -96,8 +96,8 @@ impl Geometry for PointMarker {
 impl CartesianGeometry2d<Point2> for PointMarker {
     fn is_point_inside<
         Other: galileo_types::cartesian::CartesianPoint2d<
-            Num = <Point2 as galileo_types::cartesian::CartesianPoint2d>::Num,
-        >,
+                Num = <Point2 as galileo_types::cartesian::CartesianPoint2d>::Num,
+            >,
     >(
         &self,
         point: &Other,

@@ -6,11 +6,11 @@ use std::sync::Arc;
 use maybe_sync::{MaybeSend, MaybeSync};
 use parking_lot::RwLock;
 
+use crate::TileSchema;
 use crate::layer::attribution::Attribution;
 use crate::messenger::Messenger;
 use crate::render::Canvas;
 use crate::view::MapView;
-use crate::TileSchema;
 
 pub mod attribution;
 pub mod data_provider;

@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use galileo::control::{EventPropagation, UserEvent, UserEventHandler};
-use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::layer::FeatureLayer;
+use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::symbol::CirclePointSymbol;
 use galileo::{Color, Map, MapBuilder};
 use galileo_types::cartesian::Point2;

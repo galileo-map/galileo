@@ -1,12 +1,12 @@
 //! Galileo map widget for EGUI framework. See [`EguiMap`].
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use egui::load::SizedTexture;
 use egui::{Event, Image, ImageSource, Sense, TextureId, Ui, Vec2};
-use egui_wgpu::wgpu::{FilterMode, TextureView};
 use egui_wgpu::RenderState;
+use egui_wgpu::wgpu::{FilterMode, TextureView};
 use galileo::control::{
     EventProcessor, MapController, MouseButton, RawUserEvent, TouchEvent, UserEventHandler,
 };
@@ -128,10 +128,10 @@ impl<'a> EguiMap<'a> {
             **resolution = updated_view.resolution();
         }
 
-        if let Some(position) = &mut self.position {
-            if let Some(view_position) = updated_view.position() {
-                **position = view_position;
-            }
+        if let Some(position) = &mut self.position
+            && let Some(view_position) = updated_view.position()
+        {
+            **position = view_position;
         }
     }
 }
@@ -318,7 +318,7 @@ impl<'a> EguiMapState {
     }
 
     /// Returns event messenger that is used by the map.
-    pub fn messenger(&self) -> impl Messenger {
+    pub fn messenger(&self) -> impl Messenger + use<> {
         self.messenger.clone()
     }
 

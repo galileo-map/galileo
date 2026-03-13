@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use data::Country;
 use galileo::control::{EventPropagation, UserEvent, UserEventHandler};
+use galileo::layer::Layer;
 use galileo::layer::feature_layer::symbol::{SimplePolygonSymbol, Symbol};
 use galileo::layer::feature_layer::{FeatureLayer, FeatureLayerOptions};
-use galileo::layer::Layer;
 use galileo::render::render_bundle::RenderBundle;
 use galileo::{Map, MapBuilder};
 use galileo_types::cartesian::{Point2, Point3};
@@ -96,11 +96,11 @@ fn create_mouse_handler(
                 Some(id) => layer.update_feature(id),
             }
 
-            if let Some(old_selected) = std::mem::replace(&mut *selected_id.lock(), new_selected) {
-                if let Some(feature) = layer.features_mut().get_mut(old_selected) {
-                    feature.is_selected = false;
-                    layer.update_feature(old_selected);
-                }
+            if let Some(old_selected) = std::mem::replace(&mut *selected_id.lock(), new_selected)
+                && let Some(feature) = layer.features_mut().get_mut(old_selected)
+            {
+                feature.is_selected = false;
+                layer.update_feature(old_selected);
             }
 
             map.redraw();

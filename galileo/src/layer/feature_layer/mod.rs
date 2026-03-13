@@ -8,8 +8,8 @@ use std::sync::Arc;
 use galileo_types::cartesian::{
     CartesianPoint2d, NewCartesianPoint2d, NewCartesianPoint3d, Point2, Point3, Rect,
 };
-use galileo_types::geo::impls::projection::{AddDimensionProjection, IdentityProjection};
 use galileo_types::geo::impls::GeoPoint2d;
+use galileo_types::geo::impls::projection::{AddDimensionProjection, IdentityProjection};
 use galileo_types::geo::{ChainProjection, Crs, InvertedProjection, NewGeoPoint, Projection};
 use galileo_types::geometry::{CartesianGeometry2d, Geometry};
 use galileo_types::geometry_type::{CartesianSpace2d, CartesianSpace3d, GeoSpace2d};
@@ -17,8 +17,8 @@ use maybe_sync::{MaybeSend, MaybeSync};
 use num_traits::AsPrimitive;
 use parking_lot::{Mutex, RwLock};
 
-use crate::layer::attribution::Attribution;
 use crate::layer::Layer;
+use crate::layer::attribution::Attribution;
 use crate::messenger::Messenger;
 use crate::render::{Canvas, RenderOptions};
 use crate::view::MapView;

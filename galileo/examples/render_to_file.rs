@@ -9,9 +9,9 @@
 
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
-use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
+use anyhow::{Result, anyhow};
 use galileo::layer::FeatureLayer;
+use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
 use galileo::render::WgpuRenderer;
 use galileo::symbol::ArbitraryGeometrySymbol;
 use galileo::tile_schema::TileSchemaBuilder;

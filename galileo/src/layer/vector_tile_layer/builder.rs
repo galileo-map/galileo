@@ -3,19 +3,19 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
+use super::VectorTileLayer;
 use super::style::{
     StyleRule, VectorTileLineSymbol, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
 };
+use super::tile_provider::VectorTileProvider;
 use super::tile_provider::loader::WebVtLoader;
 use super::tile_provider::processor::VectorTileProcessor;
-use super::tile_provider::VectorTileProvider;
-use super::VectorTileLayer;
 use crate::error::GalileoError;
+use crate::layer::Layer;
 use crate::layer::attribution::Attribution;
 use crate::layer::data_provider::{
     FileCacheController, FileCachePathModifier, PersistentCacheController, UrlSource,
 };
-use crate::layer::Layer;
 use crate::tile_schema::{TileIndex, TileSchemaBuilder};
 use crate::{Color, Messenger, TileSchema};
 
@@ -476,7 +476,7 @@ impl VectorTileLayerBuilder {
                     }),
                 },
             ],
-            background: Color::WHITE,
+            background: Color::WHITE.into(),
         }
     }
 }

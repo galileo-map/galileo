@@ -7,8 +7,8 @@ use galileo_types::cartesian::Vector2;
 use provider::RasterTileProvider;
 use web_time::Duration;
 
-use super::tiles::TilesContainer;
 use super::Layer;
+use super::tiles::TilesContainer;
 use crate::layer::attribution::Attribution;
 use crate::messenger::Messenger;
 use crate::render::{BundleToDraw, Canvas, RenderOptions};
@@ -96,10 +96,8 @@ impl RasterTileLayer {
             .tile_container
             .update_displayed_tiles(needed_indices, ());
 
-        if requires_redraw {
-            if let Some(messenger) = &self.messenger {
-                messenger.request_redraw();
-            }
+        if requires_redraw && let Some(messenger) = &self.messenger {
+            messenger.request_redraw();
         }
     }
 

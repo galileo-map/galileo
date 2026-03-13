@@ -17,7 +17,9 @@ fn main() {
 
 async fn create_map() -> galileo::Map {
     let Some(api_key) = std::option_env!("VT_API_KEY") else {
-        panic!("Set the MapTiler API key into VT_API_KEY environment variable when building this example");
+        panic!(
+            "Set the MapTiler API key into VT_API_KEY environment variable when building this example"
+        );
     };
 
     let style_json = include_str!("../data/maptiler_fmt.json").replace("{VT_API_KEY}", api_key);

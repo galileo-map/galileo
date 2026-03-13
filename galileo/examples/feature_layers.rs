@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use data::{City, Country};
 use galileo::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
+use galileo::layer::Layer;
 use galileo::layer::feature_layer::symbol::{SimplePolygonSymbol, Symbol};
 use galileo::layer::feature_layer::{FeatureLayer, FeatureLayerOptions};
-use galileo::layer::Layer;
 use galileo::render::point_paint::PointPaint;
 use galileo::render::render_bundle::RenderBundle;
 use galileo::{Color, Map, MapBuilder};
@@ -78,31 +78,30 @@ fn create_mouse_handler(
 ) -> impl UserEventHandler {
     let selected_id = Mutex::new(None);
     move |ev: &UserEvent, map: &mut Map| {
-        if let UserEvent::Click(button, event) = ev {
-            if *button == MouseButton::Left {
-                let mut layer = feature_layer.write();
+        if let UserEvent::Click(button, event) = ev
+            && *button == MouseButton::Left
+        {
+            let mut layer = feature_layer.write();
 
-                let Some(position) = map.view().screen_to_map(event.screen_pointer_position) else {
-                    return EventPropagation::Stop;
-                };
-
-                let mut to_update = vec![];
-                for (id, feature) in
-                    layer.get_features_at_mut(&position, map.view().resolution() * 2.0)
-                {
-                    log::info!("Found {} with bbox {:?}", feature.name, feature.bbox);
-                    feature.is_hidden = !feature.is_hidden;
-                    to_update.push(id);
-                }
-
-                for id in to_update {
-                    layer.update_feature(id);
-                }
-
-                map.redraw();
-
+            let Some(position) = map.view().screen_to_map(event.screen_pointer_position) else {
                 return EventPropagation::Stop;
+            };
+
+            let mut to_update = vec![];
+            for (id, feature) in layer.get_features_at_mut(&position, map.view().resolution() * 2.0)
+            {
+                log::info!("Found {} with bbox {:?}", feature.name, feature.bbox);
+                feature.is_hidden = !feature.is_hidden;
+                to_update.push(id);
             }
+
+            for id in to_update {
+                layer.update_feature(id);
+            }
+
+            map.redraw();
+
+            return EventPropagation::Stop;
         }
 
         if let UserEvent::PointerMoved(event) = ev {
@@ -131,11 +130,11 @@ fn create_mouse_handler(
                 Some(id) => layer.update_feature(id),
             }
 
-            if let Some(old_selected) = std::mem::replace(&mut *selected_id.lock(), new_selected) {
-                if let Some(feature) = layer.features_mut().get_mut(old_selected) {
-                    feature.is_selected = false;
-                    layer.update_feature(old_selected);
-                }
+            if let Some(old_selected) = std::mem::replace(&mut *selected_id.lock(), new_selected)
+                && let Some(feature) = layer.features_mut().get_mut(old_selected)
+            {
+                feature.is_selected = false;
+                layer.update_feature(old_selected);
             }
 
             map.redraw();

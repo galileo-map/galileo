@@ -5,13 +5,13 @@ use galileo_types::{Contour, MultiContour, MultiPolygon, Polygon as PolygonTrait
 use num_traits::ToPrimitive;
 use regex::Regex;
 
+use crate::TileSchema;
 use crate::error::GalileoError;
 use crate::layer::vector_tile_layer::style::{StyleRule, VectorTileLabelSymbol, VectorTileStyle};
 use crate::render::point_paint::{PointPaint, PointShape};
 use crate::render::render_bundle::RenderBundle;
 use crate::render::{LinePaint, PolygonPaint};
 use crate::tile_schema::TileIndex;
-use crate::TileSchema;
 
 /// Data processor that decodes vector tiles.
 pub struct VtProcessor {}

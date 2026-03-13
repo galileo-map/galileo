@@ -12,12 +12,12 @@ use wgpu::{
 
 use super::WgpuScreenSetData;
 use crate::decoded_image::{DecodedImage, DecodedImageType};
+use crate::render::RenderOptions;
 use crate::render::wgpu::pipelines::clip::ClipPipeline;
 use crate::render::wgpu::pipelines::dot::DotPipeline;
 use crate::render::wgpu::pipelines::image::ImagePipeline;
 use crate::render::wgpu::pipelines::map_ref::MapRefPipeline;
-use crate::render::wgpu::{ViewUniform, WgpuPackedBundle, DEPTH_FORMAT};
-use crate::render::RenderOptions;
+use crate::render::wgpu::{DEPTH_FORMAT, ViewUniform, WgpuPackedBundle};
 
 mod clip;
 mod dot;

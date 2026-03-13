@@ -8,15 +8,15 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use galileo_mvt::MvtTile;
 
+use crate::TileSchema;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
+use crate::layer::vector_tile_layer::tile_provider::VtStyleId;
 use crate::layer::vector_tile_layer::tile_provider::processor::{
     TileProcessingError, VectorTileProcessor,
 };
-use crate::layer::vector_tile_layer::tile_provider::VtStyleId;
 use crate::platform::web::web_workers::WebWorkerService;
 use crate::render::render_bundle::RenderBundle;
 use crate::tile_schema::TileIndex;
-use crate::TileSchema;
 
 /// Vector tile processor that uses Web Workers to prepare tiles for rendering.
 pub struct WebWorkerVtProcessor {

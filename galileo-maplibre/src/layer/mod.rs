@@ -1,15 +1,15 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use galileo::layer::attribution::Attribution;
 use galileo::layer::Layer;
+use galileo::layer::attribution::Attribution;
 use galileo::render::Canvas;
 use galileo::{MapView, Messenger};
 
+use crate::MaplibreStyle;
 use crate::style::layer::Layer as MaplibreStyleLayer;
 use crate::style::source::{Source, TileScheme, VectorSource};
 use crate::tiles::{Scheme, TileJson};
-use crate::MaplibreStyle;
 
 pub mod vector_tile;
 
@@ -48,28 +48,32 @@ impl MaplibreLayer {
 /// TileJSON and populates the source's `tiles` (and zoom range) from it.
 async fn resolve_tilejson_sources(style: &mut MaplibreStyle) {
     for (name, source) in &mut style.sources {
-        if let Source::Vector(ref mut vector_source) = source {
-            if vector_source.tiles.is_none() {
-                if let Some(resolved) = fetch_tilejson(name, vector_source).await {
-                    vector_source.tiles = Some(resolved.tiles);
-                    if resolved.minzoom > 0 {
-                        vector_source.minzoom = resolved.minzoom as f64;
-                    }
-                    if resolved.maxzoom < 30 {
-                        vector_source.maxzoom = resolved.maxzoom as f64;
-                    }
-                    if vector_source.bounds.is_none() {
-                        vector_source.bounds = resolved.bounds;
-                    }
-                    if vector_source.attribution.is_none() {
-                        vector_source.attribution = resolved.attribution;
-                    }
-                    vector_source.scheme = match resolved.scheme {
-                        Scheme::Xyz => TileScheme::Xyz,
-                        Scheme::Tms => TileScheme::Tms,
-                    };
+        if let Source::Vector(original_source) = source {
+            let mut vector_source = original_source.clone();
+
+            if vector_source.tiles.is_none()
+                && let Some(resolved) = fetch_tilejson(name, &vector_source).await
+            {
+                vector_source.tiles = Some(resolved.tiles);
+                if resolved.minzoom > 0 {
+                    vector_source.minzoom = resolved.minzoom as f64;
                 }
+                if resolved.maxzoom < 30 {
+                    vector_source.maxzoom = resolved.maxzoom as f64;
+                }
+                if vector_source.bounds.is_none() {
+                    vector_source.bounds = resolved.bounds;
+                }
+                if vector_source.attribution.is_none() {
+                    vector_source.attribution = resolved.attribution;
+                }
+                vector_source.scheme = match resolved.scheme {
+                    Scheme::Xyz => TileScheme::Xyz,
+                    Scheme::Tms => TileScheme::Tms,
+                };
             }
+
+            *original_source = vector_source;
         }
     }
 }
@@ -87,54 +91,46 @@ async fn fetch_tilejson(source_name: &str, source: &VectorSource) -> Option<Tile
         })
         .ok()?;
 
-    let res = serde_json::from_slice::<TileJson>(&bytes)
+    serde_json::from_slice::<TileJson>(&bytes)
         .map_err(|err| {
             log::warn!("Failed to parse TileJSON for source '{source_name}' from '{url}': {err}");
         })
-        .ok();
-
-    res
+        .ok()
 }
 
 /// Groups style layers by source (preserving first-seen order) and tries to create a Galileo
 /// layer for each source.
 fn build_inner_layers(style: &MaplibreStyle) -> Vec<Box<dyn Layer>> {
-    // Collect sources in the order they first appear across layers.
-    let mut source_order: Vec<&str> = Vec::new();
-    for map_layer in &style.layers {
-        if let Some(src) = map_layer.source() {
-            if !source_order.contains(&src) {
-                source_order.push(src);
+    let mut first_source = None;
+    let mut filtered_layers = vec![];
+
+    for layer in &style.layers {
+        if let Some(s) = layer.source() {
+            if let Some(first) = first_source
+                && s != first
+            {
+                log::info!(
+                    "{UNSUPPORTED} Multiple sources are not supported yet. Layer {} with source {} is ignored",
+                    layer.id(),
+                    s,
+                );
+
+                continue;
             }
-        } else {
-            log::info!(
-                "{UNSUPPORTED} Maplibre layer type '{}' (id: '{}') is not yet supported. \
-                 Open a GitHub issue or PR if support is desirable.",
-                map_layer.type_name(),
-                map_layer.id(),
-            );
+
+            first_source = Some(s);
         }
+
+        filtered_layers.push(layer);
     }
 
     let mut inner: Vec<Box<dyn Layer>> = Vec::new();
 
-    for source_name in source_order {
-        let Some(source) = style.sources.get(source_name) else {
-            log::warn!(
-                "Maplibre source '{source_name}' referenced by layers but not defined; skipping."
-            );
-            continue;
-        };
-
-        let source_layers: Vec<&MaplibreStyleLayer> = style
-            .layers
-            .iter()
-            .filter(|l| l.source() == Some(source_name))
-            .collect();
-
-        if let Some(layer) = try_create_source_layer(source_name, source, &source_layers) {
-            inner.push(layer);
-        }
+    if let Some((source_name, source)) = first_source
+        .and_then(|source_name| style.sources.get(source_name).map(|v| (source_name, v)))
+        && let Some(layer) = try_create_source_layer(source_name, source, &filtered_layers)
+    {
+        inner.push(layer);
     }
 
     inner

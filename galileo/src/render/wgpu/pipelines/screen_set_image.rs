@@ -5,8 +5,8 @@ use wgpu::{BindGroup, BindGroupLayout, Device, RenderPass, RenderPipeline, Textu
 
 use super::image::WgpuImage;
 use crate::render::render_bundle::screen_set::ScreenSetImageVertex;
-use crate::render::wgpu::pipelines::{default_pipeline_descriptor, default_targets};
 use crate::render::wgpu::DisplayInstance;
+use crate::render::wgpu::pipelines::{default_pipeline_descriptor, default_targets};
 
 const INDICES: &[u16] = &[1, 0, 2, 1, 2, 3];
 

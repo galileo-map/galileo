@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use egui::Color32;
+use galileo::layer::FeatureLayer;
 use galileo::layer::feature_layer::Feature;
 use galileo::layer::raster_tile_layer::RasterTileLayerBuilder;
-use galileo::layer::FeatureLayer;
 use galileo::render::point_paint::PointPaint;
 use galileo::render::render_bundle::RenderBundle;
 use galileo::render::text::text_service::TextService;
@@ -16,8 +16,8 @@ use galileo::symbol::Symbol;
 use galileo::{Color, Map, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
 use galileo_types::cartesian::{Point3, Vector2};
-use galileo_types::geo::impls::GeoPoint2d;
 use galileo_types::geo::Crs;
+use galileo_types::geo::impls::GeoPoint2d;
 use galileo_types::geometry::Geom;
 use galileo_types::geometry_type::GeoSpace2d;
 use galileo_types::latlon;

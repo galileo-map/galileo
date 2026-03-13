@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use wgpu::{BindGroupLayout, Device, Queue, RenderPass, RenderPipeline, TextureFormat};
 
 use crate::render::wgpu::pipelines::default_targets;
-use crate::render::wgpu::{pipelines, WgpuVertexBuffers};
+use crate::render::wgpu::{WgpuVertexBuffers, pipelines};
 use crate::{Color, MapView};
 
 /// Configuration for the horizon effect.

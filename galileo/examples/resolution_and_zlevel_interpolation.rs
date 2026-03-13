@@ -4,14 +4,14 @@
 use std::sync::Arc;
 
 use egui::FontDefinitions;
-use galileo::layer::data_provider::remove_parameters_modifier;
-use galileo::layer::vector_tile_layer::style::{StyleRule, VectorTileStyle};
-use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
-use galileo::layer::VectorTileLayer;
-use galileo::render::text::text_service::TextService;
-use galileo::render::text::RustybuzzRasterizer;
-use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
 use galileo::MapBuilder;
+use galileo::layer::VectorTileLayer;
+use galileo::layer::data_provider::remove_parameters_modifier;
+use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
+use galileo::layer::vector_tile_layer::style::{StyleRule, VectorTileStyle};
+use galileo::render::text::RustybuzzRasterizer;
+use galileo::render::text::text_service::TextService;
+use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
 use parking_lot::RwLock;
 

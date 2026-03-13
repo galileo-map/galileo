@@ -1,7 +1,7 @@
 //! Vector tile layer tile providers
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use galileo_mvt::MvtTile;
 use loader::VectorTileLoader;

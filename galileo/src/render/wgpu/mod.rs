@@ -14,24 +14,25 @@ use nalgebra::{Point4, Rotation3, Vector3};
 use parking_lot::Mutex;
 use wgpu::util::DeviceExt;
 use wgpu::{
-    Adapter, BindGroup, Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Extent3d,
-    Origin3d, Queue, RenderPassDepthStencilAttachment, StoreOp, Surface, SurfaceConfiguration,
-    SurfaceError, SurfaceTexture, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo,
-    Texture, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-    TextureView, TextureViewDescriptor, WasmNotSendSync, COPY_BYTES_PER_ROW_ALIGNMENT,
+    Adapter, BindGroup, Buffer, BufferAddress, BufferDescriptor, BufferUsages,
+    COPY_BYTES_PER_ROW_ALIGNMENT, Device, Extent3d, Origin3d, Queue,
+    RenderPassDepthStencilAttachment, StoreOp, Surface, SurfaceConfiguration, SurfaceError,
+    SurfaceTexture, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
+    TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    TextureViewDescriptor, WasmNotSendSync,
 };
 
 use super::render_bundle::screen_set::{RenderSetState, ScreenSetData};
 use super::{BundleToDraw, Canvas, PackedBundle, RenderOptions};
+use crate::Color;
 use crate::decoded_image::DecodedImage;
 use crate::error::GalileoError;
 use crate::map::Map;
-use crate::render::render_bundle::world_set::{PointInstance, PolyVertex, WorldRenderSet};
 use crate::render::render_bundle::RenderBundle;
-use crate::render::wgpu::pipelines::image::WgpuImage;
+use crate::render::render_bundle::world_set::{PointInstance, PolyVertex, WorldRenderSet};
 use crate::render::wgpu::pipelines::Pipelines;
+use crate::render::wgpu::pipelines::image::WgpuImage;
 use crate::view::MapView;
-use crate::Color;
 
 mod effects;
 mod pipelines;

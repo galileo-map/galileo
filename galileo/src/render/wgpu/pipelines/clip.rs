@@ -3,10 +3,10 @@ use wgpu::{
     RenderPipelineDescriptor, StencilFaceState, StencilOperation, StencilState, TextureFormat,
 };
 
+use crate::render::RenderOptions;
 use crate::render::render_bundle::world_set::PolyVertex;
 use crate::render::wgpu::pipelines::{default_pipeline_descriptor, default_targets};
-use crate::render::wgpu::{DisplayInstance, WgpuVertexBuffers, DEPTH_FORMAT};
-use crate::render::RenderOptions;
+use crate::render::wgpu::{DEPTH_FORMAT, DisplayInstance, WgpuVertexBuffers};
 
 pub struct ClipPipeline {
     wgpu_pipeline: RenderPipeline,

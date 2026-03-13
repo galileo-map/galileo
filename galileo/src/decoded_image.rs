@@ -118,8 +118,8 @@ impl DecodedImageType {
 
 #[cfg(feature = "image")]
 mod serialization {
-    use base64::prelude::BASE64_STANDARD;
     use base64::Engine;
+    use base64::prelude::BASE64_STANDARD;
     use image::ImageEncoder;
 
     use super::*;
@@ -131,8 +131,8 @@ mod serialization {
         {
             match &self.0 {
                 DecodedImageType::Bitmap { bytes, dimensions } => {
-                    use image::codecs::png::PngEncoder;
                     use image::ColorType;
+                    use image::codecs::png::PngEncoder;
 
                     let mut encoded = vec![];
                     let encoder = PngEncoder::new(&mut encoded);

@@ -6,8 +6,8 @@ use std::vec::IntoIter;
 
 use serde::{Deserialize, Serialize};
 
-use crate::tile_schema::TileSchema;
 use crate::Color;
+use crate::tile_schema::TileSchema;
 /// Wrapper over arguments for Interpolation Functions
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum InterpolationArgs<T> {
@@ -64,29 +64,61 @@ impl<T: Copy> LinearInterpolationArgs<T> {
             step_values: step_values.collect::<BTreeSet<_>>(),
         })
     }
+
+    fn map<R>(self, map_fn: impl Fn(T) -> R) -> LinearInterpolationArgs<R> {
+        let step_values = self
+            .step_values
+            .into_iter()
+            .map(|v| StepValue {
+                basis: v.basis,
+                step_value: map_fn(v.step_value),
+            })
+            .collect();
+
+        LinearInterpolationArgs { step_values }
+    }
 }
 
 /// Arguments for Exponential Interpolation Function
 #[derive(Clone, Debug, Serialize, PartialEq, Deserialize)]
 pub struct ExponentialInterpolationArgs<T> {
-    base: i32,
+    base: f64,
     step_values: BTreeSet<StepValue<T>>,
 }
 
 impl<T: Copy> ExponentialInterpolationArgs<T> {
     /// Returns a new instance of `ExponentialInterpolationArgs`
-    pub fn new(base: i32, step_values: IntoIter<StepValue<T>>) -> Result<Self, String> {
-        if base <= 0 {
+    pub fn new(base: f64, step_values: impl Iterator<Item = StepValue<T>>) -> Result<Self, String> {
+        if base <= 0.0 {
             return Err("Base must be positive".to_string());
         }
 
-        if step_values.len() < 2 {
+        let steps = step_values.collect::<BTreeSet<_>>();
+
+        if steps.len() < 2 {
             return Err("At least 2 step values required".to_string());
         }
+
         Ok(Self {
             base,
-            step_values: step_values.into_iter().collect::<BTreeSet<_>>(),
+            step_values: steps,
         })
+    }
+
+    fn map<R>(self, map_fn: impl Fn(T) -> R) -> ExponentialInterpolationArgs<R> {
+        let step_values = self
+            .step_values
+            .into_iter()
+            .map(|v| StepValue {
+                basis: v.basis,
+                step_value: map_fn(v.step_value),
+            })
+            .collect();
+
+        ExponentialInterpolationArgs {
+            base: self.base,
+            step_values,
+        }
     }
 }
 
@@ -110,6 +142,22 @@ impl<T: Copy> CubicInterpolationArgs<T> {
             control_points,
             step_values: step_values.into_iter().collect::<BTreeSet<_>>(),
         })
+    }
+
+    fn map<R>(self, map_fn: impl Fn(T) -> R) -> CubicInterpolationArgs<R> {
+        let step_values = self
+            .step_values
+            .into_iter()
+            .map(|v| StepValue {
+                basis: v.basis,
+                step_value: map_fn(v.step_value),
+            })
+            .collect();
+
+        CubicInterpolationArgs {
+            control_points: self.control_points,
+            step_values,
+        }
     }
 }
 
@@ -152,6 +200,7 @@ pub struct InterpolateExpression<T> {
     #[serde(default)]
     operation_base: OperationBase,
 }
+
 /// Type used to define Step Function
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StepExpression<T> {
@@ -185,6 +234,15 @@ pub enum StyleValue<T> {
     Steps(StepExpression<T>),
     /// Style variant simple values
     Simple(T),
+}
+
+impl<T> Default for StyleValue<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self::Simple(T::default())
+    }
 }
 
 impl<T> From<T> for StyleValue<T> {
@@ -239,6 +297,29 @@ impl<T> InterpolateExpression<T> {
             operation_base,
         }
     }
+
+    /// Modifies values of the interpolation parameters by the given function and returns the resulting
+    /// interpolation configuration.
+    pub fn map<R>(self, map_fn: impl Fn(T) -> R) -> InterpolateExpression<R>
+    where
+        T: Copy,
+    {
+        let Self {
+            interpolation_args,
+            operation_base,
+        } = self;
+        let args = match interpolation_args {
+            InterpolationArgs::Linear(arg) => InterpolationArgs::Linear(arg.map(map_fn)),
+            InterpolationArgs::Exponential(arg) => InterpolationArgs::Exponential(arg.map(map_fn)),
+            InterpolationArgs::Cubic(arg) => InterpolationArgs::Cubic(arg.map(map_fn)),
+        };
+
+        InterpolateExpression {
+            interpolation_args: args,
+            operation_base,
+        }
+    }
+
     fn get_boundary_value(&self, current_resolution: f64, tile_schema: &TileSchema) -> Option<T>
     where
         T: Copy,
@@ -519,11 +600,10 @@ fn exponential_interpolation(
     y_start: f64,
     y_end: f64,
     x0: f64,
-    base: i32,
+    base: f64,
 ) -> f64 {
     let t: f64 = ((x0 - x_start) / (x_end - x_start).clamp(f64::EPSILON, f64::MAX)).clamp(0.0, 1.0);
 
-    let base: f64 = base as f64;
     let t = if (base - 1.0).abs() > f64::EPSILON {
         (base.powf(t) - 1.0) / (base - 1.0)
     } else {
@@ -556,9 +636,29 @@ impl<T: Copy> StepExpression<T> {
             operation_base: Default::default(),
         })
     }
-}
 
-impl<T: Copy> StepExpression<T> {
+    /// Modifies values of the interpolation parameters by the given function and returns the resulting
+    /// interpolation configuration.
+    pub fn map<R>(self, map_fn: impl Fn(T) -> R) -> StepExpression<R>
+    where
+        T: Copy,
+    {
+        let step_values = self
+            .step_values
+            .into_iter()
+            .map(|v| StepValue {
+                basis: v.basis,
+                step_value: map_fn(v.step_value),
+            })
+            .collect();
+
+        StepExpression {
+            default_value: map_fn(self.default_value),
+            step_values,
+            operation_base: self.operation_base,
+        }
+    }
+
     /// Evaluates generic expression by giving stepwise value
     /// of color on basis of zoom
     fn evaluate(&self, current_resolution: f64, _tile_schema: &TileSchema) -> Option<T> {
@@ -727,7 +827,7 @@ mod resolution_tests {
         #[test]
         fn exponential_bounds_f64() {
             let args: ExponentialInterpolationArgs<f64> = ExponentialInterpolationArgs::new(
-                2,
+                2.0,
                 vec![
                     StepValue {
                         basis: 10.0,
@@ -762,7 +862,7 @@ mod resolution_tests {
         #[test]
         fn exponential_interpolation_unordered_f64() {
             let args: ExponentialInterpolationArgs<f64> = ExponentialInterpolationArgs::new(
-                2,
+                2.0,
                 vec![
                     StepValue {
                         basis: 50.0,
@@ -799,7 +899,7 @@ mod resolution_tests {
         #[test]
         fn exponential_interpolation_f64() {
             let args: ExponentialInterpolationArgs<f64> = ExponentialInterpolationArgs::new(
-                2,
+                2.0,
                 vec![
                     StepValue {
                         basis: 0.0,
@@ -1264,7 +1364,7 @@ mod resolution_tests {
         #[test]
         fn exponential_bounds() {
             let args: ExponentialInterpolationArgs<Color> = ExponentialInterpolationArgs::new(
-                2,
+                2.0,
                 vec![
                     StepValue {
                         basis: 10.0,
@@ -1297,7 +1397,7 @@ mod resolution_tests {
         #[test]
         fn exponential_interpolation_unordered() {
             let args: ExponentialInterpolationArgs<Color> = ExponentialInterpolationArgs::new(
-                2,
+                2.0,
                 vec![
                     StepValue {
                         basis: 50.0,
@@ -1334,7 +1434,7 @@ mod resolution_tests {
         #[test]
         fn exponential_interpolation() {
             let args: ExponentialInterpolationArgs<Color> = ExponentialInterpolationArgs::new(
-                2,
+                2.0,
                 vec![
                     StepValue {
                         basis: 0.0,

@@ -111,6 +111,15 @@ impl Color {
         Self { a, ..*self }
     }
 
+    /// Returns a new color instance, copied from the base one but with the given alpha channel.
+    ///
+    /// Alpha value is given in 0.0..1.0 range.
+    pub fn with_alpha_float(&self, a: f64) -> Self {
+        let a = a.clamp(0.0, 1.0);
+        let a = (a * 255.0) as u8;
+        Self { a, ..*self }
+    }
+
     /// Returns true if the color is fully transparent (`a == 0`).
     pub fn is_transparent(&self) -> bool {
         self.a == 0

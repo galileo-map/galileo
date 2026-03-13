@@ -322,7 +322,7 @@ impl MvtFeature {
     ) -> Result<MvtGeometry, GalileoMvtError> {
         Ok(match geom_type {
             GeomType::Unknown => {
-                return Err(GalileoMvtError::Generic("Unknown geometry type".into()))
+                return Err(GalileoMvtError::Generic("Unknown geometry type".into()));
             }
             GeomType::Point => MvtGeometry::Point(Self::decode_point(commands, extent)?),
             GeomType::Linestring => MvtGeometry::LineString(MvtContours::new(commands, extent)?),
@@ -338,7 +338,7 @@ impl MvtFeature {
                 _ => {
                     return Err(GalileoMvtError::Generic(
                         "Point geometry cannot have {:?} command".into(),
-                    ))
+                    ));
                 }
             }
         }
