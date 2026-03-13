@@ -105,6 +105,16 @@ rt:
 ml:
   cargo run -p galileo-maplibre --example maplibre_style
 
+# Serve a MapLibre JS reference map for visual comparison against the Galileo renderer.
+# STYLE_FILE may be a local Maplibre style JSON (with {VT_API_KEY} placeholders).
+[group('Examples shortcuts')]
+mljs STYLE_FILE="galileo-maplibre/data/maptiler_fmt.json" $VT_API_KEY=VT_API_KEY:
+  rm -rf target/mljs
+  mkdir -p target/mljs
+  sed "s/{VT_API_KEY}/$VT_API_KEY/g" {{STYLE_FILE}} > target/mljs/style.json
+  cp galileo-maplibre/maplibre-ref.html target/mljs/index.html
+  cd target/mljs && python3 -m http.server
+
 # Run the vector tiles example
 [group('Examples shortcuts')]
 vt:
