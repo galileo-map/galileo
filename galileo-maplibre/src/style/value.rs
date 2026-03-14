@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn function_roundtrip() {
-        let original = json!({"base": 1.5, "stops": [[0, "#fff"], [10, "#000"]]});
+        let original = json!({"base": 1.5, "stops": [[0.0, "#fff"], [10.0, "#000"]]});
         let f: Function<Value> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&f).unwrap();
         assert_eq!(back, original);
@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     fn roundtrip_function() {
-        let original = json!({"base": 1.5, "stops": [[0, 0.0], [10, 1.0]]});
+        let original = json!({"base": 1.5, "stops": [[0.0, 0.0], [10.0, 1.0]]});
         let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&v).unwrap();
         assert_eq!(back, original);

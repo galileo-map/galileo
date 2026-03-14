@@ -130,11 +130,19 @@ pub struct ClipLayer {
     pub metadata: Option<Value>,
 
     /// Minimum zoom level at which to show this layer.
-    #[serde(deserialize_with = "deserialize_opt_f64")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
+    )]
     pub minzoom: Option<f64>,
 
     /// Maximum zoom level at which to show this layer.
-    #[serde(deserialize_with = "deserialize_opt_f64")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
+    )]
     pub maxzoom: Option<f64>,
 
     /// Filter expression to select features from the source.

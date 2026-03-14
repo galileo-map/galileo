@@ -100,10 +100,10 @@ get_fonts:
 rt:
   cargo run --example raster_tiles
 
-# Run the maplibre style example
+# Run the maplibre style example. Style file to use can be given as the first argument
 [group('Examples shortcuts')]
-ml:
-  cargo run -p galileo-maplibre --example maplibre_style
+ml style_file="galileo-maplibre/data/maptiler_fmt.json":
+  cargo run -p galileo-maplibre --example maplibre_style -- {{style_file}}
 
 # Serve a MapLibre JS reference map for visual comparison against the Galileo renderer.
 # STYLE_FILE may be a local Maplibre style JSON (with {VT_API_KEY} placeholders).
