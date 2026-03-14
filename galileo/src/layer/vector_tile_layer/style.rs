@@ -1,6 +1,6 @@
 //! See [`VectorTileStyle`].
 
-use galileo_mvt::{MvtFeature, MvtGeometry};
+use galileo_mvt::MvtFeature;
 use serde::{Deserialize, Serialize};
 
 use crate::Color;
@@ -25,81 +25,6 @@ pub struct VectorTileStyle {
     pub background: StyleValue<Color>,
 }
 
-impl VectorTileStyle {
-    /// Get a rule for the given feature.
-    pub fn get_style_rule(
-        &self,
-        layer_name: &str,
-        resolution: f64,
-        feature: &MvtFeature,
-    ) -> Option<&StyleRule> {
-        self.rules.iter().find(|&rule| {
-            let correct_geometry_type = match feature.geometry {
-                MvtGeometry::Point(_)
-                    if matches!(
-                        rule.symbol,
-                        VectorTileSymbol::Point(_) | VectorTileSymbol::Label(_)
-                    ) =>
-                {
-                    true
-                }
-                MvtGeometry::LineString(_) if matches!(rule.symbol, VectorTileSymbol::Line(_)) => {
-                    true
-                }
-                MvtGeometry::Polygon(_) if matches!(rule.symbol, VectorTileSymbol::Polygon(_)) => {
-                    true
-                }
-                _ => false,
-            };
-
-            if !correct_geometry_type {
-                return false;
-            }
-
-            if rule.layer_name.as_ref().is_some_and(|v| v != layer_name) {
-                return false;
-            }
-            if rule.max_resolution.is_some_and(|v| v < resolution) {
-                return false;
-            }
-            if rule.min_resolution.is_some_and(|v| v > resolution) {
-                return false;
-            }
-
-            rule.properties.iter().all(|filter| {
-                let value = feature.properties.get(&filter.property_name);
-                match (&filter.operator, value) {
-                    (PropertyFilterOperator::Equal(value), Some(v)) => v.eq_str(value),
-                    (PropertyFilterOperator::NotEqual(value), Some(v)) => !v.eq_str(value),
-                    (PropertyFilterOperator::NotEqual(_), None) => true,
-                    (PropertyFilterOperator::GreaterThan(value), Some(v)) => {
-                        compare_numeric(v, value, |a, b| a > b)
-                    }
-                    (PropertyFilterOperator::LessThan(value), Some(v)) => {
-                        compare_numeric(v, value, |a, b| a < b)
-                    }
-                    (PropertyFilterOperator::GreaterThanOrEqual(value), Some(v)) => {
-                        compare_numeric(v, value, |a, b| a >= b)
-                    }
-                    (PropertyFilterOperator::LessThanOrEqual(value), Some(v)) => {
-                        compare_numeric(v, value, |a, b| a <= b)
-                    }
-                    (PropertyFilterOperator::OneOf(values), Some(v)) => {
-                        values.iter().any(|candidate| v.eq_str(candidate))
-                    }
-                    (PropertyFilterOperator::NotOneOf(values), Some(v)) => {
-                        !values.iter().any(|candidate| v.eq_str(candidate))
-                    }
-                    (PropertyFilterOperator::Exist, Some(_)) => true,
-                    (PropertyFilterOperator::NotExist, None) => true,
-
-                    _ => false,
-                }
-            })
-        })
-    }
-}
-
 fn compare_numeric(a: &galileo_mvt::MvtValue, b: &str, cmp: impl Fn(f64, f64) -> bool) -> bool {
     if let Some(a_num) = a.as_f64()
         && let Ok(b_num) = b.parse::<f64>()
@@ -113,7 +38,8 @@ fn compare_numeric(a: &galileo_mvt::MvtValue, b: &str, cmp: impl Fn(f64, f64) ->
 /// A rule that specifies what kind of features can be drawing with the given symbol.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StyleRule {
-    /// If set, a feature must belong to the set layer. If not set, layer is not checked.
+    /// If set, a feature must belong to the set layer. If not set, rule is applied to all layers, that don't have
+    /// a rule (e.g. this will be used as a default style).
     pub layer_name: Option<String>,
     /// If set, the rule will only be applied at resolutions lower than this value.
     pub max_resolution: Option<f64>,
@@ -125,6 +51,42 @@ pub struct StyleRule {
     /// Symbol to draw a feature with.
     #[serde(default)]
     pub symbol: VectorTileSymbol,
+}
+
+impl StyleRule {
+    /// Returns true, if the rule should be applied for the given feature.
+    pub fn applies(&self, feature: &MvtFeature) -> bool {
+        self.properties.iter().all(|filter| {
+            let value = feature.properties.get(&filter.property_name);
+            match (&filter.operator, value) {
+                (PropertyFilterOperator::Equal(value), Some(v)) => v.eq_str(value),
+                (PropertyFilterOperator::NotEqual(value), Some(v)) => !v.eq_str(value),
+                (PropertyFilterOperator::NotEqual(_), None) => true,
+                (PropertyFilterOperator::GreaterThan(value), Some(v)) => {
+                    compare_numeric(v, value, |a, b| a > b)
+                }
+                (PropertyFilterOperator::LessThan(value), Some(v)) => {
+                    compare_numeric(v, value, |a, b| a < b)
+                }
+                (PropertyFilterOperator::GreaterThanOrEqual(value), Some(v)) => {
+                    compare_numeric(v, value, |a, b| a >= b)
+                }
+                (PropertyFilterOperator::LessThanOrEqual(value), Some(v)) => {
+                    compare_numeric(v, value, |a, b| a <= b)
+                }
+                (PropertyFilterOperator::OneOf(values), Some(v)) => {
+                    values.iter().any(|candidate| v.eq_str(candidate))
+                }
+                (PropertyFilterOperator::NotOneOf(values), Some(v)) => {
+                    !values.iter().any(|candidate| v.eq_str(candidate))
+                }
+                (PropertyFilterOperator::Exist, Some(_)) => true,
+                (PropertyFilterOperator::NotExist, None) => true,
+
+                _ => false,
+            }
+        })
+    }
 }
 
 /// A filter that checks if a feature's property matches specific criteria.
