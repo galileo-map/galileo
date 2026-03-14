@@ -1,14 +1,12 @@
 //! Fill and fill-extrusion layer types.
 
-use galileo::Color;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::{
-    CommonLayout, default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom,
-    deserialize_minzoom,
-};
-use crate::style::color::deserialize_opt as deserialize_opt_color;
+use super::common::CommonLayout;
+use crate::style::color::MlColor;
+use crate::style::deserialize_opt_f64;
+use crate::style::value::MlStyleValue;
 
 /// Paint properties for a `fill` layer.
 #[derive(Debug, Clone, PartialEq, Deserialize, Default)]
@@ -21,23 +19,21 @@ pub struct FillPaint {
     #[serde(
         rename = "fill-color",
         default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_opt_color"
+        skip_serializing_if = "Option::is_none"
     )]
-    pub fill_color: Option<Color>,
+    pub fill_color: Option<MlStyleValue<MlColor>>,
 
     /// Outline colour.
     #[serde(
         rename = "fill-outline-color",
         default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "deserialize_opt_color"
+        skip_serializing_if = "Option::is_none"
     )]
-    pub fill_outline_color: Option<Color>,
+    pub fill_outline_color: Option<MlStyleValue<MlColor>>,
 
     /// Opacity of the entire fill layer. Supports expressions.
     #[serde(rename = "fill-opacity", skip_serializing_if = "Option::is_none")]
-    pub fill_opacity: Option<Value>,
+    pub fill_opacity: Option<MlStyleValue<f64>>,
 
     /// Name of image in sprite to use for drawing the fill pattern.
     #[serde(rename = "fill-pattern", skip_serializing_if = "Option::is_none")]
@@ -85,17 +81,19 @@ pub struct FillLayer {
 
     /// Minimum zoom level at which to show this layer.
     #[serde(
-        default = "default_layer_minzoom",
-        deserialize_with = "deserialize_minzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub minzoom: f64,
+    pub minzoom: Option<f64>,
 
     /// Maximum zoom level at which to show this layer.
     #[serde(
-        default = "default_layer_maxzoom",
-        deserialize_with = "deserialize_maxzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub maxzoom: f64,
+    pub maxzoom: Option<f64>,
 
     /// Filter expression to select features from the source.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -207,17 +205,19 @@ pub struct FillExtrusionLayer {
 
     /// Minimum zoom level at which to show this layer.
     #[serde(
-        default = "default_layer_minzoom",
-        deserialize_with = "deserialize_minzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub minzoom: f64,
+    pub minzoom: Option<f64>,
 
     /// Maximum zoom level at which to show this layer.
     #[serde(
-        default = "default_layer_maxzoom",
-        deserialize_with = "deserialize_maxzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub maxzoom: f64,
+    pub maxzoom: Option<f64>,
 
     /// Filter expression to select features from the source.
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -126,8 +126,6 @@ impl Layer {
 
 #[cfg(test)]
 mod tests {
-    use common::{DEFAULT_MAXZOOM, DEFAULT_MINZOOM};
-
     use super::*;
 
     #[test]
@@ -144,8 +142,8 @@ mod tests {
         };
         assert_eq!(bg.id, "Background");
         assert_eq!(bg.layout.visibility, Visibility::Visible);
-        assert_eq!(bg.minzoom, DEFAULT_MINZOOM);
-        assert_eq!(bg.maxzoom, DEFAULT_MAXZOOM);
+        assert_eq!(bg.minzoom, None);
+        assert_eq!(bg.maxzoom, None);
     }
 
     #[test]
@@ -167,7 +165,7 @@ mod tests {
         assert_eq!(f.id, "Meadow");
         assert_eq!(f.source.as_deref(), Some("maptiler_planet"));
         assert_eq!(f.source_layer.as_deref(), Some("globallandcover"));
-        assert_eq!(f.maxzoom, 8.0);
+        assert_eq!(f.maxzoom, Some(8.0));
         assert!(f.filter.is_some());
     }
 
@@ -356,23 +354,23 @@ mod tests {
     }
 
     #[test]
-    fn invalid_minzoom_falls_back_to_default() {
+    fn invalid_minzoom_falls_back_to_none() {
         let json = r#"{"id": "x", "type": "fill", "source": "s", "minzoom": "bad"}"#;
         let layer: Layer = serde_json::from_str(json).unwrap();
         let Layer::Fill(f) = layer else {
             panic!("expected Fill")
         };
-        assert_eq!(f.minzoom, DEFAULT_MINZOOM);
+        assert_eq!(f.minzoom, None);
     }
 
     #[test]
-    fn invalid_maxzoom_falls_back_to_default() {
+    fn invalid_maxzoom_falls_back_to_none() {
         let json = r#"{"id": "x", "type": "line", "source": "s", "maxzoom": "bad"}"#;
         let layer: Layer = serde_json::from_str(json).unwrap();
         let Layer::Line(l) = layer else {
             panic!("expected Line")
         };
-        assert_eq!(l.maxzoom, DEFAULT_MAXZOOM);
+        assert_eq!(l.maxzoom, None);
     }
 
     #[test]

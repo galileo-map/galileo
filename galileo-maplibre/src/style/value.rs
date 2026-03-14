@@ -44,7 +44,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use super::expression::Expr;
-use crate::style::color::parse_css_color;
+use crate::style::color::{MlColor, parse_css_color};
 
 /// The interpolation type for a legacy [`Function`].
 ///
@@ -136,7 +136,7 @@ macro_rules! impl_function_stop_deserialize {
     };
 }
 
-impl_function_stop_deserialize!(f64, bool, String, Value);
+impl_function_stop_deserialize!(f64, bool, String, Value, MlColor);
 
 impl<'de> Deserialize<'de> for FunctionStop<Color> {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {

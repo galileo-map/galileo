@@ -13,9 +13,9 @@ use galileo::layer::vector_tile_layer::style::{
 };
 use galileo::tile_schema::{TileSchema, TileSchemaBuilder, VerticalDirection};
 use serde::Deserialize;
-use serde_json::Value;
 
 use crate::layer::UNSUPPORTED;
+use crate::style::color::MlColor;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer};
 use crate::style::source::{TileScheme, VectorSource};
 use crate::style::value::{FunctionStop, MlStyleValue};
@@ -38,11 +38,11 @@ pub fn try_create(
         }
     };
 
-    let rules = build_rules(layers);
+    let tile_schema = build_tile_schema(source)?;
+
+    let rules = build_rules(layers, &tile_schema);
     let background = get_background(layers);
     let style = VectorTileStyle { rules, background };
-
-    let tile_schema = build_tile_schema(source)?;
 
     VectorTileLayerBuilder::new_rest(move |index| {
         // When multiple URLs are provided they are equivalent mirrors; balance across them
@@ -100,28 +100,28 @@ fn get_background(layers: &[&MaplibreStyleLayer]) -> StyleValue<Color> {
 }
 
 fn get_color_value(
-    color: &MlStyleValue<Color>,
+    color: &MlStyleValue<MlColor>,
     opacity: Option<&MlStyleValue<f64>>,
 ) -> Option<StyleValue<Color>> {
     let galileo_color = get_galileo_value(color)?;
-    let Some(galileo_opacity) = opacity.and_then(get_galileo_value) else {
-        return Some(galileo_color);
-    };
+    let galileo_opacity = opacity
+        .and_then(get_galileo_value)
+        .unwrap_or(StyleValue::Simple(1.0));
 
     match (galileo_color, galileo_opacity) {
-        (StyleValue::Simple(c), StyleValue::Simple(o)) => Some(c.with_alpha_float(o).into()),
+        (StyleValue::Simple(c), StyleValue::Simple(o)) => Some((*c).with_alpha_float(o).into()),
         (StyleValue::Simple(c), StyleValue::Interpolate(o)) => Some(StyleValue::Interpolate(
-            o.map(|opacity| c.with_alpha_float(opacity)),
+            o.map(|opacity| (*c).with_alpha_float(opacity)),
         )),
         (StyleValue::Simple(c), StyleValue::Steps(o)) => Some(StyleValue::Steps(
-            o.map(|opacity| c.with_alpha_float(opacity)),
+            o.map(|opacity| (*c).with_alpha_float(opacity)),
         )),
         (StyleValue::Interpolate(c), StyleValue::Simple(o)) => Some(StyleValue::Interpolate(
-            c.map(|color| color.with_alpha_float(o)),
+            c.map(|color| (*color).with_alpha_float(o)),
         )),
-        (StyleValue::Steps(c), StyleValue::Simple(o)) => {
-            Some(StyleValue::Steps(c.map(|color| color.with_alpha_float(o))))
-        }
+        (StyleValue::Steps(c), StyleValue::Simple(o)) => Some(StyleValue::Steps(
+            c.map(|color| (*color).with_alpha_float(o)),
+        )),
         _ => {
             log::debug!(
                 "{UNSUPPORTED} Color values with both color and opacity interpolation are not yet supported",
@@ -186,12 +186,12 @@ fn build_tile_schema(source: &VectorSource) -> Option<TileSchema> {
 }
 
 /// Converts each supported style layer into a [`StyleRule`], logging unsupported ones.
-fn build_rules(layers: &[&MaplibreStyleLayer]) -> Vec<StyleRule> {
+fn build_rules(layers: &[&MaplibreStyleLayer], tile_schema: &TileSchema) -> Vec<StyleRule> {
     let mut rules = Vec::new();
     for &layer in layers {
         match layer {
             MaplibreStyleLayer::Fill(fill) => {
-                if let Some(rule) = fill_rule(fill) {
+                if let Some(rule) = fill_rule(fill, tile_schema) {
                     rules.push(rule);
                     log::debug!(
                         "Maplibre layer '{}' of type '{}' is added as a VT style rule",
@@ -214,7 +214,7 @@ fn build_rules(layers: &[&MaplibreStyleLayer]) -> Vec<StyleRule> {
 }
 
 /// Converts a [`FillLayer`] to a [`StyleRule`], or logs and returns `None` if unsupported.
-fn fill_rule(fill: &FillLayer) -> Option<StyleRule> {
+fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let source_layer = match &fill.source_layer {
         Some(l) => l.clone(),
         None => {
@@ -226,43 +226,24 @@ fn fill_rule(fill: &FillLayer) -> Option<StyleRule> {
         }
     };
 
-    let fill_color = fill.paint.fill_color?;
-    let opacity = extract_literal_f64(&fill.paint.fill_opacity, &fill.id, "fill-opacity");
-    let color = apply_opacity(fill_color, opacity.unwrap_or(1.0));
+    let fill_color = fill.paint.fill_color.as_ref()?;
+    let fill_opacity = &fill.paint.fill_opacity;
+    let color = get_color_value(fill_color, fill_opacity.as_ref())?;
+
+    let min_resolution = fill
+        .maxzoom
+        .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+    let max_resolution = fill
+        .minzoom
+        .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
 
     Some(StyleRule {
         layer_name: Some(source_layer),
-        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
-            fill_color: color.into(),
-        }),
+        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol { fill_color: color }),
+        min_resolution,
+        max_resolution,
         ..Default::default()
     })
-}
-
-/// Extracts a number from a paint property that must be a literal JSON number.
-/// Logs and returns `None` for expressions or functions; silently returns `None` for absent values.
-fn extract_literal_f64(value: &Option<Value>, layer_id: &str, prop: &str) -> Option<f64> {
-    match value {
-        None => None,
-        Some(Value::Number(n)) => n.as_f64(),
-        Some(_) => {
-            log::debug!(
-                "{UNSUPPORTED} Property '{prop}' in layer '{layer_id}' uses an expression or \
-                 function, which is not yet supported. Open a GitHub issue or PR if support is \
-                 desirable."
-            );
-            None
-        }
-    }
-}
-
-fn apply_opacity(color: Color, opacity: f64) -> Color {
-    Color::rgba(
-        color.r(),
-        color.g(),
-        color.b(),
-        (color.a() as f64 * opacity).round() as u8,
-    )
 }
 
 /// Converts WGS84 bounding box `[west, south, east, north]` (degrees) to a Web Mercator [`Rect`]

@@ -1,13 +1,11 @@
 //! Background layer types.
 
-use galileo::Color;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::{
-    CommonLayout, default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom,
-    deserialize_minzoom,
-};
+use super::common::CommonLayout;
+use crate::style::color::MlColor;
+use crate::style::deserialize_opt_f64;
 use crate::style::value::MlStyleValue;
 
 /// Paint properties for a background layer.
@@ -15,7 +13,7 @@ use crate::style::value::MlStyleValue;
 pub struct BackgroundPaint {
     /// The colour with which the background will be drawn.
     #[serde(rename = "background-color")]
-    pub background_color: Option<MlStyleValue<Color>>,
+    pub background_color: Option<MlStyleValue<MlColor>>,
     /// The opacity at which the background will be drawn.
     #[serde(rename = "background-opacity")]
     pub background_opacity: Option<MlStyleValue<f64>>,
@@ -39,16 +37,18 @@ pub struct BackgroundLayer {
     pub metadata: Option<Value>,
     /// The minimum zoom level for the layer (inclusive).
     #[serde(
-        default = "default_layer_minzoom",
-        deserialize_with = "deserialize_minzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub minzoom: f64,
+    pub minzoom: Option<f64>,
     /// The maximum zoom level for the layer (exclusive).
     #[serde(
-        default = "default_layer_maxzoom",
-        deserialize_with = "deserialize_maxzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub maxzoom: f64,
+    pub maxzoom: Option<f64>,
     /// Layout properties for this layer.
     #[serde(default)]
     pub layout: BackgroundLayout,

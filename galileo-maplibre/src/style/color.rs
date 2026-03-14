@@ -1,6 +1,35 @@
 //! CSS color parsing and serde helpers for [`galileo::Color`].
 
+use std::ops::Deref;
+
 use galileo::Color;
+use serde::{Deserialize, Deserializer};
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct MlColor(Color);
+
+impl<'de> Deserialize<'de> for MlColor {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        parse_css_color(&s)
+            .map(MlColor)
+            .ok_or_else(|| serde::de::Error::custom(format!("invalid CSS color: '{s}'")))
+    }
+}
+
+impl From<MlColor> for Color {
+    fn from(value: MlColor) -> Self {
+        value.0
+    }
+}
+
+impl Deref for MlColor {
+    type Target = Color;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Parses a CSS color string into a [`Color`].
 ///

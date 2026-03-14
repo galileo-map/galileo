@@ -3,10 +3,8 @@
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::common::{
-    Visibility, default_layer_maxzoom, default_layer_minzoom, deserialize_maxzoom,
-    deserialize_minzoom, deserialize_visibility_or_default,
-};
+use super::common::{Visibility, deserialize_visibility_or_default};
+use crate::style::deserialize_opt_f64;
 
 /// Paint properties for a `line` layer.
 #[derive(Debug, Clone, PartialEq, Deserialize, Default)]
@@ -115,17 +113,19 @@ pub struct LineLayer {
 
     /// Minimum zoom level at which to show this layer.
     #[serde(
-        default = "default_layer_minzoom",
-        deserialize_with = "deserialize_minzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub minzoom: f64,
+    pub minzoom: Option<f64>,
 
     /// Maximum zoom level at which to show this layer.
     #[serde(
-        default = "default_layer_maxzoom",
-        deserialize_with = "deserialize_maxzoom"
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "deserialize_opt_f64"
     )]
-    pub maxzoom: f64,
+    pub maxzoom: Option<f64>,
 
     /// Filter expression to select features from the source.
     #[serde(skip_serializing_if = "Option::is_none")]
