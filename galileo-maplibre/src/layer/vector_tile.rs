@@ -30,7 +30,7 @@ pub fn try_create(
     let tile_urls = match source.tiles.as_deref() {
         Some([_, ..]) => source.tiles.clone().unwrap(),
         _ => {
-            log::info!(
+            log::debug!(
                 "{UNSUPPORTED} Vector source '{source_name}' has no tile URLs; skipping. \
                  Open a GitHub issue or PR if support is desirable."
             );
@@ -78,7 +78,7 @@ fn get_background(layers: &[&MaplibreStyleLayer]) -> StyleValue<Color> {
             });
 
             if let Some(layer) = bg_layer {
-                log::info!(
+                log::debug!(
                     "{UNSUPPORTED} Background layer '{}' is in not the first layer in the list. \
                     This is not yet supported. Background will be applied to the bottom of the tile.",
                     layer.id,
@@ -123,7 +123,7 @@ fn get_color_value(
             Some(StyleValue::Steps(c.map(|color| color.with_alpha_float(o))))
         }
         _ => {
-            log::info!(
+            log::debug!(
                 "{UNSUPPORTED} Color values with both color and opacity interpolation are not yet supported",
             );
             None
@@ -140,7 +140,7 @@ where
     match value {
         MlStyleValue::Literal(v) => Some((*v).into()),
         MlStyleValue::Expression(expr) => {
-            log::info!(
+            log::debug!(
                 "{UNSUPPORTED} Expressions of type {:?} are not yet supported",
                 expr.operator(),
             );
@@ -201,7 +201,7 @@ fn build_rules(layers: &[&MaplibreStyleLayer]) -> Vec<StyleRule> {
                 }
             }
             other => {
-                log::info!(
+                log::debug!(
                     "{UNSUPPORTED} Maplibre layer type '{}' (id: '{}') inside a vector source \
                      is not yet supported. Open a GitHub issue or PR if support is desirable.",
                     other.type_name(),
@@ -218,7 +218,7 @@ fn fill_rule(fill: &FillLayer) -> Option<StyleRule> {
     let source_layer = match &fill.source_layer {
         Some(l) => l.clone(),
         None => {
-            log::info!(
+            log::debug!(
                 "{UNSUPPORTED} Fill layer '{}' has no source-layer; skipping.",
                 fill.id
             );
@@ -246,7 +246,7 @@ fn extract_literal_f64(value: &Option<Value>, layer_id: &str, prop: &str) -> Opt
         None => None,
         Some(Value::Number(n)) => n.as_f64(),
         Some(_) => {
-            log::info!(
+            log::debug!(
                 "{UNSUPPORTED} Property '{prop}' in layer '{layer_id}' uses an expression or \
                  function, which is not yet supported. Open a GitHub issue or PR if support is \
                  desirable."

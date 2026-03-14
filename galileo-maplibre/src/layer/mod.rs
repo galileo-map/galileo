@@ -109,7 +109,7 @@ fn build_inner_layers(style: &MaplibreStyle) -> Vec<Box<dyn Layer>> {
             if let Some(first) = first_source
                 && s != first
             {
-                log::info!(
+                log::debug!(
                     "{UNSUPPORTED} Multiple sources are not supported yet. Layer {} with source {} is ignored",
                     layer.id(),
                     s,
@@ -147,7 +147,7 @@ fn try_create_source_layer(
                 .map(|l| Box::new(l) as Box<dyn Layer>)
         }
         _ => {
-            log::info!(
+            log::debug!(
                 "{UNSUPPORTED} Maplibre source type for '{source_name}' is not yet supported. \
                  Open a GitHub issue or PR if support is desirable."
             );
