@@ -6,7 +6,7 @@ use galileo::Color;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct MlColor(Color);
+pub struct MlColor(pub(crate) Color);
 
 impl<'de> Deserialize<'de> for MlColor {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {

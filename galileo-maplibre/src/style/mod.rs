@@ -15,12 +15,18 @@ pub mod layer;
 pub mod source;
 pub mod value;
 
+use std::any::type_name;
 use std::collections::HashMap;
 
+use galileo::Color;
 use layer::Layer;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use source::Source;
+
+use crate::style::color::MlColor;
+use crate::style::value::MlStyleValue;
 
 /// A single sprite definition referencing an external sprite sheet.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -237,6 +243,48 @@ where
         }
     }
     Ok(out)
+}
+
+fn deser_or_default<'de, D, T>(deserializer: D, default: T) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    match Value::deserialize(deserializer)? {
+        Value::Null => Ok(default),
+        v => serde_json::from_value::<T>(v.clone()).or_else(|err| {
+            log::warn!(
+                "Invalid {} value {v}: {err}; using default",
+                type_name::<T>()
+            );
+            Ok(default)
+        }),
+    }
+}
+
+fn default_one() -> MlStyleValue<f64> {
+    MlStyleValue::Literal(1.0)
+}
+
+fn deser_default_one<'de, D>(deserializer: D) -> Result<MlStyleValue<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deser_or_default(deserializer, MlStyleValue::Literal(1.0))
+}
+
+fn default_transparent() -> MlStyleValue<MlColor> {
+    MlStyleValue::Literal(MlColor(Color::TRANSPARENT))
+}
+
+fn deser_default_transparent<'de, D>(deserializer: D) -> Result<MlStyleValue<MlColor>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deser_or_default(
+        deserializer,
+        MlStyleValue::Literal(MlColor(Color::TRANSPARENT)),
+    )
 }
 
 /// Deserialises a required `f64` field, falling back to `Default` and logging

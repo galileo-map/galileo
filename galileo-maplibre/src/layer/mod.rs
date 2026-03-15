@@ -15,6 +15,25 @@ pub mod vector_tile;
 
 pub(crate) const UNSUPPORTED: &str = "[maplibre:unsupported]";
 
+/// Logs a debug message when an unsupported `Option`al style property is set (i.e. `Some`).
+///
+/// Usage: `log_unsupported!(layer.paint.some_field);`
+///
+/// The field path is used as the property name in the message, so no extra string is needed.
+macro_rules! log_unsupported {
+    ($field:expr) => {
+        if $field.is_some() {
+            log::debug!(
+                "{} '{}' is not supported yet; ignored",
+                $crate::layer::UNSUPPORTED,
+                stringify!($field),
+            );
+        }
+    };
+}
+
+pub(crate) use log_unsupported;
+
 /// A Galileo [`Layer`] that renders a Maplibre style definition.
 ///
 /// Internally owns one or more Galileo layers derived from the style's sources and renders them

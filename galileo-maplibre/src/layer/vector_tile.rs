@@ -9,14 +9,14 @@ use galileo::layer::vector_tile_layer::expressions::{
     StepValue, StyleValue,
 };
 use galileo::layer::vector_tile_layer::style::{
-    StyleRule, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
+    StyleRule, VectorTileLineSymbol, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
 };
 use galileo::tile_schema::{TileSchema, TileSchemaBuilder, VerticalDirection};
 use serde::Deserialize;
 
-use crate::layer::UNSUPPORTED;
+use crate::layer::{UNSUPPORTED, log_unsupported};
 use crate::style::color::MlColor;
-use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer};
+use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer};
 use crate::style::source::{TileScheme, VectorSource};
 use crate::style::value::{FunctionStop, MlStyleValue};
 
@@ -91,22 +91,19 @@ fn get_background(layers: &[&MaplibreStyleLayer]) -> StyleValue<Color> {
         }
     };
 
-    let Some(color) = &layer.paint.background_color else {
-        return DEFAULT_TILE_BACKGROUND;
-    };
-
-    get_color_value(color, layer.paint.background_opacity.as_ref())
-        .unwrap_or(DEFAULT_TILE_BACKGROUND)
+    get_color_value(
+        &layer.paint.background_color,
+        &layer.paint.background_opacity,
+    )
+    .unwrap_or(DEFAULT_TILE_BACKGROUND)
 }
 
 fn get_color_value(
     color: &MlStyleValue<MlColor>,
-    opacity: Option<&MlStyleValue<f64>>,
+    opacity: &MlStyleValue<f64>,
 ) -> Option<StyleValue<Color>> {
     let galileo_color = get_galileo_value(color)?;
-    let galileo_opacity = opacity
-        .and_then(get_galileo_value)
-        .unwrap_or(StyleValue::Simple(1.0));
+    let galileo_opacity = get_galileo_value(opacity).unwrap_or(StyleValue::Simple(1.0));
 
     match (galileo_color, galileo_opacity) {
         (StyleValue::Simple(c), StyleValue::Simple(o)) => Some((*c).with_alpha_float(o).into()),
@@ -193,11 +190,11 @@ fn build_rules(layers: &[&MaplibreStyleLayer], tile_schema: &TileSchema) -> Vec<
             MaplibreStyleLayer::Fill(fill) => {
                 if let Some(rule) = fill_rule(fill, tile_schema) {
                     rules.push(rule);
-                    log::debug!(
-                        "Maplibre layer '{}' of type '{}' is added as a VT style rule",
-                        layer.id(),
-                        layer.type_name()
-                    );
+                }
+            }
+            MaplibreStyleLayer::Line(line) => {
+                if let Some(rule) = line_rule(line, tile_schema) {
+                    rules.push(rule);
                 }
             }
             other => {
@@ -207,8 +204,16 @@ fn build_rules(layers: &[&MaplibreStyleLayer], tile_schema: &TileSchema) -> Vec<
                     other.type_name(),
                     other.id(),
                 );
+
+                continue;
             }
         }
+
+        log::trace!(
+            "Maplibre layer '{}' of type '{}' is added as a VT style rule",
+            layer.id(),
+            layer.type_name()
+        );
     }
     rules
 }
@@ -226,9 +231,16 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         }
     };
 
-    let fill_color = fill.paint.fill_color.as_ref()?;
+    let fill_color = &fill.paint.fill_color;
     let fill_opacity = &fill.paint.fill_opacity;
-    let color = get_color_value(fill_color, fill_opacity.as_ref())?;
+    let color = get_color_value(fill_color, fill_opacity)?;
+
+    log_unsupported!(fill.paint.fill_antialias);
+    log_unsupported!(fill.paint.fill_outline_color);
+    log_unsupported!(fill.paint.fill_pattern);
+    log_unsupported!(fill.paint.fill_translate);
+    log_unsupported!(fill.paint.fill_translate_anchor);
+    log_unsupported!(fill.paint.fill_emissive_strength);
 
     let min_resolution = fill
         .maxzoom
@@ -240,6 +252,61 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     Some(StyleRule {
         layer_name: Some(source_layer),
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol { fill_color: color }),
+        min_resolution,
+        max_resolution,
+        ..Default::default()
+    })
+}
+
+/// Converts a [`LineLayer`] to a [`StyleRule`], or logs and returns `None` if unsupported.
+fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
+    if line.paint.line_dasharray.is_some() {
+        log::debug!(
+            "{UNSUPPORTED} Line dasharray is not supported yet; skipping layer {}",
+            line.id
+        );
+        return None;
+    }
+
+    log_unsupported!(line.paint.line_blur);
+    log_unsupported!(line.paint.line_gap_width);
+    log_unsupported!(line.paint.line_gradient);
+    log_unsupported!(line.paint.line_pattern);
+    log_unsupported!(line.paint.line_translate);
+    log_unsupported!(line.paint.line_translate_anchor);
+    log_unsupported!(line.paint.line_emissive_strength);
+    log_unsupported!(line.paint.line_offset);
+
+    let source_layer = match &line.source_layer {
+        Some(l) => l.clone(),
+        None => {
+            log::debug!(
+                "{UNSUPPORTED} Line layer '{}' has no source-layer; skipping.",
+                line.id
+            );
+            return None;
+        }
+    };
+
+    let stroke_color = &line.paint.line_color;
+    let stroke_opacity = &line.paint.line_opacity;
+    let color = get_color_value(stroke_color, stroke_opacity).unwrap_or(Color::TRANSPARENT.into());
+    let stroke_width = &line.paint.line_width;
+    let width = get_galileo_value(stroke_width).unwrap_or(1.0.into());
+
+    let min_resolution = line
+        .maxzoom
+        .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+    let max_resolution = line
+        .minzoom
+        .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+
+    Some(StyleRule {
+        layer_name: Some(source_layer),
+        symbol: VectorTileSymbol::Line(VectorTileLineSymbol {
+            width,
+            stroke_color: color,
+        }),
         min_resolution,
         max_resolution,
         ..Default::default()

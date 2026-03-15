@@ -5,11 +5,14 @@ use serde_json::Value;
 
 use super::common::CommonLayout;
 use crate::style::color::MlColor;
-use crate::style::deserialize_opt_f64;
 use crate::style::value::MlStyleValue;
+use crate::style::{
+    default_one, default_transparent, deser_default_one, deser_default_transparent,
+    deserialize_opt_f64,
+};
 
 /// Paint properties for a `fill` layer.
-#[derive(Debug, Clone, PartialEq, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct FillPaint {
     /// Whether or not the fill should be antialiased. Supports expressions.
     #[serde(rename = "fill-antialias", skip_serializing_if = "Option::is_none")]
@@ -18,22 +21,24 @@ pub struct FillPaint {
     /// Fill colour.
     #[serde(
         rename = "fill-color",
-        default,
+        default = "default_transparent",
+        deserialize_with = "deser_default_transparent",
         skip_serializing_if = "Option::is_none"
     )]
-    pub fill_color: Option<MlStyleValue<MlColor>>,
+    pub fill_color: MlStyleValue<MlColor>,
 
     /// Outline colour.
-    #[serde(
-        rename = "fill-outline-color",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub fill_outline_color: Option<MlStyleValue<MlColor>>,
+    #[serde(rename = "fill-outline-color", skip_serializing_if = "Option::is_none")]
+    pub fill_outline_color: Option<Value>,
 
     /// Opacity of the entire fill layer. Supports expressions.
-    #[serde(rename = "fill-opacity", skip_serializing_if = "Option::is_none")]
-    pub fill_opacity: Option<MlStyleValue<f64>>,
+    #[serde(
+        rename = "fill-opacity",
+        default = "default_one",
+        deserialize_with = "deser_default_one",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub fill_opacity: MlStyleValue<f64>,
 
     /// Name of image in sprite to use for drawing the fill pattern.
     #[serde(rename = "fill-pattern", skip_serializing_if = "Option::is_none")]
@@ -56,6 +61,21 @@ pub struct FillPaint {
         skip_serializing_if = "Option::is_none"
     )]
     pub fill_emissive_strength: Option<Value>,
+}
+
+impl Default for FillPaint {
+    fn default() -> Self {
+        Self {
+            fill_antialias: Default::default(),
+            fill_color: default_transparent(),
+            fill_outline_color: Default::default(),
+            fill_opacity: default_one(),
+            fill_pattern: Default::default(),
+            fill_translate: Default::default(),
+            fill_translate_anchor: Default::default(),
+            fill_emissive_strength: Default::default(),
+        }
+    }
 }
 
 /// Layout properties for a `fill` layer (visibility only).

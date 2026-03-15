@@ -126,7 +126,11 @@ impl Layer {
 
 #[cfg(test)]
 mod tests {
+    use galileo::Color;
+
     use super::*;
+    use crate::style::color::MlColor;
+    use crate::style::value::MlStyleValue;
 
     #[test]
     fn parse_background_layer() {
@@ -396,6 +400,9 @@ mod tests {
             panic!("expected Background")
         };
         assert_eq!(bg.layout.visibility, Visibility::Visible);
-        assert!(bg.paint.background_color.is_none());
+        assert_eq!(
+            bg.paint.background_color,
+            MlStyleValue::Literal(MlColor(Color::TRANSPARENT))
+        );
     }
 }

@@ -4,22 +4,42 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::common::{Visibility, deserialize_visibility_or_default};
-use crate::style::deserialize_opt_f64;
+use crate::style::color::MlColor;
+use crate::style::value::MlStyleValue;
+use crate::style::{
+    default_one, default_transparent, deser_default_one, deser_default_transparent,
+    deserialize_opt_f64,
+};
 
 /// Paint properties for a `line` layer.
-#[derive(Debug, Clone, PartialEq, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct LinePaint {
     /// Line stroke colour. Supports expressions.
-    #[serde(rename = "line-color", skip_serializing_if = "Option::is_none")]
-    pub line_color: Option<Value>,
+    #[serde(
+        rename = "line-color",
+        default = "default_transparent",
+        deserialize_with = "deser_default_transparent",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub line_color: MlStyleValue<MlColor>,
 
     /// Line stroke opacity. Supports expressions.
-    #[serde(rename = "line-opacity", skip_serializing_if = "Option::is_none")]
-    pub line_opacity: Option<Value>,
+    #[serde(
+        rename = "line-opacity",
+        default = "default_one",
+        deserialize_with = "deser_default_one",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub line_opacity: MlStyleValue<f64>,
 
     /// Line stroke width in pixels. Supports expressions.
-    #[serde(rename = "line-width", skip_serializing_if = "Option::is_none")]
-    pub line_width: Option<Value>,
+    #[serde(
+        rename = "line-width",
+        default = "default_one",
+        deserialize_with = "deser_default_one",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub line_width: MlStyleValue<f64>,
 
     /// Line blur. Supports expressions.
     #[serde(rename = "line-blur", skip_serializing_if = "Option::is_none")]
@@ -62,6 +82,25 @@ pub struct LinePaint {
     /// Stroke offset relative to the line's direction. Supports expressions.
     #[serde(rename = "line-offset", skip_serializing_if = "Option::is_none")]
     pub line_offset: Option<Value>,
+}
+
+impl Default for LinePaint {
+    fn default() -> Self {
+        Self {
+            line_color: default_transparent(),
+            line_opacity: default_one(),
+            line_width: default_one(),
+            line_blur: Default::default(),
+            line_dasharray: Default::default(),
+            line_gap_width: Default::default(),
+            line_gradient: Default::default(),
+            line_pattern: Default::default(),
+            line_translate: Default::default(),
+            line_translate_anchor: Default::default(),
+            line_emissive_strength: Default::default(),
+            line_offset: Default::default(),
+        }
+    }
 }
 
 /// Layout properties for a `line` layer.

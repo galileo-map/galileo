@@ -5,24 +5,48 @@ use serde_json::Value;
 
 use super::common::CommonLayout;
 use crate::style::color::MlColor;
-use crate::style::deserialize_opt_f64;
 use crate::style::value::MlStyleValue;
+use crate::style::{
+    default_one, default_transparent, deser_default_one, deser_default_transparent,
+    deserialize_opt_f64,
+};
 
 /// Paint properties for a background layer.
-#[derive(Debug, Clone, PartialEq, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct BackgroundPaint {
     /// The colour with which the background will be drawn.
-    #[serde(rename = "background-color")]
-    pub background_color: Option<MlStyleValue<MlColor>>,
+    #[serde(
+        rename = "background-color",
+        default = "default_transparent",
+        deserialize_with = "deser_default_transparent"
+    )]
+    pub background_color: MlStyleValue<MlColor>,
+
     /// The opacity at which the background will be drawn.
-    #[serde(rename = "background-opacity")]
-    pub background_opacity: Option<MlStyleValue<f64>>,
+    #[serde(
+        rename = "background-opacity",
+        default = "default_one",
+        deserialize_with = "deser_default_one"
+    )]
+    pub background_opacity: MlStyleValue<f64>,
+
     /// Name of image in sprite to use for drawing an image background.
     #[serde(rename = "background-pattern")]
     pub background_pattern: Option<Value>,
     /// Controls the intensity of light emitted on the source features.
     #[serde(rename = "background-emissive-strength")]
     pub background_emissive_strength: Option<Value>,
+}
+
+impl Default for BackgroundPaint {
+    fn default() -> Self {
+        Self {
+            background_color: default_transparent(),
+            background_opacity: default_one(),
+            background_pattern: Default::default(),
+            background_emissive_strength: Default::default(),
+        }
+    }
 }
 
 /// Layout properties for a background layer (visibility only).
