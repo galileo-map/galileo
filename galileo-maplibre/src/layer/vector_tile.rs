@@ -54,6 +54,7 @@ pub fn try_create(
     })
     .with_tile_schema(tile_schema)
     .with_style(style)
+    .with_fade_in_duration(Default::default())
     .build()
     .ok()
 }

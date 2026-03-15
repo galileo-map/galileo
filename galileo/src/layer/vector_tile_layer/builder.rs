@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use bytes::Bytes;
 
@@ -52,6 +53,7 @@ pub struct VectorTileLayerBuilder {
     cache: CacheType,
     offline_mode: bool,
     attribution: Option<Attribution>,
+    fade_in_duration: Option<Duration>,
 }
 
 enum ProviderType {
@@ -89,6 +91,7 @@ impl VectorTileLayerBuilder {
             cache: CacheType::None,
             offline_mode: false,
             attribution: None,
+            fade_in_duration: None,
         }
     }
 
@@ -117,6 +120,7 @@ impl VectorTileLayerBuilder {
             cache: CacheType::None,
             offline_mode: false,
             attribution: None,
+            fade_in_duration: None,
         }
     }
 
@@ -373,6 +377,31 @@ impl VectorTileLayerBuilder {
         self
     }
 
+    /// Sets the layer tiles' fade in duration.
+    ///
+    /// If set to 0, tiles will appear on the map as soon as loaded without fade in animation.
+    ///
+    /// Default value: 300ms.
+    ///
+    /// ```
+    /// use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
+    ///
+    /// let layer = VectorTileLayerBuilder::new_rest(
+    ///     |index| {
+    ///         format!(
+    ///             "https://vector_tiles.example.com/{}/{}/{}.png",
+    ///             index.z, index.x, index.y
+    ///         )
+    ///     })
+    ///     .with_fade_in_duration(std::time::Duration::from_millis(500))
+    ///     .build()?;
+    /// # Ok::<(), galileo::error::GalileoError>(())
+    /// ```
+    pub fn with_fade_in_duration(mut self, fade_in_duration: Duration) -> Self {
+        self.fade_in_duration = Some(fade_in_duration);
+        self
+    }
+
     /// Consumes the builder and constructs the vector tile layer.
     ///
     /// Will return an error if the layer is configured incorrectly or if the cache controller
@@ -386,6 +415,7 @@ impl VectorTileLayerBuilder {
             cache,
             offline_mode,
             attribution,
+            fade_in_duration,
         } = self;
 
         let tile_schema = tile_schema.unwrap_or_else(|| {
@@ -431,6 +461,10 @@ impl VectorTileLayerBuilder {
         let style = style.unwrap_or_else(Self::default_style);
 
         let mut layer = VectorTileLayer::new(provider, style, tile_schema, attribution);
+        if let Some(fade_in_duration) = fade_in_duration {
+            layer.set_fade_in_duration(fade_in_duration);
+        }
+
         if let Some(messenger) = messenger {
             layer.set_messenger(messenger.into());
         }

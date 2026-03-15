@@ -161,8 +161,12 @@ impl VectorTileLayer {
         }
     }
 
-    fn fade_in_time(&self) -> Duration {
-        Duration::from_millis(300)
+    fn fade_in_duration(&self) -> Duration {
+        self.displayed_tiles.fade_in_duration()
+    }
+
+    fn set_fade_in_duration(&mut self, fade_in_duration: Duration) {
+        self.displayed_tiles.set_fade_in_duration(fade_in_duration);
     }
 
     /// Change style of the layer and redraw it.
@@ -274,7 +278,7 @@ impl VectorTileLayer {
                 let k = web_time::Instant::now()
                     .duration_since(prev.replaced_at)
                     .as_secs_f32()
-                    / self.fade_in_time().as_secs_f32();
+                    / self.fade_in_duration().as_secs_f32();
 
                 if k >= 1.0 {
                     *prev_background = None;
