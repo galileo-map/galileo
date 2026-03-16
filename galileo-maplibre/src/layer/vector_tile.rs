@@ -14,7 +14,7 @@ use galileo::layer::vector_tile_layer::style::{
 use galileo::tile_schema::{TileSchema, TileSchemaBuilder, VerticalDirection};
 use serde::Deserialize;
 
-use crate::layer::{UNSUPPORTED, log_unsupported};
+use crate::layer::{UNSUPPORTED, log_unsupported_field};
 use crate::style::color::MlColor;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer};
 use crate::style::source::{TileScheme, VectorSource};
@@ -188,6 +188,10 @@ fn build_rules(layers: &[&MaplibreStyleLayer], tile_schema: &TileSchema) -> Vec<
     let mut rules = Vec::new();
     for &layer in layers {
         match layer {
+            MaplibreStyleLayer::Background(_) => {
+                // Handled by `get_background` function
+                continue;
+            }
             MaplibreStyleLayer::Fill(fill) => {
                 if let Some(rule) = fill_rule(fill, tile_schema) {
                     rules.push(rule);
@@ -236,12 +240,12 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let fill_opacity = &fill.paint.fill_opacity;
     let color = get_color_value(fill_color, fill_opacity)?;
 
-    log_unsupported!(fill.paint.fill_antialias);
-    log_unsupported!(fill.paint.fill_outline_color);
-    log_unsupported!(fill.paint.fill_pattern);
-    log_unsupported!(fill.paint.fill_translate);
-    log_unsupported!(fill.paint.fill_translate_anchor);
-    log_unsupported!(fill.paint.fill_emissive_strength);
+    log_unsupported_field!(fill.paint.fill_antialias);
+    log_unsupported_field!(fill.paint.fill_outline_color);
+    log_unsupported_field!(fill.paint.fill_pattern);
+    log_unsupported_field!(fill.paint.fill_translate);
+    log_unsupported_field!(fill.paint.fill_translate_anchor);
+    log_unsupported_field!(fill.paint.fill_emissive_strength);
 
     let min_resolution = fill
         .maxzoom
@@ -249,13 +253,18 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let max_resolution = fill
         .minzoom
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+    let filter = fill
+        .filter
+        .as_ref()
+        .map(|v| v.to_prop_filters())
+        .unwrap_or_default();
 
     Some(StyleRule {
         layer_name: Some(source_layer),
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol { fill_color: color }),
         min_resolution,
         max_resolution,
-        ..Default::default()
+        properties: filter,
     })
 }
 
@@ -269,14 +278,14 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         return None;
     }
 
-    log_unsupported!(line.paint.line_blur);
-    log_unsupported!(line.paint.line_gap_width);
-    log_unsupported!(line.paint.line_gradient);
-    log_unsupported!(line.paint.line_pattern);
-    log_unsupported!(line.paint.line_translate);
-    log_unsupported!(line.paint.line_translate_anchor);
-    log_unsupported!(line.paint.line_emissive_strength);
-    log_unsupported!(line.paint.line_offset);
+    log_unsupported_field!(line.paint.line_blur);
+    log_unsupported_field!(line.paint.line_gap_width);
+    log_unsupported_field!(line.paint.line_gradient);
+    log_unsupported_field!(line.paint.line_pattern);
+    log_unsupported_field!(line.paint.line_translate);
+    log_unsupported_field!(line.paint.line_translate_anchor);
+    log_unsupported_field!(line.paint.line_emissive_strength);
+    log_unsupported_field!(line.paint.line_offset);
 
     let source_layer = match &line.source_layer {
         Some(l) => l.clone(),
@@ -301,6 +310,11 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let max_resolution = line
         .minzoom
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+    let filter = line
+        .filter
+        .as_ref()
+        .map(|v| v.to_prop_filters())
+        .unwrap_or_default();
 
     Some(StyleRule {
         layer_name: Some(source_layer),
@@ -310,7 +324,7 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         }),
         min_resolution,
         max_resolution,
-        ..Default::default()
+        properties: filter,
     })
 }
 

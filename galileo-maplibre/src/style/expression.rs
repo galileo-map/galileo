@@ -22,9 +22,12 @@
 
 use std::fmt;
 
+use galileo::layer::vector_tile_layer::style::{PropertyFilter, PropertyFilterOperator};
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+
+use crate::layer::log_unsupported;
 
 /// The interpolation curve used by [`Expr::Interpolate`] and its color-space
 /// variants.
@@ -255,6 +258,17 @@ pub enum Expr {
         object: Option<Box<Expr>>,
     },
 
+    /// `["!has", property]` or `["!has", property, object_expr]`
+    ///
+    /// Tests whether a feature property (or a property in `object_expr`)
+    /// does not exist.
+    NotHas {
+        /// The property name expression.
+        property: Box<Expr>,
+        /// Optional object to test.
+        object: Option<Box<Expr>>,
+    },
+
     /// `["at", index, array]`
     ///
     /// Retrieves the item at `index` from `array`.
@@ -265,14 +279,32 @@ pub enum Expr {
         array: Box<Expr>,
     },
 
-    /// `["in", item, array_or_string]`
+    /// `["in", item, array]`
     ///
-    /// Tests whether `item` is in `array_or_string`.
+    /// Tests whether `item` is in `array`.
+    //
+    /// Docs above are written according to the specification, but in actual usage
+    /// I've only seen `in` expression to be specified as: `["in", "property_name", "value1", "value2"]`.
+    /// Galileo only support this non-spec variant.
     In {
         /// The needle expression.
         item: Box<Expr>,
         /// The haystack expression (array or string).
-        array_or_string: Box<Expr>,
+        array: Vec<Expr>,
+    },
+
+    /// `["!in", item, array]`
+    ///
+    /// Tests whether `item` is not in `array_or_string`.
+    ///
+    /// This property is not part of the official specification, but is widely used in
+    /// styles. According to spec this is supposed to be specified as
+    /// `["!", ["in", item, array]]`
+    NotIn {
+        /// The needle expression.
+        item: Box<Expr>,
+        /// The haystack expression (array or string).
+        array: Vec<Expr>,
     },
 
     /// `["index-of", item, array_or_string]` or with an optional `from_index`.
@@ -602,8 +634,10 @@ impl Expr {
             // Lookup
             Expr::Get { .. } => "get",
             Expr::Has { .. } => "has",
+            Expr::NotHas { .. } => "!has",
             Expr::At { .. } => "at",
             Expr::In { .. } => "in",
+            Expr::NotIn { .. } => "!in",
             Expr::IndexOf { .. } => "index-of",
             Expr::Slice { .. } => "slice",
             Expr::Length(_) => "length",
@@ -696,6 +730,112 @@ impl Expr {
             Expr::Literal(_) => return None,
         })
     }
+
+    pub fn to_prop_filters(&self) -> Vec<PropertyFilter> {
+        type PF = PropertyFilterOperator;
+
+        fn get_prop(prop: &Expr) -> Option<String> {
+            if let Expr::Literal(Value::String(property_name)) = prop {
+                if property_name == "$type" {
+                    // TODO: this is supposed to check geometry type of the layer,
+                    // but in Galileo this is done by the symbol. Need to check if
+                    // it is possible in Maplibre to draw a layer with wrong geometry
+                    // type. If so, do we need to do anything for it?
+                    return None;
+                }
+
+                Some(property_name.clone())
+            } else {
+                log_unsupported!(format!("'{self:?}' expression"));
+                None
+            }
+        }
+
+        fn get_val(value: &Expr) -> Option<String> {
+            match value {
+                Expr::Literal(Value::String(s)) => Some(s.clone()),
+                Expr::Literal(Value::Number(v)) => Some(v.to_string()),
+                Expr::Literal(Value::Bool(v)) => Some(v.to_string()),
+                Expr::Literal(Value::Null) => Some("null".to_string()),
+                _ => {
+                    log_unsupported!(format!("'{self:?}' expression"));
+                    None
+                }
+            }
+        }
+
+        fn op(prop: &Expr, value: &Expr, f: impl FnOnce(String) -> PF) -> Vec<PropertyFilter> {
+            let Some(property_name) = get_prop(prop) else {
+                return Vec::new();
+            };
+
+            let Some(val) = get_val(value) else {
+                return Vec::new();
+            };
+
+            vec![PropertyFilter {
+                property_name: property_name.to_owned(),
+                operator: f(val),
+            }]
+        }
+
+        fn ex(prop: &Expr, obj: &Option<Box<Expr>>, operator: PF) -> Vec<PropertyFilter> {
+            if obj.is_some() {
+                log_unsupported!(format!("'{self:?}' expression"));
+            }
+
+            let Some(property_name) = get_prop(prop) else {
+                return Vec::new();
+            };
+
+            vec![PropertyFilter {
+                property_name,
+                operator,
+            }]
+        }
+
+        fn con(
+            prop: &Expr,
+            vals: &[Expr],
+            f: impl FnOnce(Vec<String>) -> PF,
+        ) -> Vec<PropertyFilter> {
+            let Some(property_name) = get_prop(prop) else {
+                return Vec::new();
+            };
+
+            let mut values = vec![];
+            for val in vals {
+                let Some(val) = get_val(val) else {
+                    return Vec::new();
+                };
+
+                values.push(val);
+            }
+
+            vec![PropertyFilter {
+                property_name: property_name.to_owned(),
+                operator: f(values),
+            }]
+        }
+
+        match self {
+            Expr::All(parts) => parts.iter().flat_map(Self::to_prop_filters).collect(),
+            Expr::Eq(prop, value) => op(prop, value, PF::Equal),
+            Expr::Ne(prop, value) => op(prop, value, PF::NotEqual),
+            Expr::Gt(prop, value) => op(prop, value, PF::GreaterThan),
+            Expr::Gte(prop, value) => op(prop, value, PF::GreaterThanOrEqual),
+            Expr::Lt(prop, value) => op(prop, value, PF::LessThan),
+            Expr::Lte(prop, value) => op(prop, value, PF::LessThanOrEqual),
+            Expr::Has { property, object } => ex(property, object, PF::Exist),
+            Expr::NotHas { property, object } => ex(property, object, PF::NotExist),
+            Expr::In { item, array } => con(item, array, PF::OneOf),
+            Expr::NotIn { item, array } => con(item, array, PF::OneOf),
+            _ => {
+                log_unsupported!(format!("'{self:?}' expression"));
+                Vec::new()
+            }
+        }
+    }
 }
 
 impl Serialize for Expr {
@@ -765,19 +905,28 @@ fn expr_to_value(e: &Expr) -> Value {
         // Lookup
         Expr::Get { property, object } => opt_object_array("get", property, object.as_deref()),
         Expr::Has { property, object } => opt_object_array("has", property, object.as_deref()),
+        Expr::NotHas { property, object } => opt_object_array("!has", property, object.as_deref()),
         Expr::At { index, array } => Value::Array(vec![
             Value::String("at".into()),
             expr_to_value(index),
             expr_to_value(array),
         ]),
-        Expr::In {
-            item,
-            array_or_string,
-        } => Value::Array(vec![
-            Value::String("in".into()),
-            expr_to_value(item),
-            expr_to_value(array_or_string),
-        ]),
+        Expr::In { item, array } => {
+            let mut arr = vec![Value::String("in".into()), expr_to_value(item)];
+            for val in array {
+                arr.push(expr_to_value(val));
+            }
+
+            Value::Array(arr)
+        }
+        Expr::NotIn { item, array } => {
+            let mut arr = vec![Value::String("!in".into()), expr_to_value(item)];
+            for val in array {
+                arr.push(expr_to_value(val));
+            }
+
+            Value::Array(arr)
+        }
         Expr::IndexOf {
             item,
             array_or_string,
@@ -1194,6 +1343,16 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             Ok(Expr::Has { property, object })
         }
 
+        "!has" => {
+            let property = box_expr(take_arg(&mut args, 1, "!has")?)?;
+            let object = if args.is_empty() {
+                None
+            } else {
+                Some(box_expr(args.remove(0))?)
+            };
+            Ok(Expr::NotHas { property, object })
+        }
+
         "at" => {
             let index = box_expr(take_arg(&mut args, 1, "at")?)?;
             let array = box_expr(take_arg(&mut args, 2, "at")?)?;
@@ -1201,12 +1360,27 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
         }
 
         "in" => {
-            let item = box_expr(take_arg(&mut args, 1, "in")?)?;
-            let array_or_string = box_expr(take_arg(&mut args, 2, "in")?)?;
-            Ok(Expr::In {
-                item,
-                array_or_string,
-            })
+            let item = box_expr(take_arg(&mut args, 1, "!in")?)?;
+            let mut vals = vec![];
+            let mut index = 2;
+            while !args.is_empty() {
+                vals.push(expr_from_value(take_arg(&mut args, index, "in")?)?);
+                index += 1;
+            }
+
+            Ok(Expr::In { item, array: vals })
+        }
+
+        "!in" => {
+            let item = box_expr(take_arg(&mut args, 1, "!in")?)?;
+            let mut vals = vec![];
+            let mut index = 2;
+            while !args.is_empty() {
+                vals.push(expr_from_value(take_arg(&mut args, index, "in")?)?);
+                index += 1;
+            }
+
+            Ok(Expr::NotIn { item, array: vals })
         }
 
         "index-of" => {

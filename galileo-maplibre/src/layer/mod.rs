@@ -20,7 +20,7 @@ pub(crate) const UNSUPPORTED: &str = "[maplibre:unsupported]";
 /// Usage: `log_unsupported!(layer.paint.some_field);`
 ///
 /// The field path is used as the property name in the message, so no extra string is needed.
-macro_rules! log_unsupported {
+macro_rules! log_unsupported_field {
     ($field:expr) => {
         if $field.is_some() {
             log::debug!(
@@ -32,7 +32,18 @@ macro_rules! log_unsupported {
     };
 }
 
+macro_rules! log_unsupported {
+    ($field:expr) => {
+        log::debug!(
+            "{} '{}' is not supported yet; ignored",
+            $crate::layer::UNSUPPORTED,
+            stringify!($field),
+        );
+    };
+}
+
 pub(crate) use log_unsupported;
+pub(crate) use log_unsupported_field;
 
 /// A Galileo [`Layer`] that renders a Maplibre style definition.
 ///
