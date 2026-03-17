@@ -253,18 +253,14 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let max_resolution = fill
         .minzoom
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
-    let filter = fill
-        .filter
-        .as_ref()
-        .map(|v| v.to_prop_filters())
-        .unwrap_or_default();
+    let filter = fill.filter.as_ref().and_then(|v| v.to_galileo_expr());
 
     Some(StyleRule {
         layer_name: Some(source_layer),
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol { fill_color: color }),
         min_resolution,
         max_resolution,
-        properties: filter,
+        filter,
     })
 }
 
@@ -310,11 +306,7 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let max_resolution = line
         .minzoom
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
-    let filter = line
-        .filter
-        .as_ref()
-        .map(|v| v.to_prop_filters())
-        .unwrap_or_default();
+    let filter = line.filter.as_ref().and_then(|v| v.to_galileo_expr());
 
     Some(StyleRule {
         layer_name: Some(source_layer),
@@ -324,7 +316,7 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         }),
         min_resolution,
         max_resolution,
-        properties: filter,
+        filter,
     })
 }
 

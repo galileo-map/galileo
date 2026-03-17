@@ -43,7 +43,7 @@ use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use super::expression::Expr;
+use super::expression::MlExpr;
 use crate::style::color::{MlColor, parse_css_color};
 
 /// The interpolation type for a legacy [`Function`].
@@ -261,7 +261,7 @@ where
     Literal(T),
     /// A modern expression: a JSON array whose first element is an operator
     /// string.  The renderer evaluates this at runtime to produce a `T`.
-    Expression(Expr),
+    Expression(MlExpr),
     /// A legacy zoom/property function: a JSON object with a `"stops"` key.
     /// The renderer evaluates this at runtime to produce a `T`.
     Function(Function<T>),
@@ -290,7 +290,7 @@ where
     }
 
     /// Returns the expression, or `None` if this is not an expression.
-    pub fn as_expression(&self) -> Option<&Expr> {
+    pub fn as_expression(&self) -> Option<&MlExpr> {
         match self {
             Self::Expression(e) => Some(e),
             _ => None,
@@ -343,17 +343,17 @@ mod tests {
 
     #[test]
     fn expression_operator_and_args() {
-        let e: Expr =
+        let e: MlExpr =
             serde_json::from_value(json!(["interpolate", ["linear"], ["zoom"], 5, 1, 10, 4]))
                 .unwrap();
         assert_eq!(e.operator(), Some("interpolate"));
         // Interpolate with 2 stops
-        assert!(matches!(e, Expr::Interpolate { ref stops, .. } if stops.len() == 2));
+        assert!(matches!(e, MlExpr::Interpolate { ref stops, .. } if stops.len() == 2));
     }
 
     #[test]
     fn expression_step_operator() {
-        let e: Expr =
+        let e: MlExpr =
             serde_json::from_value(json!(["step", ["zoom"], 0.5, 12, 1.0, 15, 2.0])).unwrap();
         assert_eq!(e.operator(), Some("step"));
     }

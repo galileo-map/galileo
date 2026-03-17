@@ -84,7 +84,7 @@ impl VtProcessor {
 
             for layer in get_rule_layers(rule, &style.rules, &mvt_tile.layers) {
                 for feature in &layer.features {
-                    if !rule.applies(feature) {
+                    if !rule.applies(feature, tile_resolution, index.z) {
                         continue;
                     }
 

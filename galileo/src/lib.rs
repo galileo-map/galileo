@@ -85,6 +85,7 @@ mod color;
 pub mod control;
 pub mod decoded_image;
 pub mod error;
+pub mod expr;
 pub mod layer;
 mod map;
 mod messenger;

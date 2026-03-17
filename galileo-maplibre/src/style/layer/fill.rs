@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use super::common::CommonLayout;
 use crate::style::color::MlColor;
-use crate::style::expression::Expr;
+use crate::style::expression::MlExpr;
 use crate::style::value::MlStyleValue;
 use crate::style::{
     default_one, default_transparent, deser_default_one, deser_default_transparent,
@@ -118,7 +118,7 @@ pub struct FillLayer {
 
     /// Filter expression to select features from the source.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub filter: Option<Expr>,
+    pub filter: Option<MlExpr>,
 
     /// Layout properties.
     #[serde(default)]

@@ -45,7 +45,7 @@ pub(crate) fn run() {
             layer_name: None,
             max_resolution: None,
             min_resolution: None,
-            properties: Default::default(),
+            filter: Default::default(),
             symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
                 pattern: String::from("{name}"),
                 text_style: VtTextStyle {

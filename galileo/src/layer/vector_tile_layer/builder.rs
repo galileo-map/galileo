@@ -494,7 +494,7 @@ impl VectorTileLayerBuilder {
                     layer_name: None,
                     max_resolution: None,
                     min_resolution: None,
-                    properties: Default::default(),
+                    filter: None,
                     symbol: VectorTileSymbol::Line(VectorTileLineSymbol {
                         width: 1.0.into(),
                         stroke_color: Color::BLACK.into(),
@@ -504,7 +504,7 @@ impl VectorTileLayerBuilder {
                     layer_name: None,
                     max_resolution: None,
                     min_resolution: None,
-                    properties: Default::default(),
+                    filter: None,
                     symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
                         fill_color: Color::GRAY.into(),
                     }),

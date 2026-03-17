@@ -1,9 +1,10 @@
 //! See [`VectorTileStyle`].
 
-use galileo_mvt::MvtFeature;
+use galileo_mvt::{MvtFeature, MvtValue};
 use serde::{Deserialize, Serialize};
 
 use crate::Color;
+use crate::expr::{Expr, ExprFeature, ExprGeometryType, ExprValue, ExprView};
 use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::render::point_paint::PointPaint;
 use crate::render::text::{
@@ -25,16 +26,6 @@ pub struct VectorTileStyle {
     pub background: StyleValue<Color>,
 }
 
-fn compare_numeric(a: &galileo_mvt::MvtValue, b: &str, cmp: impl Fn(f64, f64) -> bool) -> bool {
-    if let Some(a_num) = a.as_f64()
-        && let Ok(b_num) = b.parse::<f64>()
-    {
-        return cmp(a_num, b_num);
-    }
-
-    false
-}
-
 /// A rule that specifies what kind of features can be drawing with the given symbol.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StyleRule {
@@ -47,7 +38,7 @@ pub struct StyleRule {
     pub min_resolution: Option<f64>,
     /// Specifies a set of attributes of a feature that must have the given values for this rule to be applied.
     #[serde(default)]
-    pub properties: Vec<PropertyFilter>,
+    pub filter: Option<Expr>,
     /// Symbol to draw a feature with.
     #[serde(default)]
     pub symbol: VectorTileSymbol,
@@ -55,120 +46,47 @@ pub struct StyleRule {
 
 impl StyleRule {
     /// Returns true, if the rule should be applied for the given feature.
-    pub fn applies(&self, feature: &MvtFeature) -> bool {
-        self.properties.iter().all(|filter| {
-            let value = feature.properties.get(&filter.property_name);
-            match (&filter.operator, value) {
-                (PropertyFilterOperator::Equal(value), Some(v)) => v.eq_str(value),
-                (PropertyFilterOperator::NotEqual(value), Some(v)) => !v.eq_str(value),
-                (PropertyFilterOperator::NotEqual(_), None) => true,
-                (PropertyFilterOperator::GreaterThan(value), Some(v)) => {
-                    compare_numeric(v, value, |a, b| a > b)
-                }
-                (PropertyFilterOperator::LessThan(value), Some(v)) => {
-                    compare_numeric(v, value, |a, b| a < b)
-                }
-                (PropertyFilterOperator::GreaterThanOrEqual(value), Some(v)) => {
-                    compare_numeric(v, value, |a, b| a >= b)
-                }
-                (PropertyFilterOperator::LessThanOrEqual(value), Some(v)) => {
-                    compare_numeric(v, value, |a, b| a <= b)
-                }
-                (PropertyFilterOperator::OneOf(values), Some(v)) => {
-                    values.iter().any(|candidate| v.eq_str(candidate))
-                }
-                (PropertyFilterOperator::NotOneOf(values), Some(v)) => {
-                    !values.iter().any(|candidate| v.eq_str(candidate))
-                }
-                (PropertyFilterOperator::Exist, Some(_)) => true,
-                (PropertyFilterOperator::NotExist, None) => true,
+    pub fn applies(&self, feature: &MvtFeature, resolution: f64, z_index: u32) -> bool {
+        let Some(expr) = &self.filter else {
+            return true;
+        };
 
-                _ => false,
-            }
-        })
+        let expr_view = ExprView {
+            resolution,
+            z_index: Some(z_index),
+        };
+
+        expr.eval(feature, expr_view).as_bool().unwrap_or(false)
     }
 }
 
-/// A filter that checks if a feature's property matches specific criteria.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PropertyFilter {
-    /// Name of the property to check.
-    pub property_name: String,
-    /// Operator and value(s) to compare the property against.
-    pub operator: PropertyFilterOperator,
-}
+impl ExprFeature for MvtFeature {
+    fn property(&self, property_name: &str) -> crate::expr::ExprValue<&str> {
+        self.properties
+            .get(property_name)
+            .map(|v| v.into())
+            .unwrap_or(ExprValue::Null)
+    }
 
-/// Operators for filtering feature properties.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum PropertyFilterOperator {
-    /// Property value must equal the given string.
-    Equal(String),
-    /// Property value must not equal the given string.
-    NotEqual(String),
-    /// Property value (as number) must be greater than the given value.
-    GreaterThan(String),
-    /// Property value (as number) must be less than the given value.
-    LessThan(String),
-    /// Property value (as number) must be greater than or equal to the given value.
-    GreaterThanOrEqual(String),
-    /// Property value (as number) must be less than or equal to the given value.
-    LessThanOrEqual(String),
-    /// Property value must be one of the given values.
-    OneOf(Vec<String>),
-    /// Property value must not be one of the given values.
-    NotOneOf(Vec<String>),
-    /// Property must exist (regardless of value).
-    Exist,
-    /// Property must not exist.
-    NotExist,
-}
-
-impl PropertyFilterOperator {
-    /// Parse a property filter operator from a string.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The operator string (e.g., "==", "!=", ">", "<", "in", "exist")
-    /// * `rhs` - The right-hand side value(s) to compare against
-    ///
-    /// # Returns
-    ///
-    /// `Some(PropertyFilterOperator)` if the operator is valid, `None` otherwise.
-    pub fn from_str(s: &str, rhs: &str) -> Option<Self> {
-        match s {
-            "==" => Some(Self::Equal(rhs.to_string())),
-            "!=" => Some(Self::NotEqual(rhs.to_string())),
-            ">" => Some(Self::GreaterThan(rhs.to_string())),
-            "<" => Some(Self::LessThan(rhs.to_string())),
-            ">=" => Some(Self::GreaterThanOrEqual(rhs.to_string())),
-            "<=" => Some(Self::LessThanOrEqual(rhs.to_string())),
-            "in" => Some(Self::OneOf(
-                rhs.split(',').map(|s| s.trim().to_string()).collect(),
-            )),
-            "not in" => Some(Self::NotOneOf(
-                rhs.split(',').map(|s| s.trim().to_string()).collect(),
-            )),
-            "exist" => Some(Self::Exist),
-            "not_exist" => Some(Self::NotExist),
-            _ => None,
+    fn geom_type(&self) -> ExprGeometryType {
+        match self.geometry {
+            galileo_mvt::MvtGeometry::Point(_) => ExprGeometryType::Point,
+            galileo_mvt::MvtGeometry::LineString(_) => ExprGeometryType::Line,
+            galileo_mvt::MvtGeometry::Polygon(_) => ExprGeometryType::Polygon,
         }
     }
 }
 
-impl std::fmt::Display for PropertyFilterOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Equal(v) => write!(f, "== {}", v),
-            Self::NotEqual(v) => write!(f, "!= {}", v),
-            Self::GreaterThan(v) => write!(f, "> {}", v),
-            Self::LessThan(v) => write!(f, "< {}", v),
-            Self::GreaterThanOrEqual(v) => write!(f, ">= {}", v),
-            Self::LessThanOrEqual(v) => write!(f, "<= {}", v),
-            Self::OneOf(values) => write!(f, "in [{}]", values.join(", ")),
-            Self::NotOneOf(values) => write!(f, "not in [{}]", values.join(", ")),
-            Self::Exist => write!(f, "exist"),
-            Self::NotExist => write!(f, "not exist"),
+impl<'a> From<&'a MvtValue> for ExprValue<&'a str> {
+    fn from(value: &'a MvtValue) -> Self {
+        match value {
+            MvtValue::String(v) => Self::String(v),
+            MvtValue::Float(v) => Self::Number(*v as f64),
+            MvtValue::Double(v) => Self::Number(*v),
+            MvtValue::Int64(v) => Self::Number(*v as f64),
+            MvtValue::Uint64(v) => Self::Number(*v as f64),
+            MvtValue::Bool(v) => Self::Boolean(*v),
+            MvtValue::Unknown => Self::Null,
         }
     }
 }
@@ -397,7 +315,7 @@ mod tests {
             layer_name: None,
             min_resolution: None,
             max_resolution: None,
-            properties: vec![],
+            filter: None,
             symbol: VectorTileSymbol::None,
         };
 

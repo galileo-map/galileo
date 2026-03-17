@@ -22,12 +22,12 @@
 
 use std::fmt;
 
-use galileo::layer::vector_tile_layer::style::{PropertyFilter, PropertyFilterOperator};
+use galileo::expr::{Expr, ExprGeometryType, ExprValue};
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use crate::layer::log_unsupported;
+use crate::layer::{UNSUPPORTED, log_unsupported};
 
 /// The interpolation curve used by [`Expr::Interpolate`] and its color-space
 /// variants.
@@ -160,7 +160,7 @@ impl Serialize for Interpolation {
 /// Unknown operators are preserved as [`Expr::Unknown`] so that future spec
 /// additions do not cause parse failures.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
+pub enum MlExpr {
     /// A bare JSON primitive (number, string, boolean, null, object).
     ///
     /// Used wherever a sub-expression argument position holds a literal value
@@ -174,9 +174,9 @@ pub enum Expr {
     /// arbitrary expressions.
     Let {
         /// Alternating `(name, value)` pairs.
-        bindings: Vec<(String, Box<Expr>)>,
+        bindings: Vec<(String, Box<MlExpr>)>,
         /// The body expression evaluated in the binding scope.
-        body: Box<Expr>,
+        body: Box<MlExpr>,
     },
 
     /// `["var", name]`
@@ -191,11 +191,11 @@ pub enum Expr {
     /// than the first stop.
     Step {
         /// The numeric input expression (e.g. `["zoom"]` or `["get", "pop"]`).
-        input: Box<Expr>,
+        input: Box<MlExpr>,
         /// Output when the input is below the first stop.
-        default_output: Box<Expr>,
+        default_output: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(Expr, Expr)>,
+        stops: Vec<(MlExpr, MlExpr)>,
     },
 
     /// `["interpolate", interp, input, stop_input_1, stop_output_1, ...]`
@@ -206,9 +206,9 @@ pub enum Expr {
         /// The interpolation curve.
         interpolation: Interpolation,
         /// The numeric input expression.
-        input: Box<Expr>,
+        input: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(Expr, Expr)>,
+        stops: Vec<(MlExpr, MlExpr)>,
     },
 
     /// `["interpolate-hcl", interp, input, stop_input_1, stop_output_1, ...]`
@@ -219,9 +219,9 @@ pub enum Expr {
         /// The interpolation curve.
         interpolation: Interpolation,
         /// The numeric input expression.
-        input: Box<Expr>,
+        input: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(Expr, Expr)>,
+        stops: Vec<(MlExpr, MlExpr)>,
     },
 
     /// `["interpolate-lab", interp, input, stop_input_1, stop_output_1, ...]`
@@ -232,9 +232,9 @@ pub enum Expr {
         /// The interpolation curve.
         interpolation: Interpolation,
         /// The numeric input expression.
-        input: Box<Expr>,
+        input: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(Expr, Expr)>,
+        stops: Vec<(MlExpr, MlExpr)>,
     },
 
     /// `["get", property]` or `["get", property, object_expr]`
@@ -242,9 +242,9 @@ pub enum Expr {
     /// Retrieves a feature property (or a property from `object_expr`).
     Get {
         /// The property name expression (typically a string literal).
-        property: Box<Expr>,
+        property: Box<MlExpr>,
         /// Optional object to retrieve the property from.
-        object: Option<Box<Expr>>,
+        object: Option<Box<MlExpr>>,
     },
 
     /// `["has", property]` or `["has", property, object_expr]`
@@ -253,9 +253,9 @@ pub enum Expr {
     /// exists.
     Has {
         /// The property name expression.
-        property: Box<Expr>,
+        property: Box<MlExpr>,
         /// Optional object to test.
-        object: Option<Box<Expr>>,
+        object: Option<Box<MlExpr>>,
     },
 
     /// `["!has", property]` or `["!has", property, object_expr]`
@@ -264,9 +264,9 @@ pub enum Expr {
     /// does not exist.
     NotHas {
         /// The property name expression.
-        property: Box<Expr>,
+        property: Box<MlExpr>,
         /// Optional object to test.
-        object: Option<Box<Expr>>,
+        object: Option<Box<MlExpr>>,
     },
 
     /// `["at", index, array]`
@@ -274,9 +274,9 @@ pub enum Expr {
     /// Retrieves the item at `index` from `array`.
     At {
         /// The zero-based index expression.
-        index: Box<Expr>,
+        index: Box<MlExpr>,
         /// The array expression.
-        array: Box<Expr>,
+        array: Box<MlExpr>,
     },
 
     /// `["in", item, array]`
@@ -288,9 +288,9 @@ pub enum Expr {
     /// Galileo only support this non-spec variant.
     In {
         /// The needle expression.
-        item: Box<Expr>,
+        item: Box<MlExpr>,
         /// The haystack expression (array or string).
-        array: Vec<Expr>,
+        array: Vec<MlExpr>,
     },
 
     /// `["!in", item, array]`
@@ -302,9 +302,9 @@ pub enum Expr {
     /// `["!", ["in", item, array]]`
     NotIn {
         /// The needle expression.
-        item: Box<Expr>,
+        item: Box<MlExpr>,
         /// The haystack expression (array or string).
-        array: Vec<Expr>,
+        array: Vec<MlExpr>,
     },
 
     /// `["index-of", item, array_or_string]` or with an optional `from_index`.
@@ -312,11 +312,11 @@ pub enum Expr {
     /// Returns the first index at which `item` appears, or -1.
     IndexOf {
         /// The needle expression.
-        item: Box<Expr>,
+        item: Box<MlExpr>,
         /// The haystack expression.
-        array_or_string: Box<Expr>,
+        array_or_string: Box<MlExpr>,
         /// Optional start index for the search.
-        from_index: Option<Box<Expr>>,
+        from_index: Option<Box<MlExpr>>,
     },
 
     /// `["slice", array_or_string, start]` or `["slice", ..., start, end]`.
@@ -324,31 +324,31 @@ pub enum Expr {
     /// Returns a subarray or substring.
     Slice {
         /// The source expression.
-        array_or_string: Box<Expr>,
+        array_or_string: Box<MlExpr>,
         /// The inclusive start index.
-        start: Box<Expr>,
+        start: Box<MlExpr>,
         /// The exclusive end index (optional).
-        end: Option<Box<Expr>>,
+        end: Option<Box<MlExpr>>,
     },
 
     /// `["length", array_or_string]`
     ///
     /// Returns the length of an array or string.
-    Length(Box<Expr>),
+    Length(Box<MlExpr>),
 
     /// `["global-state", property_name]`
     ///
     /// Retrieves a property from global state set via platform APIs.
-    GlobalState(Box<Expr>),
+    GlobalState(Box<MlExpr>),
 
     /// `["case", cond_1, out_1, ..., cond_n, out_n, fallback]`
     ///
     /// Returns the output for the first condition that evaluates to `true`.
     Case {
         /// `(condition, output)` pairs evaluated in order.
-        branches: Vec<(Box<Expr>, Box<Expr>)>,
+        branches: Vec<(Box<MlExpr>, Box<MlExpr>)>,
         /// Output when no condition matches.
-        fallback: Box<Expr>,
+        fallback: Box<MlExpr>,
     },
 
     /// `["match", input, label_1, out_1, ..., label_n, out_n, fallback]`
@@ -357,45 +357,45 @@ pub enum Expr {
     /// may be a single value or an array of values.
     Match {
         /// The input expression.
-        input: Box<Expr>,
+        input: Box<MlExpr>,
         /// `(labels, output)` pairs; each label list contains one or more
         /// literal values.
-        branches: Vec<(Vec<Value>, Box<Expr>)>,
+        branches: Vec<(Vec<Value>, Box<MlExpr>)>,
         /// Output when no label matches.
-        fallback: Box<Expr>,
+        fallback: Box<MlExpr>,
     },
 
     /// `["coalesce", expr_1, ..., expr_n]`
     ///
     /// Evaluates each expression in order and returns the first non-null result.
-    Coalesce(Vec<Expr>),
+    Coalesce(Vec<MlExpr>),
 
     /// `["all", input_1, ..., input_n]` — logical AND (short-circuit).
-    All(Vec<Expr>),
+    All(Vec<MlExpr>),
 
     /// `["any", input_1, ..., input_n]` — logical OR (short-circuit).
-    Any(Vec<Expr>),
+    Any(Vec<MlExpr>),
 
     /// `["!", input]` — logical NOT.
-    Not(Box<Expr>),
+    Not(Box<MlExpr>),
 
     /// `["==", a, b]` (with optional collator) — equality comparison.
-    Eq(Box<Expr>, Box<Expr>),
+    Eq(Box<MlExpr>, Box<MlExpr>),
 
     /// `["!=", a, b]` — inequality comparison.
-    Ne(Box<Expr>, Box<Expr>),
+    Ne(Box<MlExpr>, Box<MlExpr>),
 
     /// `[">", a, b]` — greater than.
-    Gt(Box<Expr>, Box<Expr>),
+    Gt(Box<MlExpr>, Box<MlExpr>),
 
     /// `[">=", a, b]` — greater than or equal.
-    Gte(Box<Expr>, Box<Expr>),
+    Gte(Box<MlExpr>, Box<MlExpr>),
 
     /// `["<", a, b]` — less than.
-    Lt(Box<Expr>, Box<Expr>),
+    Lt(Box<MlExpr>, Box<MlExpr>),
 
     /// `["<=", a, b]` — less than or equal.
-    Lte(Box<Expr>, Box<Expr>),
+    Lte(Box<MlExpr>, Box<MlExpr>),
 
     /// `["within", geojson]`
     ///
@@ -403,70 +403,70 @@ pub enum Expr {
     Within(Value),
 
     /// `["+", n_1, ..., n_n]` — sum.
-    Add(Vec<Expr>),
+    Add(Vec<MlExpr>),
 
     /// `["*", n_1, ..., n_n]` — product.
-    Mul(Vec<Expr>),
+    Mul(Vec<MlExpr>),
 
     /// `["-", a, b]` or `["-", a]` — subtraction or negation.
-    Sub(Box<Expr>, Option<Box<Expr>>),
+    Sub(Box<MlExpr>, Option<Box<MlExpr>>),
 
     /// `["/", a, b]` — division.
-    Div(Box<Expr>, Box<Expr>),
+    Div(Box<MlExpr>, Box<MlExpr>),
 
     /// `["%", a, b]` — modulo.
-    Mod(Box<Expr>, Box<Expr>),
+    Mod(Box<MlExpr>, Box<MlExpr>),
 
     /// `["^", base, exp]` — exponentiation.
-    Pow(Box<Expr>, Box<Expr>),
+    Pow(Box<MlExpr>, Box<MlExpr>),
 
     /// `["sqrt", n]` — square root.
-    Sqrt(Box<Expr>),
+    Sqrt(Box<MlExpr>),
 
     /// `["abs", n]` — absolute value.
-    Abs(Box<Expr>),
+    Abs(Box<MlExpr>),
 
     /// `["ceil", n]` — ceiling.
-    Ceil(Box<Expr>),
+    Ceil(Box<MlExpr>),
 
     /// `["floor", n]` — floor.
-    Floor(Box<Expr>),
+    Floor(Box<MlExpr>),
 
     /// `["round", n]` — round to nearest integer (half away from zero).
-    Round(Box<Expr>),
+    Round(Box<MlExpr>),
 
     /// `["min", n_1, ..., n_n]` — minimum.
-    Min(Vec<Expr>),
+    Min(Vec<MlExpr>),
 
     /// `["max", n_1, ..., n_n]` — maximum.
-    Max(Vec<Expr>),
+    Max(Vec<MlExpr>),
 
     /// `["log2", n]` — base-2 logarithm.
-    Log2(Box<Expr>),
+    Log2(Box<MlExpr>),
 
     /// `["log10", n]` — base-10 logarithm.
-    Log10(Box<Expr>),
+    Log10(Box<MlExpr>),
 
     /// `["ln", n]` — natural logarithm.
-    Ln(Box<Expr>),
+    Ln(Box<MlExpr>),
 
     /// `["sin", n]` — sine (radians).
-    Sin(Box<Expr>),
+    Sin(Box<MlExpr>),
 
     /// `["cos", n]` — cosine (radians).
-    Cos(Box<Expr>),
+    Cos(Box<MlExpr>),
 
     /// `["tan", n]` — tangent (radians).
-    Tan(Box<Expr>),
+    Tan(Box<MlExpr>),
 
     /// `["asin", n]` — arcsine.
-    Asin(Box<Expr>),
+    Asin(Box<MlExpr>),
 
     /// `["acos", n]` — arccosine.
-    Acos(Box<Expr>),
+    Acos(Box<MlExpr>),
 
     /// `["atan", n]` — arctangent.
-    Atan(Box<Expr>),
+    Atan(Box<MlExpr>),
 
     /// `["ln2"]` — the mathematical constant ln(2).
     Ln2,
@@ -484,43 +484,43 @@ pub enum Expr {
     Distance(Value),
 
     /// `["rgb", r, g, b]` — constructs a color from RGB components (0–255).
-    Rgb(Box<Expr>, Box<Expr>, Box<Expr>),
+    Rgb(Box<MlExpr>, Box<MlExpr>, Box<MlExpr>),
 
     /// `["rgba", r, g, b, a]` — constructs a color from RGBA components.
-    Rgba(Box<Expr>, Box<Expr>, Box<Expr>, Box<Expr>),
+    Rgba(Box<MlExpr>, Box<MlExpr>, Box<MlExpr>, Box<MlExpr>),
 
     /// `["to-rgba", color]` — returns `[r, g, b, a]` components of a color.
-    ToRgba(Box<Expr>),
+    ToRgba(Box<MlExpr>),
 
     /// `["literal", value]` — wraps a JSON array or object as a literal.
     LiteralExpr(Value),
 
     /// `["typeof", value]` — returns a string describing the type of `value`.
-    TypeOf(Box<Expr>),
+    TypeOf(Box<MlExpr>),
 
     /// `["to-string", value]` — converts `value` to a string.
-    ToString(Box<Expr>),
+    ToString(Box<MlExpr>),
 
     /// `["to-number", value_1, ..., value_n]` — converts to a number.
-    ToNumber(Vec<Expr>),
+    ToNumber(Vec<MlExpr>),
 
     /// `["to-boolean", value]` — converts to a boolean.
-    ToBoolean(Box<Expr>),
+    ToBoolean(Box<MlExpr>),
 
     /// `["to-color", value_1, ..., value_n]` — converts to a color.
-    ToColor(Vec<Expr>),
+    ToColor(Vec<MlExpr>),
 
     /// `["number", value_1, ..., value_n]` — asserts input is a number.
-    NumberAssertion(Vec<Expr>),
+    NumberAssertion(Vec<MlExpr>),
 
     /// `["string", value_1, ..., value_n]` — asserts input is a string.
-    StringAssertion(Vec<Expr>),
+    StringAssertion(Vec<MlExpr>),
 
     /// `["boolean", value_1, ..., value_n]` — asserts input is a boolean.
-    BooleanAssertion(Vec<Expr>),
+    BooleanAssertion(Vec<MlExpr>),
 
     /// `["object", value_1, ..., value_n]` — asserts input is an object.
-    ObjectAssertion(Vec<Expr>),
+    ObjectAssertion(Vec<MlExpr>),
 
     /// `["array", value]` / `["array", type, value]` / `["array", type, length, value]`
     ///
@@ -531,7 +531,7 @@ pub enum Expr {
         /// Optional expected array length.
         length: Option<u64>,
         /// The value to assert.
-        value: Box<Expr>,
+        value: Box<MlExpr>,
     },
 
     /// `["collator", options]` — returns a locale-aware collator.
@@ -541,15 +541,15 @@ pub enum Expr {
     ///
     /// Returns a `formatted` string for rich text labels.  Each section is a
     /// `(content, style_overrides)` pair.
-    Format(Vec<(Box<Expr>, Option<Value>)>),
+    Format(Vec<(Box<MlExpr>, Option<Value>)>),
 
     /// `["image", name]` — returns an image for use in icons/patterns.
-    Image(Box<Expr>),
+    Image(Box<MlExpr>),
 
     /// `["number-format", input, options]` — formats a number as a string.
     NumberFormat {
         /// The number expression to format.
-        input: Box<Expr>,
+        input: Box<MlExpr>,
         /// Formatting options object (locale, currency, min/max fraction digits, etc.).
         options: Value,
     },
@@ -557,7 +557,7 @@ pub enum Expr {
     /// `["get", ...]` — see [`Expr::Get`] (aliased here for feature state).
     ///
     /// `["feature-state", property]` — retrieves a property from feature state.
-    FeatureState(Box<Expr>),
+    FeatureState(Box<MlExpr>),
 
     /// `["geometry-type"]` — returns `"Point"`, `"LineString"`, or `"Polygon"`.
     GeometryType,
@@ -584,25 +584,25 @@ pub enum Expr {
     Elevation,
 
     /// `["upcase", s]` — converts string to uppercase.
-    Upcase(Box<Expr>),
+    Upcase(Box<MlExpr>),
 
     /// `["downcase", s]` — converts string to lowercase.
-    Downcase(Box<Expr>),
+    Downcase(Box<MlExpr>),
 
     /// `["concat", s_1, ..., s_n]` — concatenates strings.
-    Concat(Vec<Expr>),
+    Concat(Vec<MlExpr>),
 
     /// `["is-supported-script", s]` — returns `true` if the string renders legibly.
-    IsSupportedScript(Box<Expr>),
+    IsSupportedScript(Box<MlExpr>),
 
     /// `["resolved-locale", collator]` — returns the IETF tag of the locale in use.
-    ResolvedLocale(Box<Expr>),
+    ResolvedLocale(Box<MlExpr>),
 
     /// `["split", input, separator]` — splits a string into an array.
-    Split(Box<Expr>, Box<Expr>),
+    Split(Box<MlExpr>, Box<MlExpr>),
 
     /// `["join", array, separator]` — joins an array into a string.
-    Join(Box<Expr>, Box<Expr>),
+    Join(Box<MlExpr>, Box<MlExpr>),
 
     /// An unrecognised operator.
     ///
@@ -616,7 +616,7 @@ pub enum Expr {
     },
 }
 
-impl Expr {
+impl MlExpr {
     /// Returns the operator name for this expression, or `None` for
     /// [`Expr::Literal`] and [`Expr::LiteralExpr`].
     ///
@@ -624,118 +624,116 @@ impl Expr {
     pub fn operator(&self) -> Option<&str> {
         Some(match self {
             // Variable binding
-            Expr::Let { .. } => "let",
-            Expr::Var(_) => "var",
+            MlExpr::Let { .. } => "let",
+            MlExpr::Var(_) => "var",
             // Ramps / curves
-            Expr::Step { .. } => "step",
-            Expr::Interpolate { .. } => "interpolate",
-            Expr::InterpolateHcl { .. } => "interpolate-hcl",
-            Expr::InterpolateLab { .. } => "interpolate-lab",
+            MlExpr::Step { .. } => "step",
+            MlExpr::Interpolate { .. } => "interpolate",
+            MlExpr::InterpolateHcl { .. } => "interpolate-hcl",
+            MlExpr::InterpolateLab { .. } => "interpolate-lab",
             // Lookup
-            Expr::Get { .. } => "get",
-            Expr::Has { .. } => "has",
-            Expr::NotHas { .. } => "!has",
-            Expr::At { .. } => "at",
-            Expr::In { .. } => "in",
-            Expr::NotIn { .. } => "!in",
-            Expr::IndexOf { .. } => "index-of",
-            Expr::Slice { .. } => "slice",
-            Expr::Length(_) => "length",
-            Expr::GlobalState(_) => "global-state",
+            MlExpr::Get { .. } => "get",
+            MlExpr::Has { .. } => "has",
+            MlExpr::NotHas { .. } => "!has",
+            MlExpr::At { .. } => "at",
+            MlExpr::In { .. } => "in",
+            MlExpr::NotIn { .. } => "!in",
+            MlExpr::IndexOf { .. } => "index-of",
+            MlExpr::Slice { .. } => "slice",
+            MlExpr::Length(_) => "length",
+            MlExpr::GlobalState(_) => "global-state",
             // Decision
-            Expr::Case { .. } => "case",
-            Expr::Match { .. } => "match",
-            Expr::Coalesce(_) => "coalesce",
-            Expr::All(_) => "all",
-            Expr::Any(_) => "any",
-            Expr::Not(_) => "!",
-            Expr::Eq(_, _) => "==",
-            Expr::Ne(_, _) => "!=",
-            Expr::Gt(_, _) => ">",
-            Expr::Gte(_, _) => ">=",
-            Expr::Lt(_, _) => "<",
-            Expr::Lte(_, _) => "<=",
-            Expr::Within(_) => "within",
+            MlExpr::Case { .. } => "case",
+            MlExpr::Match { .. } => "match",
+            MlExpr::Coalesce(_) => "coalesce",
+            MlExpr::All(_) => "all",
+            MlExpr::Any(_) => "any",
+            MlExpr::Not(_) => "!",
+            MlExpr::Eq(_, _) => "==",
+            MlExpr::Ne(_, _) => "!=",
+            MlExpr::Gt(_, _) => ">",
+            MlExpr::Gte(_, _) => ">=",
+            MlExpr::Lt(_, _) => "<",
+            MlExpr::Lte(_, _) => "<=",
+            MlExpr::Within(_) => "within",
             // Math
-            Expr::Add(_) => "+",
-            Expr::Mul(_) => "*",
-            Expr::Sub(_, _) => "-",
-            Expr::Div(_, _) => "/",
-            Expr::Mod(_, _) => "%",
-            Expr::Pow(_, _) => "^",
-            Expr::Sqrt(_) => "sqrt",
-            Expr::Abs(_) => "abs",
-            Expr::Ceil(_) => "ceil",
-            Expr::Floor(_) => "floor",
-            Expr::Round(_) => "round",
-            Expr::Min(_) => "min",
-            Expr::Max(_) => "max",
-            Expr::Log2(_) => "log2",
-            Expr::Log10(_) => "log10",
-            Expr::Ln(_) => "ln",
-            Expr::Sin(_) => "sin",
-            Expr::Cos(_) => "cos",
-            Expr::Tan(_) => "tan",
-            Expr::Asin(_) => "asin",
-            Expr::Acos(_) => "acos",
-            Expr::Atan(_) => "atan",
-            Expr::Ln2 => "ln2",
-            Expr::Pi => "pi",
-            Expr::E => "e",
-            Expr::Distance(_) => "distance",
+            MlExpr::Add(_) => "+",
+            MlExpr::Mul(_) => "*",
+            MlExpr::Sub(_, _) => "-",
+            MlExpr::Div(_, _) => "/",
+            MlExpr::Mod(_, _) => "%",
+            MlExpr::Pow(_, _) => "^",
+            MlExpr::Sqrt(_) => "sqrt",
+            MlExpr::Abs(_) => "abs",
+            MlExpr::Ceil(_) => "ceil",
+            MlExpr::Floor(_) => "floor",
+            MlExpr::Round(_) => "round",
+            MlExpr::Min(_) => "min",
+            MlExpr::Max(_) => "max",
+            MlExpr::Log2(_) => "log2",
+            MlExpr::Log10(_) => "log10",
+            MlExpr::Ln(_) => "ln",
+            MlExpr::Sin(_) => "sin",
+            MlExpr::Cos(_) => "cos",
+            MlExpr::Tan(_) => "tan",
+            MlExpr::Asin(_) => "asin",
+            MlExpr::Acos(_) => "acos",
+            MlExpr::Atan(_) => "atan",
+            MlExpr::Ln2 => "ln2",
+            MlExpr::Pi => "pi",
+            MlExpr::E => "e",
+            MlExpr::Distance(_) => "distance",
             // Color
-            Expr::Rgb(_, _, _) => "rgb",
-            Expr::Rgba(_, _, _, _) => "rgba",
-            Expr::ToRgba(_) => "to-rgba",
+            MlExpr::Rgb(_, _, _) => "rgb",
+            MlExpr::Rgba(_, _, _, _) => "rgba",
+            MlExpr::ToRgba(_) => "to-rgba",
             // Type operators
-            Expr::LiteralExpr(_) => "literal",
-            Expr::TypeOf(_) => "typeof",
-            Expr::ToString(_) => "to-string",
-            Expr::ToNumber(_) => "to-number",
-            Expr::ToBoolean(_) => "to-boolean",
-            Expr::ToColor(_) => "to-color",
-            Expr::NumberAssertion(_) => "number",
-            Expr::StringAssertion(_) => "string",
-            Expr::BooleanAssertion(_) => "boolean",
-            Expr::ObjectAssertion(_) => "object",
-            Expr::ArrayAssertion { .. } => "array",
-            Expr::Collator(_) => "collator",
-            Expr::Format(_) => "format",
-            Expr::Image(_) => "image",
-            Expr::NumberFormat { .. } => "number-format",
+            MlExpr::LiteralExpr(_) => "literal",
+            MlExpr::TypeOf(_) => "typeof",
+            MlExpr::ToString(_) => "to-string",
+            MlExpr::ToNumber(_) => "to-number",
+            MlExpr::ToBoolean(_) => "to-boolean",
+            MlExpr::ToColor(_) => "to-color",
+            MlExpr::NumberAssertion(_) => "number",
+            MlExpr::StringAssertion(_) => "string",
+            MlExpr::BooleanAssertion(_) => "boolean",
+            MlExpr::ObjectAssertion(_) => "object",
+            MlExpr::ArrayAssertion { .. } => "array",
+            MlExpr::Collator(_) => "collator",
+            MlExpr::Format(_) => "format",
+            MlExpr::Image(_) => "image",
+            MlExpr::NumberFormat { .. } => "number-format",
             // Feature data
-            Expr::FeatureState(_) => "feature-state",
-            Expr::GeometryType => "geometry-type",
-            Expr::Id => "id",
-            Expr::Properties => "properties",
-            Expr::Accumulated => "accumulated",
-            Expr::LineProgress => "line-progress",
+            MlExpr::FeatureState(_) => "feature-state",
+            MlExpr::GeometryType => "geometry-type",
+            MlExpr::Id => "id",
+            MlExpr::Properties => "properties",
+            MlExpr::Accumulated => "accumulated",
+            MlExpr::LineProgress => "line-progress",
             // Camera
-            Expr::Zoom => "zoom",
+            MlExpr::Zoom => "zoom",
             // Heatmap
-            Expr::HeatmapDensity => "heatmap-density",
+            MlExpr::HeatmapDensity => "heatmap-density",
             // Color relief
-            Expr::Elevation => "elevation",
+            MlExpr::Elevation => "elevation",
             // String
-            Expr::Upcase(_) => "upcase",
-            Expr::Downcase(_) => "downcase",
-            Expr::Concat(_) => "concat",
-            Expr::IsSupportedScript(_) => "is-supported-script",
-            Expr::ResolvedLocale(_) => "resolved-locale",
-            Expr::Split(_, _) => "split",
-            Expr::Join(_, _) => "join",
+            MlExpr::Upcase(_) => "upcase",
+            MlExpr::Downcase(_) => "downcase",
+            MlExpr::Concat(_) => "concat",
+            MlExpr::IsSupportedScript(_) => "is-supported-script",
+            MlExpr::ResolvedLocale(_) => "resolved-locale",
+            MlExpr::Split(_, _) => "split",
+            MlExpr::Join(_, _) => "join",
             // Unknown
-            Expr::Unknown { operator, .. } => operator.as_str(),
+            MlExpr::Unknown { operator, .. } => operator.as_str(),
             // No operator for bare literals
-            Expr::Literal(_) => return None,
+            MlExpr::Literal(_) => return None,
         })
     }
 
-    pub fn to_prop_filters(&self) -> Vec<PropertyFilter> {
-        type PF = PropertyFilterOperator;
-
-        fn get_prop(prop: &Expr) -> Option<String> {
-            if let Expr::Literal(Value::String(property_name)) = prop {
+    pub fn to_galileo_expr(&self) -> Option<Expr> {
+        fn get_prop(prop: &MlExpr) -> Option<Expr> {
+            if let MlExpr::Literal(Value::String(property_name)) = prop {
                 if property_name == "$type" {
                     // TODO: this is supposed to check geometry type of the layer,
                     // but in Galileo this is done by the symbol. Need to check if
@@ -744,101 +742,99 @@ impl Expr {
                     return None;
                 }
 
-                Some(property_name.clone())
+                Some(Expr::Get(property_name.clone()))
             } else {
-                log_unsupported!(format!("'{self:?}' expression"));
+                log::debug!("{UNSUPPORTED} Expected '{prop:?}' to be a property name");
                 None
             }
         }
 
-        fn get_val(value: &Expr) -> Option<String> {
-            match value {
-                Expr::Literal(Value::String(s)) => Some(s.clone()),
-                Expr::Literal(Value::Number(v)) => Some(v.to_string()),
-                Expr::Literal(Value::Bool(v)) => Some(v.to_string()),
-                Expr::Literal(Value::Null) => Some("null".to_string()),
-                _ => {
-                    log_unsupported!(format!("'{self:?}' expression"));
-                    None
-                }
-            }
+        fn op(
+            prop: &MlExpr,
+            value: &MlExpr,
+            f: impl FnOnce(Box<Expr>, Box<Expr>) -> Expr,
+        ) -> Option<Expr> {
+            let property = get_prop(prop)?;
+
+            let val = match property {
+                Expr::GeomType => match value {
+                    MlExpr::Literal(Value::String(v)) if v.to_lowercase() == "point" => {
+                        ExprValue::GeomType(ExprGeometryType::Point).into()
+                    }
+                    MlExpr::Literal(Value::String(v)) if v.to_lowercase() == "linestring" => {
+                        ExprValue::GeomType(ExprGeometryType::Line).into()
+                    }
+                    MlExpr::Literal(Value::String(v)) if v.to_lowercase() == "multilinestring" => {
+                        ExprValue::GeomType(ExprGeometryType::MultiLine).into()
+                    }
+                    MlExpr::Literal(Value::String(v)) if v.to_lowercase() == "polygon" => {
+                        ExprValue::GeomType(ExprGeometryType::Polygon).into()
+                    }
+                    MlExpr::Literal(Value::String(v)) if v.to_lowercase() == "multipolygon" => {
+                        ExprValue::GeomType(ExprGeometryType::MultiPolygon).into()
+                    }
+                    _ => {
+                        log_unsupported!(format!("geometry type {value:?}"));
+                        return None;
+                    }
+                },
+                _ => value.to_galileo_expr()?,
+            };
+
+            Some(f(Box::new(property), Box::new(val)))
         }
 
-        fn op(prop: &Expr, value: &Expr, f: impl FnOnce(String) -> PF) -> Vec<PropertyFilter> {
-            let Some(property_name) = get_prop(prop) else {
-                return Vec::new();
-            };
-
-            let Some(val) = get_val(value) else {
-                return Vec::new();
-            };
-
-            vec![PropertyFilter {
-                property_name: property_name.to_owned(),
-                operator: f(val),
-            }]
-        }
-
-        fn ex(prop: &Expr, obj: &Option<Box<Expr>>, operator: PF) -> Vec<PropertyFilter> {
-            if obj.is_some() {
-                log_unsupported!(format!("'{self:?}' expression"));
-            }
-
-            let Some(property_name) = get_prop(prop) else {
-                return Vec::new();
-            };
-
-            vec![PropertyFilter {
-                property_name,
-                operator,
-            }]
-        }
-
-        fn con(
-            prop: &Expr,
-            vals: &[Expr],
-            f: impl FnOnce(Vec<String>) -> PF,
-        ) -> Vec<PropertyFilter> {
-            let Some(property_name) = get_prop(prop) else {
-                return Vec::new();
-            };
+        fn contains(prop: &MlExpr, vals: &[MlExpr]) -> Option<Expr> {
+            let property = get_prop(prop)?;
 
             let mut values = vec![];
             for val in vals {
-                let Some(val) = get_val(val) else {
-                    return Vec::new();
-                };
-
+                let val = val.to_galileo_expr()?;
                 values.push(val);
             }
 
-            vec![PropertyFilter {
-                property_name: property_name.to_owned(),
-                operator: f(values),
-            }]
+            Some(Expr::In {
+                needle: Box::new(property),
+                haystack: values,
+            })
         }
 
-        match self {
-            Expr::All(parts) => parts.iter().flat_map(Self::to_prop_filters).collect(),
-            Expr::Eq(prop, value) => op(prop, value, PF::Equal),
-            Expr::Ne(prop, value) => op(prop, value, PF::NotEqual),
-            Expr::Gt(prop, value) => op(prop, value, PF::GreaterThan),
-            Expr::Gte(prop, value) => op(prop, value, PF::GreaterThanOrEqual),
-            Expr::Lt(prop, value) => op(prop, value, PF::LessThan),
-            Expr::Lte(prop, value) => op(prop, value, PF::LessThanOrEqual),
-            Expr::Has { property, object } => ex(property, object, PF::Exist),
-            Expr::NotHas { property, object } => ex(property, object, PF::NotExist),
-            Expr::In { item, array } => con(item, array, PF::OneOf),
-            Expr::NotIn { item, array } => con(item, array, PF::OneOf),
+        Some(match self {
+            MlExpr::Literal(Value::Bool(v)) => ExprValue::Boolean(*v).into(),
+            MlExpr::Literal(Value::Number(v)) => ExprValue::Number(v.as_f64()?).into(),
+            MlExpr::Literal(Value::String(v)) => ExprValue::String(v.clone()).into(),
+            MlExpr::Literal(Value::Null) => ExprValue::Null.into(),
+            MlExpr::All(parts) => Expr::All(
+                parts
+                    .iter()
+                    .map(|v| v.to_galileo_expr())
+                    .collect::<Option<Vec<_>>>()?,
+            ),
+            MlExpr::Eq(prop, value) => op(prop, value, Expr::Eq)?,
+            MlExpr::Ne(prop, value) => op(prop, value, Expr::Ne)?,
+            MlExpr::Gt(prop, value) => op(prop, value, Expr::Gt)?,
+            MlExpr::Gte(prop, value) => op(prop, value, Expr::Gte)?,
+            MlExpr::Lt(prop, value) => op(prop, value, Expr::Lt)?,
+            MlExpr::Lte(prop, value) => op(prop, value, Expr::Lte)?,
+            MlExpr::Has { property, .. } => Expr::Ne(
+                Box::new(get_prop(property)?),
+                Box::new(ExprValue::Null.into()),
+            ),
+            MlExpr::NotHas { property, .. } => Expr::Eq(
+                Box::new(get_prop(property)?),
+                Box::new(ExprValue::Null.into()),
+            ),
+            MlExpr::In { item, array } => contains(item, array)?,
+            MlExpr::NotIn { item, array } => contains(item, array)?,
             _ => {
-                log_unsupported!(format!("'{self:?}' expression"));
-                Vec::new()
+                log::debug!("{UNSUPPORTED} Expression {self:?} is not supported yet");
+                return None;
             }
-        }
+        })
     }
 }
 
-impl Serialize for Expr {
+impl Serialize for MlExpr {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         // Convert to a serde_json::Value first, then serialize that.
         // This lets us produce the exact JSON array format `["op", arg1, ...]`.
@@ -849,13 +845,13 @@ impl Serialize for Expr {
 
 /// Convert an [`Expr`] to a [`Value`] that matches the MapLibre JSON array
 /// format for expressions.
-fn expr_to_value(e: &Expr) -> Value {
+fn expr_to_value(e: &MlExpr) -> Value {
     match e {
-        Expr::Literal(v) => v.clone(),
-        Expr::LiteralExpr(v) => Value::Array(vec![Value::String("literal".into()), v.clone()]),
+        MlExpr::Literal(v) => v.clone(),
+        MlExpr::LiteralExpr(v) => Value::Array(vec![Value::String("literal".into()), v.clone()]),
 
         // Variable binding
-        Expr::Let { bindings, body } => {
+        MlExpr::Let { bindings, body } => {
             let mut arr = vec![Value::String("let".into())];
             for (name, val) in bindings {
                 arr.push(Value::String(name.clone()));
@@ -864,13 +860,13 @@ fn expr_to_value(e: &Expr) -> Value {
             arr.push(expr_to_value(body));
             Value::Array(arr)
         }
-        Expr::Var(name) => Value::Array(vec![
+        MlExpr::Var(name) => Value::Array(vec![
             Value::String("var".into()),
             Value::String(name.clone()),
         ]),
 
         // Ramps / curves
-        Expr::Step {
+        MlExpr::Step {
             input,
             default_output,
             stops,
@@ -886,32 +882,34 @@ fn expr_to_value(e: &Expr) -> Value {
             }
             Value::Array(arr)
         }
-        Expr::Interpolate {
+        MlExpr::Interpolate {
             interpolation,
             input,
             stops,
         } => interp_to_array("interpolate", interpolation, input, stops),
-        Expr::InterpolateHcl {
+        MlExpr::InterpolateHcl {
             interpolation,
             input,
             stops,
         } => interp_to_array("interpolate-hcl", interpolation, input, stops),
-        Expr::InterpolateLab {
+        MlExpr::InterpolateLab {
             interpolation,
             input,
             stops,
         } => interp_to_array("interpolate-lab", interpolation, input, stops),
 
         // Lookup
-        Expr::Get { property, object } => opt_object_array("get", property, object.as_deref()),
-        Expr::Has { property, object } => opt_object_array("has", property, object.as_deref()),
-        Expr::NotHas { property, object } => opt_object_array("!has", property, object.as_deref()),
-        Expr::At { index, array } => Value::Array(vec![
+        MlExpr::Get { property, object } => opt_object_array("get", property, object.as_deref()),
+        MlExpr::Has { property, object } => opt_object_array("has", property, object.as_deref()),
+        MlExpr::NotHas { property, object } => {
+            opt_object_array("!has", property, object.as_deref())
+        }
+        MlExpr::At { index, array } => Value::Array(vec![
             Value::String("at".into()),
             expr_to_value(index),
             expr_to_value(array),
         ]),
-        Expr::In { item, array } => {
+        MlExpr::In { item, array } => {
             let mut arr = vec![Value::String("in".into()), expr_to_value(item)];
             for val in array {
                 arr.push(expr_to_value(val));
@@ -919,7 +917,7 @@ fn expr_to_value(e: &Expr) -> Value {
 
             Value::Array(arr)
         }
-        Expr::NotIn { item, array } => {
+        MlExpr::NotIn { item, array } => {
             let mut arr = vec![Value::String("!in".into()), expr_to_value(item)];
             for val in array {
                 arr.push(expr_to_value(val));
@@ -927,7 +925,7 @@ fn expr_to_value(e: &Expr) -> Value {
 
             Value::Array(arr)
         }
-        Expr::IndexOf {
+        MlExpr::IndexOf {
             item,
             array_or_string,
             from_index,
@@ -942,7 +940,7 @@ fn expr_to_value(e: &Expr) -> Value {
             }
             Value::Array(arr)
         }
-        Expr::Slice {
+        MlExpr::Slice {
             array_or_string,
             start,
             end,
@@ -957,16 +955,16 @@ fn expr_to_value(e: &Expr) -> Value {
             }
             Value::Array(arr)
         }
-        Expr::Length(inner) => {
+        MlExpr::Length(inner) => {
             Value::Array(vec![Value::String("length".into()), expr_to_value(inner)])
         }
-        Expr::GlobalState(inner) => Value::Array(vec![
+        MlExpr::GlobalState(inner) => Value::Array(vec![
             Value::String("global-state".into()),
             expr_to_value(inner),
         ]),
 
         // Decision
-        Expr::Case { branches, fallback } => {
+        MlExpr::Case { branches, fallback } => {
             let mut arr = vec![Value::String("case".into())];
             for (cond, out) in branches {
                 arr.push(expr_to_value(cond));
@@ -975,7 +973,7 @@ fn expr_to_value(e: &Expr) -> Value {
             arr.push(expr_to_value(fallback));
             Value::Array(arr)
         }
-        Expr::Match {
+        MlExpr::Match {
             input,
             branches,
             fallback,
@@ -992,74 +990,74 @@ fn expr_to_value(e: &Expr) -> Value {
             arr.push(expr_to_value(fallback));
             Value::Array(arr)
         }
-        Expr::Coalesce(args) => variadic_array("coalesce", args),
-        Expr::All(args) => variadic_array("all", args),
-        Expr::Any(args) => variadic_array("any", args),
-        Expr::Not(inner) => Value::Array(vec![Value::String("!".into()), expr_to_value(inner)]),
-        Expr::Eq(a, b) => binary_array("==", a, b),
-        Expr::Ne(a, b) => binary_array("!=", a, b),
-        Expr::Gt(a, b) => binary_array(">", a, b),
-        Expr::Gte(a, b) => binary_array(">=", a, b),
-        Expr::Lt(a, b) => binary_array("<", a, b),
-        Expr::Lte(a, b) => binary_array("<=", a, b),
-        Expr::Within(v) => Value::Array(vec![Value::String("within".into()), v.clone()]),
+        MlExpr::Coalesce(args) => variadic_array("coalesce", args),
+        MlExpr::All(args) => variadic_array("all", args),
+        MlExpr::Any(args) => variadic_array("any", args),
+        MlExpr::Not(inner) => Value::Array(vec![Value::String("!".into()), expr_to_value(inner)]),
+        MlExpr::Eq(a, b) => binary_array("==", a, b),
+        MlExpr::Ne(a, b) => binary_array("!=", a, b),
+        MlExpr::Gt(a, b) => binary_array(">", a, b),
+        MlExpr::Gte(a, b) => binary_array(">=", a, b),
+        MlExpr::Lt(a, b) => binary_array("<", a, b),
+        MlExpr::Lte(a, b) => binary_array("<=", a, b),
+        MlExpr::Within(v) => Value::Array(vec![Value::String("within".into()), v.clone()]),
 
         // Math
-        Expr::Add(args) => variadic_array("+", args),
-        Expr::Mul(args) => variadic_array("*", args),
-        Expr::Sub(a, None) => Value::Array(vec![Value::String("-".into()), expr_to_value(a)]),
-        Expr::Sub(a, Some(b)) => binary_array("-", a, b),
-        Expr::Div(a, b) => binary_array("/", a, b),
-        Expr::Mod(a, b) => binary_array("%", a, b),
-        Expr::Pow(a, b) => binary_array("^", a, b),
-        Expr::Sqrt(inner) => unary_array("sqrt", inner),
-        Expr::Abs(inner) => unary_array("abs", inner),
-        Expr::Ceil(inner) => unary_array("ceil", inner),
-        Expr::Floor(inner) => unary_array("floor", inner),
-        Expr::Round(inner) => unary_array("round", inner),
-        Expr::Min(args) => variadic_array("min", args),
-        Expr::Max(args) => variadic_array("max", args),
-        Expr::Log2(inner) => unary_array("log2", inner),
-        Expr::Log10(inner) => unary_array("log10", inner),
-        Expr::Ln(inner) => unary_array("ln", inner),
-        Expr::Sin(inner) => unary_array("sin", inner),
-        Expr::Cos(inner) => unary_array("cos", inner),
-        Expr::Tan(inner) => unary_array("tan", inner),
-        Expr::Asin(inner) => unary_array("asin", inner),
-        Expr::Acos(inner) => unary_array("acos", inner),
-        Expr::Atan(inner) => unary_array("atan", inner),
-        Expr::Ln2 => Value::Array(vec![Value::String("ln2".into())]),
-        Expr::Pi => Value::Array(vec![Value::String("pi".into())]),
-        Expr::E => Value::Array(vec![Value::String("e".into())]),
-        Expr::Distance(v) => Value::Array(vec![Value::String("distance".into()), v.clone()]),
+        MlExpr::Add(args) => variadic_array("+", args),
+        MlExpr::Mul(args) => variadic_array("*", args),
+        MlExpr::Sub(a, None) => Value::Array(vec![Value::String("-".into()), expr_to_value(a)]),
+        MlExpr::Sub(a, Some(b)) => binary_array("-", a, b),
+        MlExpr::Div(a, b) => binary_array("/", a, b),
+        MlExpr::Mod(a, b) => binary_array("%", a, b),
+        MlExpr::Pow(a, b) => binary_array("^", a, b),
+        MlExpr::Sqrt(inner) => unary_array("sqrt", inner),
+        MlExpr::Abs(inner) => unary_array("abs", inner),
+        MlExpr::Ceil(inner) => unary_array("ceil", inner),
+        MlExpr::Floor(inner) => unary_array("floor", inner),
+        MlExpr::Round(inner) => unary_array("round", inner),
+        MlExpr::Min(args) => variadic_array("min", args),
+        MlExpr::Max(args) => variadic_array("max", args),
+        MlExpr::Log2(inner) => unary_array("log2", inner),
+        MlExpr::Log10(inner) => unary_array("log10", inner),
+        MlExpr::Ln(inner) => unary_array("ln", inner),
+        MlExpr::Sin(inner) => unary_array("sin", inner),
+        MlExpr::Cos(inner) => unary_array("cos", inner),
+        MlExpr::Tan(inner) => unary_array("tan", inner),
+        MlExpr::Asin(inner) => unary_array("asin", inner),
+        MlExpr::Acos(inner) => unary_array("acos", inner),
+        MlExpr::Atan(inner) => unary_array("atan", inner),
+        MlExpr::Ln2 => Value::Array(vec![Value::String("ln2".into())]),
+        MlExpr::Pi => Value::Array(vec![Value::String("pi".into())]),
+        MlExpr::E => Value::Array(vec![Value::String("e".into())]),
+        MlExpr::Distance(v) => Value::Array(vec![Value::String("distance".into()), v.clone()]),
 
         // Color
-        Expr::Rgb(r, g, b) => Value::Array(vec![
+        MlExpr::Rgb(r, g, b) => Value::Array(vec![
             Value::String("rgb".into()),
             expr_to_value(r),
             expr_to_value(g),
             expr_to_value(b),
         ]),
-        Expr::Rgba(r, g, b, a) => Value::Array(vec![
+        MlExpr::Rgba(r, g, b, a) => Value::Array(vec![
             Value::String("rgba".into()),
             expr_to_value(r),
             expr_to_value(g),
             expr_to_value(b),
             expr_to_value(a),
         ]),
-        Expr::ToRgba(inner) => unary_array("to-rgba", inner),
+        MlExpr::ToRgba(inner) => unary_array("to-rgba", inner),
 
         // Type operators
-        Expr::TypeOf(inner) => unary_array("typeof", inner),
-        Expr::ToString(inner) => unary_array("to-string", inner),
-        Expr::ToNumber(args) => variadic_array("to-number", args),
-        Expr::ToBoolean(inner) => unary_array("to-boolean", inner),
-        Expr::ToColor(args) => variadic_array("to-color", args),
-        Expr::NumberAssertion(args) => variadic_array("number", args),
-        Expr::StringAssertion(args) => variadic_array("string", args),
-        Expr::BooleanAssertion(args) => variadic_array("boolean", args),
-        Expr::ObjectAssertion(args) => variadic_array("object", args),
-        Expr::ArrayAssertion {
+        MlExpr::TypeOf(inner) => unary_array("typeof", inner),
+        MlExpr::ToString(inner) => unary_array("to-string", inner),
+        MlExpr::ToNumber(args) => variadic_array("to-number", args),
+        MlExpr::ToBoolean(inner) => unary_array("to-boolean", inner),
+        MlExpr::ToColor(args) => variadic_array("to-color", args),
+        MlExpr::NumberAssertion(args) => variadic_array("number", args),
+        MlExpr::StringAssertion(args) => variadic_array("string", args),
+        MlExpr::BooleanAssertion(args) => variadic_array("boolean", args),
+        MlExpr::ObjectAssertion(args) => variadic_array("object", args),
+        MlExpr::ArrayAssertion {
             element_type,
             length,
             value,
@@ -1074,8 +1072,10 @@ fn expr_to_value(e: &Expr) -> Value {
             arr.push(expr_to_value(value));
             Value::Array(arr)
         }
-        Expr::Collator(opts) => Value::Array(vec![Value::String("collator".into()), opts.clone()]),
-        Expr::Format(sections) => {
+        MlExpr::Collator(opts) => {
+            Value::Array(vec![Value::String("collator".into()), opts.clone()])
+        }
+        MlExpr::Format(sections) => {
             let mut arr = vec![Value::String("format".into())];
             for (content, style) in sections {
                 arr.push(expr_to_value(content));
@@ -1085,41 +1085,41 @@ fn expr_to_value(e: &Expr) -> Value {
             }
             Value::Array(arr)
         }
-        Expr::Image(inner) => unary_array("image", inner),
-        Expr::NumberFormat { input, options } => Value::Array(vec![
+        MlExpr::Image(inner) => unary_array("image", inner),
+        MlExpr::NumberFormat { input, options } => Value::Array(vec![
             Value::String("number-format".into()),
             expr_to_value(input),
             options.clone(),
         ]),
 
         // Feature data
-        Expr::FeatureState(inner) => unary_array("feature-state", inner),
-        Expr::GeometryType => Value::Array(vec![Value::String("geometry-type".into())]),
-        Expr::Id => Value::Array(vec![Value::String("id".into())]),
-        Expr::Properties => Value::Array(vec![Value::String("properties".into())]),
-        Expr::Accumulated => Value::Array(vec![Value::String("accumulated".into())]),
-        Expr::LineProgress => Value::Array(vec![Value::String("line-progress".into())]),
+        MlExpr::FeatureState(inner) => unary_array("feature-state", inner),
+        MlExpr::GeometryType => Value::Array(vec![Value::String("geometry-type".into())]),
+        MlExpr::Id => Value::Array(vec![Value::String("id".into())]),
+        MlExpr::Properties => Value::Array(vec![Value::String("properties".into())]),
+        MlExpr::Accumulated => Value::Array(vec![Value::String("accumulated".into())]),
+        MlExpr::LineProgress => Value::Array(vec![Value::String("line-progress".into())]),
 
         // Camera
-        Expr::Zoom => Value::Array(vec![Value::String("zoom".into())]),
+        MlExpr::Zoom => Value::Array(vec![Value::String("zoom".into())]),
 
         // Heatmap
-        Expr::HeatmapDensity => Value::Array(vec![Value::String("heatmap-density".into())]),
+        MlExpr::HeatmapDensity => Value::Array(vec![Value::String("heatmap-density".into())]),
 
         // Color relief
-        Expr::Elevation => Value::Array(vec![Value::String("elevation".into())]),
+        MlExpr::Elevation => Value::Array(vec![Value::String("elevation".into())]),
 
         // String
-        Expr::Upcase(inner) => unary_array("upcase", inner),
-        Expr::Downcase(inner) => unary_array("downcase", inner),
-        Expr::Concat(args) => variadic_array("concat", args),
-        Expr::IsSupportedScript(inner) => unary_array("is-supported-script", inner),
-        Expr::ResolvedLocale(inner) => unary_array("resolved-locale", inner),
-        Expr::Split(a, b) => binary_array("split", a, b),
-        Expr::Join(a, b) => binary_array("join", a, b),
+        MlExpr::Upcase(inner) => unary_array("upcase", inner),
+        MlExpr::Downcase(inner) => unary_array("downcase", inner),
+        MlExpr::Concat(args) => variadic_array("concat", args),
+        MlExpr::IsSupportedScript(inner) => unary_array("is-supported-script", inner),
+        MlExpr::ResolvedLocale(inner) => unary_array("resolved-locale", inner),
+        MlExpr::Split(a, b) => binary_array("split", a, b),
+        MlExpr::Join(a, b) => binary_array("join", a, b),
 
         // Unknown
-        Expr::Unknown { operator, args } => {
+        MlExpr::Unknown { operator, args } => {
             let mut arr = vec![Value::String(operator.clone())];
             arr.extend(args.iter().cloned());
             Value::Array(arr)
@@ -1127,11 +1127,11 @@ fn expr_to_value(e: &Expr) -> Value {
     }
 }
 
-fn unary_array(op: &str, inner: &Expr) -> Value {
+fn unary_array(op: &str, inner: &MlExpr) -> Value {
     Value::Array(vec![Value::String(op.into()), expr_to_value(inner)])
 }
 
-fn binary_array(op: &str, a: &Expr, b: &Expr) -> Value {
+fn binary_array(op: &str, a: &MlExpr, b: &MlExpr) -> Value {
     Value::Array(vec![
         Value::String(op.into()),
         expr_to_value(a),
@@ -1139,7 +1139,7 @@ fn binary_array(op: &str, a: &Expr, b: &Expr) -> Value {
     ])
 }
 
-fn variadic_array(op: &str, args: &[Expr]) -> Value {
+fn variadic_array(op: &str, args: &[MlExpr]) -> Value {
     let mut arr = vec![Value::String(op.into())];
     for a in args {
         arr.push(expr_to_value(a));
@@ -1147,7 +1147,7 @@ fn variadic_array(op: &str, args: &[Expr]) -> Value {
     Value::Array(arr)
 }
 
-fn opt_object_array(op: &str, property: &Expr, object: Option<&Expr>) -> Value {
+fn opt_object_array(op: &str, property: &MlExpr, object: Option<&MlExpr>) -> Value {
     let mut arr = vec![Value::String(op.into()), expr_to_value(property)];
     if let Some(obj) = object {
         arr.push(expr_to_value(obj));
@@ -1158,8 +1158,8 @@ fn opt_object_array(op: &str, property: &Expr, object: Option<&Expr>) -> Value {
 fn interp_to_array(
     op: &str,
     interpolation: &Interpolation,
-    input: &Expr,
-    stops: &[(Expr, Expr)],
+    input: &MlExpr,
+    stops: &[(MlExpr, MlExpr)],
 ) -> Value {
     let mut arr = vec![
         Value::String(op.into()),
@@ -1173,7 +1173,7 @@ fn interp_to_array(
     Value::Array(arr)
 }
 
-impl<'de> Deserialize<'de> for Expr {
+impl<'de> Deserialize<'de> for MlExpr {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         // Only JSON arrays are valid top-level expressions.  Non-arrays
         // produce an error so that `StyleValue<T>` can fall through to the
@@ -1190,14 +1190,14 @@ impl<'de> Deserialize<'de> for Expr {
 ///
 /// Arrays are interpreted as expressions; all other JSON values become
 /// [`Expr::Literal`].
-pub(crate) fn expr_from_value(v: Value) -> Result<Expr, String> {
+pub(crate) fn expr_from_value(v: Value) -> Result<MlExpr, String> {
     match v {
         Value::Array(arr) => parse_expr_array(arr),
-        other => Ok(Expr::Literal(other)),
+        other => Ok(MlExpr::Literal(other)),
     }
 }
 
-fn box_expr(v: Value) -> Result<Box<Expr>, String> {
+fn box_expr(v: Value) -> Result<Box<MlExpr>, String> {
     expr_from_value(v).map(Box::new)
 }
 
@@ -1215,7 +1215,7 @@ fn take_arg(args: &mut Vec<Value>, pos: usize, op: &str) -> Result<Value, String
 
 /// Parse `["operator", arg1, arg2, ...]` where `arr` is the full array
 /// (operator is `arr[0]`).
-fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
+fn parse_expr_array(mut arr: Vec<Value>) -> Result<MlExpr, String> {
     if arr.is_empty() {
         return Err("expression array is empty".into());
     }
@@ -1227,7 +1227,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             // Not a string operator → treat the whole original array as a literal.
             let mut full = vec![op_val];
             full.extend(arr);
-            return Ok(Expr::Literal(Value::Array(full)));
+            return Ok(MlExpr::Literal(Value::Array(full)));
         }
     };
     // `arr` now contains the arguments (op removed).
@@ -1258,7 +1258,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 let val = box_expr(args.remove(0))?;
                 bindings.push((name, val));
             }
-            Ok(Expr::Let { bindings, body })
+            Ok(MlExpr::Let { bindings, body })
         }
 
         "var" => {
@@ -1270,7 +1270,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                     ));
                 }
             };
-            Ok(Expr::Var(name))
+            Ok(MlExpr::Var(name))
         }
 
         "step" => {
@@ -1284,7 +1284,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             let input = box_expr(args.remove(0))?;
             let default_output = box_expr(args.remove(0))?;
             let stops = parse_stop_pairs(&mut args, "step")?;
-            Ok(Expr::Step {
+            Ok(MlExpr::Step {
                 input,
                 default_output,
                 stops,
@@ -1305,17 +1305,17 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             let input = box_expr(args.remove(0))?;
             let stops = parse_stop_pairs(&mut args, &op)?;
             match op.as_str() {
-                "interpolate" => Ok(Expr::Interpolate {
+                "interpolate" => Ok(MlExpr::Interpolate {
                     interpolation,
                     input,
                     stops,
                 }),
-                "interpolate-hcl" => Ok(Expr::InterpolateHcl {
+                "interpolate-hcl" => Ok(MlExpr::InterpolateHcl {
                     interpolation,
                     input,
                     stops,
                 }),
-                _ => Ok(Expr::InterpolateLab {
+                _ => Ok(MlExpr::InterpolateLab {
                     interpolation,
                     input,
                     stops,
@@ -1330,7 +1330,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             } else {
                 Some(box_expr(args.remove(0))?)
             };
-            Ok(Expr::Get { property, object })
+            Ok(MlExpr::Get { property, object })
         }
 
         "has" => {
@@ -1340,7 +1340,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             } else {
                 Some(box_expr(args.remove(0))?)
             };
-            Ok(Expr::Has { property, object })
+            Ok(MlExpr::Has { property, object })
         }
 
         "!has" => {
@@ -1350,13 +1350,13 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             } else {
                 Some(box_expr(args.remove(0))?)
             };
-            Ok(Expr::NotHas { property, object })
+            Ok(MlExpr::NotHas { property, object })
         }
 
         "at" => {
             let index = box_expr(take_arg(&mut args, 1, "at")?)?;
             let array = box_expr(take_arg(&mut args, 2, "at")?)?;
-            Ok(Expr::At { index, array })
+            Ok(MlExpr::At { index, array })
         }
 
         "in" => {
@@ -1368,7 +1368,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 index += 1;
             }
 
-            Ok(Expr::In { item, array: vals })
+            Ok(MlExpr::In { item, array: vals })
         }
 
         "!in" => {
@@ -1380,7 +1380,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 index += 1;
             }
 
-            Ok(Expr::NotIn { item, array: vals })
+            Ok(MlExpr::NotIn { item, array: vals })
         }
 
         "index-of" => {
@@ -1391,7 +1391,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             } else {
                 Some(box_expr(args.remove(0))?)
             };
-            Ok(Expr::IndexOf {
+            Ok(MlExpr::IndexOf {
                 item,
                 array_or_string,
                 from_index,
@@ -1406,16 +1406,16 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             } else {
                 Some(box_expr(args.remove(0))?)
             };
-            Ok(Expr::Slice {
+            Ok(MlExpr::Slice {
                 array_or_string,
                 start,
                 end,
             })
         }
 
-        "length" => Ok(Expr::Length(box_expr(take_arg(&mut args, 1, "length")?)?)),
+        "length" => Ok(MlExpr::Length(box_expr(take_arg(&mut args, 1, "length")?)?)),
 
-        "global-state" => Ok(Expr::GlobalState(box_expr(take_arg(
+        "global-state" => Ok(MlExpr::GlobalState(box_expr(take_arg(
             &mut args,
             1,
             "global-state",
@@ -1437,7 +1437,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 let out = box_expr(args.remove(0))?;
                 branches.push((cond, out));
             }
-            Ok(Expr::Case { branches, fallback })
+            Ok(MlExpr::Case { branches, fallback })
         }
 
         "match" => {
@@ -1461,48 +1461,48 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 let out = box_expr(args.remove(0))?;
                 branches.push((labels, out));
             }
-            Ok(Expr::Match {
+            Ok(MlExpr::Match {
                 input,
                 branches,
                 fallback,
             })
         }
 
-        "coalesce" => Ok(Expr::Coalesce(parse_variadic(args)?)),
-        "all" => Ok(Expr::All(parse_variadic(args)?)),
-        "any" => Ok(Expr::Any(parse_variadic(args)?)),
+        "coalesce" => Ok(MlExpr::Coalesce(parse_variadic(args)?)),
+        "all" => Ok(MlExpr::All(parse_variadic(args)?)),
+        "any" => Ok(MlExpr::Any(parse_variadic(args)?)),
 
-        "!" => Ok(Expr::Not(box_expr(take_arg(&mut args, 1, "!")?)?)),
+        "!" => Ok(MlExpr::Not(box_expr(take_arg(&mut args, 1, "!")?)?)),
 
-        "==" => Ok(Expr::Eq(
+        "==" => Ok(MlExpr::Eq(
             box_expr(take_arg(&mut args, 1, "==")?)?,
             box_expr(take_arg(&mut args, 2, "==")?)?,
         )),
-        "!=" => Ok(Expr::Ne(
+        "!=" => Ok(MlExpr::Ne(
             box_expr(take_arg(&mut args, 1, "!=")?)?,
             box_expr(take_arg(&mut args, 2, "!=")?)?,
         )),
-        ">" => Ok(Expr::Gt(
+        ">" => Ok(MlExpr::Gt(
             box_expr(take_arg(&mut args, 1, ">")?)?,
             box_expr(take_arg(&mut args, 2, ">")?)?,
         )),
-        ">=" => Ok(Expr::Gte(
+        ">=" => Ok(MlExpr::Gte(
             box_expr(take_arg(&mut args, 1, ">=")?)?,
             box_expr(take_arg(&mut args, 2, ">=")?)?,
         )),
-        "<" => Ok(Expr::Lt(
+        "<" => Ok(MlExpr::Lt(
             box_expr(take_arg(&mut args, 1, "<")?)?,
             box_expr(take_arg(&mut args, 2, "<")?)?,
         )),
-        "<=" => Ok(Expr::Lte(
+        "<=" => Ok(MlExpr::Lte(
             box_expr(take_arg(&mut args, 1, "<=")?)?,
             box_expr(take_arg(&mut args, 2, "<=")?)?,
         )),
 
-        "within" => Ok(Expr::Within(take_arg(&mut args, 1, "within")?)),
+        "within" => Ok(MlExpr::Within(take_arg(&mut args, 1, "within")?)),
 
-        "+" => Ok(Expr::Add(parse_variadic(args)?)),
-        "*" => Ok(Expr::Mul(parse_variadic(args)?)),
+        "+" => Ok(MlExpr::Add(parse_variadic(args)?)),
+        "*" => Ok(MlExpr::Mul(parse_variadic(args)?)),
 
         "-" => {
             let a = box_expr(take_arg(&mut args, 1, "-")?)?;
@@ -1511,86 +1511,88 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             } else {
                 Some(box_expr(args.remove(0))?)
             };
-            Ok(Expr::Sub(a, b))
+            Ok(MlExpr::Sub(a, b))
         }
 
-        "/" => Ok(Expr::Div(
+        "/" => Ok(MlExpr::Div(
             box_expr(take_arg(&mut args, 1, "/")?)?,
             box_expr(take_arg(&mut args, 2, "/")?)?,
         )),
-        "%" => Ok(Expr::Mod(
+        "%" => Ok(MlExpr::Mod(
             box_expr(take_arg(&mut args, 1, "%")?)?,
             box_expr(take_arg(&mut args, 2, "%")?)?,
         )),
-        "^" => Ok(Expr::Pow(
+        "^" => Ok(MlExpr::Pow(
             box_expr(take_arg(&mut args, 1, "^")?)?,
             box_expr(take_arg(&mut args, 2, "^")?)?,
         )),
 
-        "sqrt" => Ok(Expr::Sqrt(box_expr(take_arg(&mut args, 1, "sqrt")?)?)),
-        "abs" => Ok(Expr::Abs(box_expr(take_arg(&mut args, 1, "abs")?)?)),
-        "ceil" => Ok(Expr::Ceil(box_expr(take_arg(&mut args, 1, "ceil")?)?)),
-        "floor" => Ok(Expr::Floor(box_expr(take_arg(&mut args, 1, "floor")?)?)),
-        "round" => Ok(Expr::Round(box_expr(take_arg(&mut args, 1, "round")?)?)),
+        "sqrt" => Ok(MlExpr::Sqrt(box_expr(take_arg(&mut args, 1, "sqrt")?)?)),
+        "abs" => Ok(MlExpr::Abs(box_expr(take_arg(&mut args, 1, "abs")?)?)),
+        "ceil" => Ok(MlExpr::Ceil(box_expr(take_arg(&mut args, 1, "ceil")?)?)),
+        "floor" => Ok(MlExpr::Floor(box_expr(take_arg(&mut args, 1, "floor")?)?)),
+        "round" => Ok(MlExpr::Round(box_expr(take_arg(&mut args, 1, "round")?)?)),
 
-        "min" => Ok(Expr::Min(parse_variadic(args)?)),
-        "max" => Ok(Expr::Max(parse_variadic(args)?)),
+        "min" => Ok(MlExpr::Min(parse_variadic(args)?)),
+        "max" => Ok(MlExpr::Max(parse_variadic(args)?)),
 
-        "log2" => Ok(Expr::Log2(box_expr(take_arg(&mut args, 1, "log2")?)?)),
-        "log10" => Ok(Expr::Log10(box_expr(take_arg(&mut args, 1, "log10")?)?)),
-        "ln" => Ok(Expr::Ln(box_expr(take_arg(&mut args, 1, "ln")?)?)),
-        "sin" => Ok(Expr::Sin(box_expr(take_arg(&mut args, 1, "sin")?)?)),
-        "cos" => Ok(Expr::Cos(box_expr(take_arg(&mut args, 1, "cos")?)?)),
-        "tan" => Ok(Expr::Tan(box_expr(take_arg(&mut args, 1, "tan")?)?)),
-        "asin" => Ok(Expr::Asin(box_expr(take_arg(&mut args, 1, "asin")?)?)),
-        "acos" => Ok(Expr::Acos(box_expr(take_arg(&mut args, 1, "acos")?)?)),
-        "atan" => Ok(Expr::Atan(box_expr(take_arg(&mut args, 1, "atan")?)?)),
+        "log2" => Ok(MlExpr::Log2(box_expr(take_arg(&mut args, 1, "log2")?)?)),
+        "log10" => Ok(MlExpr::Log10(box_expr(take_arg(&mut args, 1, "log10")?)?)),
+        "ln" => Ok(MlExpr::Ln(box_expr(take_arg(&mut args, 1, "ln")?)?)),
+        "sin" => Ok(MlExpr::Sin(box_expr(take_arg(&mut args, 1, "sin")?)?)),
+        "cos" => Ok(MlExpr::Cos(box_expr(take_arg(&mut args, 1, "cos")?)?)),
+        "tan" => Ok(MlExpr::Tan(box_expr(take_arg(&mut args, 1, "tan")?)?)),
+        "asin" => Ok(MlExpr::Asin(box_expr(take_arg(&mut args, 1, "asin")?)?)),
+        "acos" => Ok(MlExpr::Acos(box_expr(take_arg(&mut args, 1, "acos")?)?)),
+        "atan" => Ok(MlExpr::Atan(box_expr(take_arg(&mut args, 1, "atan")?)?)),
 
-        "ln2" => Ok(Expr::Ln2),
-        "pi" => Ok(Expr::Pi),
-        "e" => Ok(Expr::E),
+        "ln2" => Ok(MlExpr::Ln2),
+        "pi" => Ok(MlExpr::Pi),
+        "e" => Ok(MlExpr::E),
 
-        "distance" => Ok(Expr::Distance(take_arg(&mut args, 1, "distance")?)),
+        "distance" => Ok(MlExpr::Distance(take_arg(&mut args, 1, "distance")?)),
 
-        "rgb" => Ok(Expr::Rgb(
+        "rgb" => Ok(MlExpr::Rgb(
             box_expr(take_arg(&mut args, 1, "rgb")?)?,
             box_expr(take_arg(&mut args, 2, "rgb")?)?,
             box_expr(take_arg(&mut args, 3, "rgb")?)?,
         )),
-        "rgba" => Ok(Expr::Rgba(
+        "rgba" => Ok(MlExpr::Rgba(
             box_expr(take_arg(&mut args, 1, "rgba")?)?,
             box_expr(take_arg(&mut args, 2, "rgba")?)?,
             box_expr(take_arg(&mut args, 3, "rgba")?)?,
             box_expr(take_arg(&mut args, 4, "rgba")?)?,
         )),
-        "to-rgba" => Ok(Expr::ToRgba(box_expr(take_arg(&mut args, 1, "to-rgba")?)?)),
+        "to-rgba" => Ok(MlExpr::ToRgba(box_expr(take_arg(
+            &mut args, 1, "to-rgba",
+        )?)?)),
 
-        "literal" => Ok(Expr::LiteralExpr(take_arg(&mut args, 1, "literal")?)),
-        "typeof" => Ok(Expr::TypeOf(box_expr(take_arg(&mut args, 1, "typeof")?)?)),
-        "to-string" => Ok(Expr::ToString(box_expr(take_arg(
+        "literal" => Ok(MlExpr::LiteralExpr(take_arg(&mut args, 1, "literal")?)),
+        "typeof" => Ok(MlExpr::TypeOf(box_expr(take_arg(&mut args, 1, "typeof")?)?)),
+        "to-string" => Ok(MlExpr::ToString(box_expr(take_arg(
             &mut args,
             1,
             "to-string",
         )?)?)),
-        "to-number" => Ok(Expr::ToNumber(parse_variadic(args)?)),
-        "to-boolean" => Ok(Expr::ToBoolean(box_expr(take_arg(
+        "to-number" => Ok(MlExpr::ToNumber(parse_variadic(args)?)),
+        "to-boolean" => Ok(MlExpr::ToBoolean(box_expr(take_arg(
             &mut args,
             1,
             "to-boolean",
         )?)?)),
-        "to-color" => Ok(Expr::ToColor(parse_variadic(args)?)),
+        "to-color" => Ok(MlExpr::ToColor(parse_variadic(args)?)),
 
-        "number" => Ok(Expr::NumberAssertion(parse_variadic(args)?)),
-        "string" => Ok(Expr::StringAssertion(parse_variadic(args)?)),
-        "boolean" => Ok(Expr::BooleanAssertion(parse_variadic(args)?)),
-        "object" => Ok(Expr::ObjectAssertion(parse_variadic(args)?)),
+        "number" => Ok(MlExpr::NumberAssertion(parse_variadic(args)?)),
+        "string" => Ok(MlExpr::StringAssertion(parse_variadic(args)?)),
+        "boolean" => Ok(MlExpr::BooleanAssertion(parse_variadic(args)?)),
+        "object" => Ok(MlExpr::ObjectAssertion(parse_variadic(args)?)),
 
         "array" => {
             // ["array", value] | ["array", type, value] | ["array", type, len, value]
             match args.len() {
                 1 => {
                     let value = box_expr(args.remove(0))?;
-                    Ok(Expr::ArrayAssertion {
+                    Ok(MlExpr::ArrayAssertion {
                         element_type: None,
                         length: None,
                         value,
@@ -1602,7 +1604,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                         _ => None,
                     };
                     let value = box_expr(args.remove(0))?;
-                    Ok(Expr::ArrayAssertion {
+                    Ok(MlExpr::ArrayAssertion {
                         element_type,
                         length: None,
                         value,
@@ -1615,7 +1617,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                     };
                     let length = args.remove(0).as_u64();
                     let value = box_expr(args.remove(0))?;
-                    Ok(Expr::ArrayAssertion {
+                    Ok(MlExpr::ArrayAssertion {
                         element_type,
                         length,
                         value,
@@ -1627,7 +1629,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
             }
         }
 
-        "collator" => Ok(Expr::Collator(take_arg(&mut args, 1, "collator")?)),
+        "collator" => Ok(MlExpr::Collator(take_arg(&mut args, 1, "collator")?)),
 
         "format" => {
             // ["format", input_1, style_1?, input_2, style_2?, ...]
@@ -1642,59 +1644,59 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
                 };
                 sections.push((content, style));
             }
-            Ok(Expr::Format(sections))
+            Ok(MlExpr::Format(sections))
         }
 
-        "image" => Ok(Expr::Image(box_expr(take_arg(&mut args, 1, "image")?)?)),
+        "image" => Ok(MlExpr::Image(box_expr(take_arg(&mut args, 1, "image")?)?)),
 
         "number-format" => {
             let input = box_expr(take_arg(&mut args, 1, "number-format")?)?;
             let options = take_arg(&mut args, 2, "number-format")?;
-            Ok(Expr::NumberFormat { input, options })
+            Ok(MlExpr::NumberFormat { input, options })
         }
 
-        "feature-state" => Ok(Expr::FeatureState(box_expr(take_arg(
+        "feature-state" => Ok(MlExpr::FeatureState(box_expr(take_arg(
             &mut args,
             1,
             "feature-state",
         )?)?)),
-        "geometry-type" => Ok(Expr::GeometryType),
-        "id" => Ok(Expr::Id),
-        "properties" => Ok(Expr::Properties),
-        "accumulated" => Ok(Expr::Accumulated),
-        "line-progress" => Ok(Expr::LineProgress),
+        "geometry-type" => Ok(MlExpr::GeometryType),
+        "id" => Ok(MlExpr::Id),
+        "properties" => Ok(MlExpr::Properties),
+        "accumulated" => Ok(MlExpr::Accumulated),
+        "line-progress" => Ok(MlExpr::LineProgress),
 
-        "zoom" => Ok(Expr::Zoom),
+        "zoom" => Ok(MlExpr::Zoom),
 
-        "heatmap-density" => Ok(Expr::HeatmapDensity),
+        "heatmap-density" => Ok(MlExpr::HeatmapDensity),
 
-        "elevation" => Ok(Expr::Elevation),
+        "elevation" => Ok(MlExpr::Elevation),
 
-        "upcase" => Ok(Expr::Upcase(box_expr(take_arg(&mut args, 1, "upcase")?)?)),
-        "downcase" => Ok(Expr::Downcase(box_expr(take_arg(
+        "upcase" => Ok(MlExpr::Upcase(box_expr(take_arg(&mut args, 1, "upcase")?)?)),
+        "downcase" => Ok(MlExpr::Downcase(box_expr(take_arg(
             &mut args, 1, "downcase",
         )?)?)),
-        "concat" => Ok(Expr::Concat(parse_variadic(args)?)),
-        "is-supported-script" => Ok(Expr::IsSupportedScript(box_expr(take_arg(
+        "concat" => Ok(MlExpr::Concat(parse_variadic(args)?)),
+        "is-supported-script" => Ok(MlExpr::IsSupportedScript(box_expr(take_arg(
             &mut args,
             1,
             "is-supported-script",
         )?)?)),
-        "resolved-locale" => Ok(Expr::ResolvedLocale(box_expr(take_arg(
+        "resolved-locale" => Ok(MlExpr::ResolvedLocale(box_expr(take_arg(
             &mut args,
             1,
             "resolved-locale",
         )?)?)),
-        "split" => Ok(Expr::Split(
+        "split" => Ok(MlExpr::Split(
             box_expr(take_arg(&mut args, 1, "split")?)?,
             box_expr(take_arg(&mut args, 2, "split")?)?,
         )),
-        "join" => Ok(Expr::Join(
+        "join" => Ok(MlExpr::Join(
             box_expr(take_arg(&mut args, 1, "join")?)?,
             box_expr(take_arg(&mut args, 2, "join")?)?,
         )),
 
-        other => Ok(Expr::Unknown {
+        other => Ok(MlExpr::Unknown {
             operator: other.to_owned(),
             args,
         }),
@@ -1703,7 +1705,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<Expr, String> {
 
 /// Parse pairs of `(input, output)` from a flat argument list, used by
 /// `step` and the `interpolate` family.
-fn parse_stop_pairs(args: &mut Vec<Value>, op: &str) -> Result<Vec<(Expr, Expr)>, String> {
+fn parse_stop_pairs(args: &mut Vec<Value>, op: &str) -> Result<Vec<(MlExpr, MlExpr)>, String> {
     if !args.len().is_multiple_of(2) {
         return Err(format!(
             "expression \"{op}\": stop arguments must come in (input, output) pairs, got {} args",
@@ -1720,7 +1722,7 @@ fn parse_stop_pairs(args: &mut Vec<Value>, op: &str) -> Result<Vec<(Expr, Expr)>
 }
 
 /// Parse a variable-length list of expression arguments.
-fn parse_variadic(args: Vec<Value>) -> Result<Vec<Expr>, String> {
+fn parse_variadic(args: Vec<Value>) -> Result<Vec<MlExpr>, String> {
     args.into_iter().map(expr_from_value).collect()
 }
 
@@ -1730,7 +1732,7 @@ mod tests {
 
     use super::*;
 
-    fn parse(v: serde_json::Value) -> Expr {
+    fn parse(v: serde_json::Value) -> MlExpr {
         serde_json::from_value(v).unwrap()
     }
 
@@ -1766,8 +1768,8 @@ mod tests {
         // Numbers appear as Literal args inside expressions (e.g. stop inputs)
         let e = parse(json!(["step", ["zoom"], 0, 5, 1]));
         match e {
-            Expr::Step { default_output, .. } => {
-                assert!(matches!(*default_output, Expr::Literal(Value::Number(_))));
+            MlExpr::Step { default_output, .. } => {
+                assert!(matches!(*default_output, MlExpr::Literal(Value::Number(_))));
             }
             other => panic!("expected Step, got {other:?}"),
         }
@@ -1778,8 +1780,8 @@ mod tests {
         // Strings appear as Literal args inside expressions (e.g. get property)
         let e = parse(json!(["get", "name"]));
         match e {
-            Expr::Get { property, .. } => {
-                assert!(matches!(*property, Expr::Literal(Value::String(_))));
+            MlExpr::Get { property, .. } => {
+                assert!(matches!(*property, MlExpr::Literal(Value::String(_))));
             }
             other => panic!("expected Get, got {other:?}"),
         }
@@ -1789,33 +1791,35 @@ mod tests {
     fn literal_bool_as_arg() {
         // Booleans appear as Literal args inside expressions
         let e = parse(json!(["!", false]));
-        assert!(matches!(e, Expr::Not(inner) if matches!(*inner, Expr::Literal(Value::Bool(_)))));
+        assert!(
+            matches!(e, MlExpr::Not(inner) if matches!(*inner, MlExpr::Literal(Value::Bool(_))))
+        );
     }
 
     #[test]
     fn zoom() {
-        assert_eq!(parse(json!(["zoom"])), Expr::Zoom);
+        assert_eq!(parse(json!(["zoom"])), MlExpr::Zoom);
     }
 
     #[test]
     fn geometry_type() {
-        assert_eq!(parse(json!(["geometry-type"])), Expr::GeometryType);
+        assert_eq!(parse(json!(["geometry-type"])), MlExpr::GeometryType);
     }
 
     #[test]
     fn id_expr() {
-        assert_eq!(parse(json!(["id"])), Expr::Id);
+        assert_eq!(parse(json!(["id"])), MlExpr::Id);
     }
 
     #[test]
     fn heatmap_density() {
-        assert_eq!(parse(json!(["heatmap-density"])), Expr::HeatmapDensity);
+        assert_eq!(parse(json!(["heatmap-density"])), MlExpr::HeatmapDensity);
     }
 
     #[test]
     fn get_no_object() {
         let e = parse(json!(["get", "name"]));
-        assert!(matches!(e, Expr::Get { object: None, .. }));
+        assert!(matches!(e, MlExpr::Get { object: None, .. }));
     }
 
     #[test]
@@ -1823,7 +1827,7 @@ mod tests {
         let e = parse(json!(["get", "name", ["properties"]]));
         assert!(matches!(
             e,
-            Expr::Get {
+            MlExpr::Get {
                 object: Some(_),
                 ..
             }
@@ -1833,14 +1837,14 @@ mod tests {
     #[test]
     fn has_expr() {
         let e = parse(json!(["has", "population"]));
-        assert!(matches!(e, Expr::Has { object: None, .. }));
+        assert!(matches!(e, MlExpr::Has { object: None, .. }));
     }
 
     #[test]
     fn step_expr() {
         let e = parse(json!(["step", ["zoom"], 0.5, 12, 1.0, 15, 2.0]));
         match e {
-            Expr::Step { stops, .. } => assert_eq!(stops.len(), 2),
+            MlExpr::Step { stops, .. } => assert_eq!(stops.len(), 2),
             other => panic!("expected Step, got {other:?}"),
         }
     }
@@ -1857,7 +1861,7 @@ mod tests {
             4.0
         ]));
         match e {
-            Expr::Interpolate {
+            MlExpr::Interpolate {
                 interpolation,
                 stops,
                 ..
@@ -1881,7 +1885,7 @@ mod tests {
             4.0
         ]));
         match e {
-            Expr::Interpolate { interpolation, .. } => {
+            MlExpr::Interpolate { interpolation, .. } => {
                 assert_eq!(interpolation, Interpolation::Exponential { base: 1.4 });
             }
             other => panic!("expected Interpolate, got {other:?}"),
@@ -1899,14 +1903,14 @@ mod tests {
             10,
             "#00f"
         ]));
-        assert!(matches!(e, Expr::InterpolateHcl { .. }));
+        assert!(matches!(e, MlExpr::InterpolateHcl { .. }));
     }
 
     #[test]
     fn add_expr() {
         let e = parse(json!(["+", 1, 2, 3]));
         match e {
-            Expr::Add(args) => assert_eq!(args.len(), 3),
+            MlExpr::Add(args) => assert_eq!(args.len(), 3),
             other => panic!("expected Add, got {other:?}"),
         }
     }
@@ -1914,27 +1918,27 @@ mod tests {
     #[test]
     fn sub_unary() {
         let e = parse(json!(["-", ["get", "val"]]));
-        assert!(matches!(e, Expr::Sub(_, None)));
+        assert!(matches!(e, MlExpr::Sub(_, None)));
     }
 
     #[test]
     fn sub_binary() {
         let e = parse(json!(["-", 10, 3]));
-        assert!(matches!(e, Expr::Sub(_, Some(_))));
+        assert!(matches!(e, MlExpr::Sub(_, Some(_))));
     }
 
     #[test]
     fn math_constants() {
-        assert_eq!(parse(json!(["ln2"])), Expr::Ln2);
-        assert_eq!(parse(json!(["pi"])), Expr::Pi);
-        assert_eq!(parse(json!(["e"])), Expr::E);
+        assert_eq!(parse(json!(["ln2"])), MlExpr::Ln2);
+        assert_eq!(parse(json!(["pi"])), MlExpr::Pi);
+        assert_eq!(parse(json!(["e"])), MlExpr::E);
     }
 
     #[test]
     fn case_expr() {
         let e = parse(json!(["case", ["has", "name"], "yes", "no"]));
         match e {
-            Expr::Case { branches, .. } => assert_eq!(branches.len(), 1),
+            MlExpr::Case { branches, .. } => assert_eq!(branches.len(), 1),
             other => panic!("expected Case, got {other:?}"),
         }
     }
@@ -1951,7 +1955,7 @@ mod tests {
             "#000"
         ]));
         match e {
-            Expr::Match { branches, .. } => {
+            MlExpr::Match { branches, .. } => {
                 assert_eq!(branches.len(), 2);
                 assert_eq!(branches[0].0, vec![json!("residential")]);
             }
@@ -1963,7 +1967,7 @@ mod tests {
     fn match_expr_array_labels() {
         let e = parse(json!(["match", ["get", "n"], [1, 2], "low", "other"]));
         match e {
-            Expr::Match { branches, .. } => {
+            MlExpr::Match { branches, .. } => {
                 assert_eq!(branches[0].0, vec![json!(1), json!(2)]);
             }
             other => panic!("expected Match, got {other:?}"),
@@ -1972,25 +1976,25 @@ mod tests {
 
     #[test]
     fn all_any_not() {
-        assert!(matches!(parse(json!(["all", true, false])), Expr::All(_)));
-        assert!(matches!(parse(json!(["any", true, false])), Expr::Any(_)));
-        assert!(matches!(parse(json!(["!", true])), Expr::Not(_)));
+        assert!(matches!(parse(json!(["all", true, false])), MlExpr::All(_)));
+        assert!(matches!(parse(json!(["any", true, false])), MlExpr::Any(_)));
+        assert!(matches!(parse(json!(["!", true])), MlExpr::Not(_)));
     }
 
     #[test]
     fn comparison_ops() {
-        assert!(matches!(parse(json!(["==", 1, 1])), Expr::Eq(_, _)));
-        assert!(matches!(parse(json!(["!=", 1, 2])), Expr::Ne(_, _)));
-        assert!(matches!(parse(json!([">", 2, 1])), Expr::Gt(_, _)));
-        assert!(matches!(parse(json!([">=", 2, 2])), Expr::Gte(_, _)));
-        assert!(matches!(parse(json!(["<", 1, 2])), Expr::Lt(_, _)));
-        assert!(matches!(parse(json!(["<=", 1, 2])), Expr::Lte(_, _)));
+        assert!(matches!(parse(json!(["==", 1, 1])), MlExpr::Eq(_, _)));
+        assert!(matches!(parse(json!(["!=", 1, 2])), MlExpr::Ne(_, _)));
+        assert!(matches!(parse(json!([">", 2, 1])), MlExpr::Gt(_, _)));
+        assert!(matches!(parse(json!([">=", 2, 2])), MlExpr::Gte(_, _)));
+        assert!(matches!(parse(json!(["<", 1, 2])), MlExpr::Lt(_, _)));
+        assert!(matches!(parse(json!(["<=", 1, 2])), MlExpr::Lte(_, _)));
     }
 
     #[test]
     fn literal_expr() {
         let e = parse(json!(["literal", [1, 2, 3]]));
-        assert!(matches!(e, Expr::LiteralExpr(Value::Array(_))));
+        assert!(matches!(e, MlExpr::LiteralExpr(Value::Array(_))));
     }
 
     #[test]
@@ -1998,7 +2002,7 @@ mod tests {
         let e = parse(json!(["array", ["get", "coords"]]));
         assert!(matches!(
             e,
-            Expr::ArrayAssertion {
+            MlExpr::ArrayAssertion {
                 element_type: None,
                 length: None,
                 ..
@@ -2010,7 +2014,7 @@ mod tests {
     fn array_assertion_typed() {
         let e = parse(json!(["array", "number", ["get", "coords"]]));
         match e {
-            Expr::ArrayAssertion {
+            MlExpr::ArrayAssertion {
                 element_type,
                 length,
                 ..
@@ -2026,7 +2030,7 @@ mod tests {
     fn array_assertion_typed_and_length() {
         let e = parse(json!(["array", "string", 3, ["literal", ["a", "b", "c"]]]));
         match e {
-            Expr::ArrayAssertion {
+            MlExpr::ArrayAssertion {
                 element_type,
                 length,
                 ..
@@ -2042,17 +2046,17 @@ mod tests {
     fn concat_expr() {
         let e = parse(json!(["concat", "hello", " ", "world"]));
         match e {
-            Expr::Concat(args) => assert_eq!(args.len(), 3),
+            MlExpr::Concat(args) => assert_eq!(args.len(), 3),
             other => panic!("expected Concat, got {other:?}"),
         }
     }
 
     #[test]
     fn upcase_downcase() {
-        assert!(matches!(parse(json!(["upcase", "hi"])), Expr::Upcase(_)));
+        assert!(matches!(parse(json!(["upcase", "hi"])), MlExpr::Upcase(_)));
         assert!(matches!(
             parse(json!(["downcase", "HI"])),
-            Expr::Downcase(_)
+            MlExpr::Downcase(_)
         ));
     }
 
@@ -2060,10 +2064,10 @@ mod tests {
     fn let_var_binding() {
         let e = parse(json!(["let", "x", 42, ["var", "x"]]));
         match e {
-            Expr::Let { bindings, body } => {
+            MlExpr::Let { bindings, body } => {
                 assert_eq!(bindings.len(), 1);
                 assert_eq!(bindings[0].0, "x");
-                assert!(matches!(*body, Expr::Var(ref s) if s == "x"));
+                assert!(matches!(*body, MlExpr::Var(ref s) if s == "x"));
             }
             other => panic!("expected Let, got {other:?}"),
         }
@@ -2073,7 +2077,7 @@ mod tests {
     fn unknown_operator() {
         let e = parse(json!(["future-operator", 1, 2]));
         match e {
-            Expr::Unknown { operator, args } => {
+            MlExpr::Unknown { operator, args } => {
                 assert_eq!(operator, "future-operator");
                 assert_eq!(args.len(), 2);
             }
@@ -2085,9 +2089,9 @@ mod tests {
     fn nested_get_in_comparison() {
         let e = parse(json!([">=", ["get", "mag"], 4]));
         match e {
-            Expr::Gte(left, right) => {
-                assert!(matches!(*left, Expr::Get { .. }));
-                assert!(matches!(*right, Expr::Literal(_)));
+            MlExpr::Gte(left, right) => {
+                assert!(matches!(*left, MlExpr::Get { .. }));
+                assert!(matches!(*right, MlExpr::Literal(_)));
             }
             other => panic!("expected Gte, got {other:?}"),
         }
@@ -2096,20 +2100,20 @@ mod tests {
     #[test]
     fn rgb_expr() {
         let e = parse(json!(["rgb", 255, 0, 128]));
-        assert!(matches!(e, Expr::Rgb(_, _, _)));
+        assert!(matches!(e, MlExpr::Rgb(_, _, _)));
     }
 
     #[test]
     fn feature_state_expr() {
         let e = parse(json!(["feature-state", "hover"]));
-        assert!(matches!(e, Expr::FeatureState(_)));
+        assert!(matches!(e, MlExpr::FeatureState(_)));
     }
 
     #[test]
     fn format_expr() {
         let e = parse(json!(["format", ["get", "name"], {"font-scale": 0.8}, "\n", {}]));
         match e {
-            Expr::Format(sections) => {
+            MlExpr::Format(sections) => {
                 assert_eq!(sections.len(), 2);
                 assert!(sections[0].1.is_some()); // has style override
                 assert!(sections[1].1.is_some()); // has empty style override
