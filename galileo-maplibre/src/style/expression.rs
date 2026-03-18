@@ -79,7 +79,12 @@ impl<'de> Deserialize<'de> for Interpolation {
                     .ok_or_else(|| de::Error::invalid_length(0, &self))?;
 
                 match name.as_str() {
-                    "linear" => Ok(Interpolation::Linear),
+                    "linear" => {
+                        // Drain any extra elements (some styles pass a padding
+                        // argument, e.g. `["linear", 1]`, which must be ignored).
+                        while seq.next_element::<Value>()?.is_some() {}
+                        Ok(Interpolation::Linear)
+                    }
                     "exponential" => {
                         let base: f64 = seq
                             .next_element()?
@@ -358,9 +363,11 @@ pub enum MlExpr {
     Match {
         /// The input expression.
         input: Box<MlExpr>,
-        /// `(labels, output)` pairs; each label list contains one or more
-        /// literal values.
-        branches: Vec<(Vec<Value>, Box<MlExpr>)>,
+        /// `(labels, output)` pairs.  Each label is the raw JSON value as it
+        /// appeared in the source — either a scalar (e.g. `"residential"`) or
+        /// an array of scalars (e.g. `["motorway", "trunk"]`).  Preserving the
+        /// original form is required for lossless round-trip serialization.
+        branches: Vec<(Value, Box<MlExpr>)>,
         /// Output when no label matches.
         fallback: Box<MlExpr>,
     },
@@ -980,11 +987,7 @@ fn expr_to_value(e: &MlExpr) -> Value {
         } => {
             let mut arr = vec![Value::String("match".into()), expr_to_value(input)];
             for (labels, out) in branches {
-                if labels.len() == 1 {
-                    arr.push(labels[0].clone());
-                } else {
-                    arr.push(Value::Array(labels.clone()));
-                }
+                arr.push(labels.clone());
                 arr.push(expr_to_value(out));
             }
             arr.push(expr_to_value(fallback));
@@ -1453,11 +1456,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<MlExpr, String> {
             let fallback = box_expr(fallback_val)?;
             let mut branches = Vec::new();
             while args.len() >= 2 {
-                let label_val = args.remove(0);
-                let labels = match label_val {
-                    Value::Array(arr) => arr,
-                    scalar => vec![scalar],
-                };
+                let labels = args.remove(0);
                 let out = box_expr(args.remove(0))?;
                 branches.push((labels, out));
             }
@@ -1957,7 +1956,7 @@ mod tests {
         match e {
             MlExpr::Match { branches, .. } => {
                 assert_eq!(branches.len(), 2);
-                assert_eq!(branches[0].0, vec![json!("residential")]);
+                assert_eq!(branches[0].0, json!("residential"));
             }
             other => panic!("expected Match, got {other:?}"),
         }
@@ -1968,7 +1967,7 @@ mod tests {
         let e = parse(json!(["match", ["get", "n"], [1, 2], "low", "other"]));
         match e {
             MlExpr::Match { branches, .. } => {
-                assert_eq!(branches[0].0, vec![json!(1), json!(2)]);
+                assert_eq!(branches[0].0, json!([1, 2]));
             }
             other => panic!("expected Match, got {other:?}"),
         }

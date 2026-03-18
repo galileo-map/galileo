@@ -9,7 +9,6 @@ pub mod parser;
 
 /// An expression that can be evaluated against a feature and a view to produce an [`ExprValue`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
 pub enum Expr {
     Literal(ExprValue<String>),
 
@@ -126,9 +125,9 @@ mod tests {
     #[test]
     fn deserialize_expr_from_string() {
         let json = r#""kind == \"road\"""#;
-        let expr: Expr = serde_json::from_str(json).unwrap();
+        let expr: ExprDeser = serde_json::from_str(json).unwrap();
         assert_eq!(
-            expr,
+            expr.0,
             Expr::Eq(
                 Box::new(Expr::Get("kind".to_string())),
                 Box::new(Expr::Literal(ExprValue::String("road".to_string()))),
@@ -139,8 +138,8 @@ mod tests {
     #[test]
     fn deserialize_expr_from_object() {
         let json = r#"{"Get": "kind"}"#;
-        let expr: Expr = serde_json::from_str(json).unwrap();
-        assert_eq!(expr, Expr::Get("kind".to_string()));
+        let expr: ExprDeser = serde_json::from_str(json).unwrap();
+        assert_eq!(expr.0, Expr::Get("kind".to_string()));
     }
 
     #[test]

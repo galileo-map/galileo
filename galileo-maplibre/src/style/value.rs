@@ -37,14 +37,13 @@
 //! - `Function(Function<T>)` — succeeds when the JSON is an object (it
 //!   must have a `"stops"` key; other objects are an error).
 
-use galileo::Color;
+use std::marker::PhantomData;
+
 use serde::de::{SeqAccess, Visitor};
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
 
 use super::expression::MlExpr;
-use crate::style::color::{MlColor, parse_css_color};
 
 /// The interpolation type for a legacy [`Function`].
 ///
@@ -101,49 +100,12 @@ impl<T: Serialize> Serialize for FunctionStop<T> {
     }
 }
 
-macro_rules! impl_function_stop_deserialize {
-    ($($ty:ty),+ $(,)?) => {
-        $(
-            impl<'de> Deserialize<'de> for FunctionStop<$ty> {
-                fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-                    struct StopVisitor;
-
-                    impl<'de> Visitor<'de> for StopVisitor {
-                        type Value = FunctionStop<$ty>;
-
-                        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                            f.write_str("a [input, output] stop pair")
-                        }
-
-                        fn visit_seq<A: SeqAccess<'de>>(
-                            self,
-                            mut seq: A,
-                        ) -> Result<Self::Value, A::Error> {
-                            let input = seq
-                                .next_element::<f64>()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                            let output = seq
-                                .next_element::<$ty>()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                            Ok(FunctionStop { input, output })
-                        }
-                    }
-
-                    d.deserialize_seq(StopVisitor)
-                }
-            }
-        )+
-    };
-}
-
-impl_function_stop_deserialize!(f64, bool, String, Value, MlColor);
-
-impl<'de> Deserialize<'de> for FunctionStop<Color> {
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for FunctionStop<T> {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        struct StopVisitor;
+        struct StopVisitor<T>(PhantomData<T>);
 
-        impl<'de> Visitor<'de> for StopVisitor {
-            type Value = FunctionStop<Color>;
+        impl<'de, T: Deserialize<'de>> Visitor<'de> for StopVisitor<T> {
+            type Value = FunctionStop<T>;
 
             fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 f.write_str("a [input, output] stop pair")
@@ -153,18 +115,14 @@ impl<'de> Deserialize<'de> for FunctionStop<Color> {
                 let input = seq
                     .next_element::<f64>()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let color_str = seq
-                    .next_element::<&str>()?
+                let output = seq
+                    .next_element::<T>()?
                     .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                let color = parse_css_color(color_str).unwrap_or(Color::TRANSPARENT);
-                Ok(FunctionStop {
-                    input,
-                    output: color,
-                })
+                Ok(FunctionStop { input, output })
             }
         }
 
-        d.deserialize_seq(StopVisitor)
+        d.deserialize_seq(StopVisitor(PhantomData))
     }
 }
 
@@ -541,6 +499,25 @@ mod tests {
         let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
         let back = serde_json::to_value(&v).unwrap();
         assert_eq!(back, original);
+    }
+
+    #[test]
+    fn complex_expression() {
+        let input = json!([
+            "interpolate",
+            ["linear", 1],
+            ["zoom"],
+            11,
+            ["match", ["get", "class"], ["runway"], 3, 0.5],
+            20,
+            ["match", ["get", "class"], ["runway"], 16, 6]
+        ]);
+        let v: MlStyleValue<f64> = serde_json::from_value(input).unwrap();
+        assert!(v.is_expression());
+        assert_eq!(
+            v.as_expression().and_then(|e| e.operator()),
+            Some("interpolate")
+        );
     }
 
     #[test]
