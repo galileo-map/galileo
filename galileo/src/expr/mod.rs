@@ -1,11 +1,15 @@
 #![allow(missing_docs)] //TODO: temporary allow
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 mod value;
 pub use value::{ExprGeometryType, ExprValue};
 
+pub mod parser;
+
+/// An expression that can be evaluated against a feature and a view to produce an [`ExprValue`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Expr {
     Literal(ExprValue<String>),
 
@@ -28,6 +32,39 @@ pub enum Expr {
 
     GeomType,
     Zoom,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct ExprDeser(pub Expr);
+
+impl ExprDeser {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
+        self.0.eval(f, v)
+    }
+}
+
+impl From<Expr> for ExprDeser {
+    fn from(value: Expr) -> Self {
+        Self(value)
+    }
+}
+
+impl<'de> Deserialize<'de> for ExprDeser {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Buffer into a generic value so we can inspect the shape without consuming the input.
+        let value = serde_json::Value::deserialize(deserializer)?;
+
+        if let serde_json::Value::String(ref s) = value {
+            return parser::parse_expr(s)
+                .map(|(_, expr)| expr.into())
+                .map_err(|e| serde::de::Error::custom(format!("expression parse error: {e}")));
+        }
+
+        Expr::deserialize(value)
+            .map(Into::into)
+            .map_err(serde::de::Error::custom)
+    }
 }
 
 pub trait ExprFeature {
@@ -79,5 +116,36 @@ impl Expr {
 impl From<ExprValue<String>> for Expr {
     fn from(value: ExprValue<String>) -> Self {
         Self::Literal(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialize_expr_from_string() {
+        let json = r#""kind == \"road\"""#;
+        let expr: Expr = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            expr,
+            Expr::Eq(
+                Box::new(Expr::Get("kind".to_string())),
+                Box::new(Expr::Literal(ExprValue::String("road".to_string()))),
+            )
+        );
+    }
+
+    #[test]
+    fn deserialize_expr_from_object() {
+        let json = r#"{"Get": "kind"}"#;
+        let expr: Expr = serde_json::from_str(json).unwrap();
+        assert_eq!(expr, Expr::Get("kind".to_string()));
+    }
+
+    #[test]
+    fn deserialize_bad_string_returns_error() {
+        let json = r#""@@@ not valid @@@""#;
+        assert!(serde_json::from_str::<Expr>(json).is_err());
     }
 }

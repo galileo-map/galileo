@@ -4,7 +4,7 @@ use galileo_mvt::{MvtFeature, MvtValue};
 use serde::{Deserialize, Serialize};
 
 use crate::Color;
-use crate::expr::{Expr, ExprFeature, ExprGeometryType, ExprValue, ExprView};
+use crate::expr::{ExprDeser, ExprFeature, ExprGeometryType, ExprValue, ExprView};
 use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::render::point_paint::PointPaint;
 use crate::render::text::{
@@ -38,7 +38,7 @@ pub struct StyleRule {
     pub min_resolution: Option<f64>,
     /// Specifies a set of attributes of a feature that must have the given values for this rule to be applied.
     #[serde(default)]
-    pub filter: Option<Expr>,
+    pub filter: Option<ExprDeser>,
     /// Symbol to draw a feature with.
     #[serde(default)]
     pub symbol: VectorTileSymbol,

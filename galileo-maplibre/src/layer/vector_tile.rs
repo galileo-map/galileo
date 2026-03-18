@@ -260,7 +260,7 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol { fill_color: color }),
         min_resolution,
         max_resolution,
-        filter,
+        filter: filter.map(Into::into),
     })
 }
 
@@ -316,7 +316,7 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         }),
         min_resolution,
         max_resolution,
-        filter,
+        filter: filter.map(Into::into),
     })
 }
 
