@@ -8,6 +8,7 @@ use regex::Regex;
 
 use crate::TileSchema;
 use crate::error::GalileoError;
+use crate::expr::ExprView;
 use crate::layer::vector_tile_layer::style::{StyleRule, VectorTileLabelSymbol, VectorTileStyle};
 use crate::render::point_paint::{PointPaint, PointShape};
 use crate::render::render_bundle::RenderBundle;
@@ -88,10 +89,14 @@ impl VtProcessor {
                         continue;
                     }
 
+                    let expr_view = ExprView {
+                        resolution: lod_resolution,
+                        z_index: Some(index.z),
+                    };
+
                     match &feature.geometry {
                         MvtGeometry::Point(points) => {
-                            let Some(paint) =
-                                Self::get_point_symbol(rule, lod_resolution, feature, tile_schema)
+                            let Some(paint) = Self::get_point_symbol(rule, feature, expr_view)
                             else {
                                 continue;
                             };
@@ -117,9 +122,7 @@ impl VtProcessor {
                             }
                         }
                         MvtGeometry::LineString(contours) => {
-                            if let Some(paint) =
-                                Self::get_line_symbol(rule, lod_resolution, feature, tile_schema)
-                            {
+                            if let Some(paint) = Self::get_line_symbol(rule, feature, expr_view) {
                                 for contour in contours.contours() {
                                     bundle.add_line(
                                         &galileo_types::impls::Contour::new(
@@ -136,8 +139,7 @@ impl VtProcessor {
                             }
                         }
                         MvtGeometry::Polygon(polygons) => {
-                            if let Some(paint) =
-                                Self::get_polygon_symbol(rule, lod_resolution, feature, tile_schema)
+                            if let Some(paint) = Self::get_polygon_symbol(rule, feature, expr_view)
                             {
                                 for polygon in polygons.polygons() {
                                     bundle.add_polygon(
@@ -158,25 +160,23 @@ impl VtProcessor {
 
     fn get_point_symbol<'a>(
         rule: &'a StyleRule,
-        resolution: f64,
         feature: &MvtFeature,
-        tile_schema: &TileSchema,
+        view: ExprView,
     ) -> Option<PointPaint<'a>> {
         rule.symbol
             .point()
-            .and_then(|symbol| symbol.to_paint(resolution, feature, tile_schema))
+            .and_then(|symbol| symbol.to_paint(feature, view))
             .or_else(|| {
                 rule.symbol
                     .label()
-                    .and_then(|symbol| Self::format_label(symbol, resolution, feature, tile_schema))
+                    .and_then(|symbol| Self::format_label(symbol, feature, view))
             })
     }
 
     fn format_label<'a>(
         label_symbol: &VectorTileLabelSymbol,
-        resolution: f64,
         feature: &MvtFeature,
-        tile_schema: &TileSchema,
+        view: ExprView,
     ) -> Option<PointPaint<'a>> {
         let re = Regex::new("\\{(?<name>.+)}").ok()?;
         let mut text = label_symbol.pattern.to_string();
@@ -192,33 +192,26 @@ impl VtProcessor {
         }
         Some(PointPaint::label_owned(
             text,
-            label_symbol
-                .text_style
-                .clone()
-                .get_value(resolution, tile_schema)?,
+            label_symbol.text_style.clone().get_value(feature, view)?,
         ))
     }
 
     fn get_line_symbol(
         rule: &StyleRule,
-        resolution: f64,
         feature: &MvtFeature,
-        tile_schema: &TileSchema,
+        view: ExprView,
     ) -> Option<LinePaint> {
-        rule.symbol
-            .line()
-            .and_then(|s| s.to_paint(resolution, feature, tile_schema))
+        rule.symbol.line().and_then(|s| s.to_paint(feature, view))
     }
 
     fn get_polygon_symbol(
         rule: &StyleRule,
-        resolution: f64,
         feature: &MvtFeature,
-        tile_schema: &TileSchema,
+        view: ExprView,
     ) -> Option<PolygonPaint> {
         rule.symbol
             .polygon()
-            .and_then(|s| s.to_paint(resolution, feature, tile_schema))
+            .and_then(|s| s.to_paint(feature, view))
     }
 
     fn transform_polygon(mvt_polygon: &MvtPolygon, tile_resolution: f64) -> Polygon<Point3> {

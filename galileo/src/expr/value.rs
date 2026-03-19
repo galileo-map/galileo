@@ -4,6 +4,7 @@ use crate::Color;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExprGeometryType {
+    None,
     Point,
     Line,
     Polygon,
@@ -25,6 +26,20 @@ impl<S> ExprValue<S> {
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             ExprValue::Boolean(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    pub fn as_number(&self) -> Option<f64> {
+        match self {
+            ExprValue::Number(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    pub fn as_color(&self) -> Option<Color> {
+        match self {
+            ExprValue::Color(v) => Some(*v),
             _ => None,
         }
     }
@@ -66,6 +81,12 @@ impl<S> From<f64> for ExprValue<S> {
 impl<S> From<ExprGeometryType> for ExprValue<S> {
     fn from(value: ExprGeometryType) -> Self {
         Self::GeomType(value)
+    }
+}
+
+impl<S> From<Color> for ExprValue<S> {
+    fn from(value: Color) -> Self {
+        Self::Color(value)
     }
 }
 

@@ -5,13 +5,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::Color;
 use crate::expr::{ExprDeser, ExprFeature, ExprGeometryType, ExprValue, ExprView};
-use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::render::point_paint::PointPaint;
 use crate::render::text::{
     FontStyle, FontWeight, HorizontalAlignment, TextStyle, VerticalAlignment,
 };
 use crate::render::{LineCap, LinePaint, PolygonPaint};
-use crate::tile_schema::TileSchema;
 
 /// Style of a vector tile layer. This specifies how each feature in a tile should be rendered.
 ///
@@ -23,7 +21,7 @@ pub struct VectorTileStyle {
     pub rules: Vec<StyleRule>,
 
     /// Background color of tiles.
-    pub background: StyleValue<Color>,
+    pub background: ExprDeser,
 }
 
 /// A rule that specifies what kind of features can be drawing with the given symbol.
@@ -151,21 +149,16 @@ impl VectorTileSymbol {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VectorTilePointSymbol {
     /// Size of the point.
-    pub size: StyleValue<f64>,
+    pub size: ExprDeser,
     /// Color of the point.
-    pub color: StyleValue<Color>,
+    pub color: ExprDeser,
 }
 
 impl VectorTilePointSymbol {
-    pub(crate) fn to_paint(
-        &self,
-        current_resolution: f64,
-        _feature: &MvtFeature,
-        tile_schema: &TileSchema,
-    ) -> Option<PointPaint<'_>> {
+    pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<PointPaint<'_>> {
         Some(PointPaint::circle(
-            self.color.get_value(current_resolution, tile_schema)?,
-            self.size.get_value(current_resolution, tile_schema)? as f32,
+            self.color.eval(feature, view).as_color()?,
+            self.size.eval(feature, view).as_number()? as f32,
         ))
     }
 }
@@ -174,23 +167,16 @@ impl VectorTilePointSymbol {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VectorTileLineSymbol {
     /// Width of the line in pixels.
-    pub width: StyleValue<f64>,
+    pub width: ExprDeser,
     /// Color of the line in pixels.
-    pub stroke_color: StyleValue<Color>,
+    pub stroke_color: ExprDeser,
 }
 
 impl VectorTileLineSymbol {
-    pub(crate) fn to_paint(
-        &self,
-        current_resolution: f64,
-        _feature: &MvtFeature,
-        tile_schema: &TileSchema,
-    ) -> Option<LinePaint> {
+    pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<LinePaint> {
         Some(LinePaint {
-            color: self
-                .stroke_color
-                .get_value(current_resolution, tile_schema)?,
-            width: self.width.get_value(current_resolution, tile_schema)?,
+            color: self.stroke_color.eval(feature, view).as_color()?,
+            width: self.width.eval(feature, view).as_number()?,
             offset: 0.0,
             line_cap: LineCap::Butt,
         })
@@ -201,18 +187,13 @@ impl VectorTileLineSymbol {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VectorTilePolygonSymbol {
     /// Color of the fill of polygon.
-    pub fill_color: StyleValue<Color>,
+    pub fill_color: ExprDeser,
 }
 
 impl VectorTilePolygonSymbol {
-    pub(crate) fn to_paint(
-        &self,
-        current_resolution: f64,
-        _feature: &MvtFeature,
-        tile_schema: &TileSchema,
-    ) -> Option<PolygonPaint> {
+    pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<PolygonPaint> {
         Some(PolygonPaint {
-            color: self.fill_color.get_value(current_resolution, tile_schema)?,
+            color: self.fill_color.eval(feature, view).as_color()?,
         })
     }
 }
@@ -233,10 +214,10 @@ pub struct VtTextStyle {
     /// Name of the font to use.
     pub font_family: Vec<String>,
     /// Size of the font in pixels.
-    pub font_size: StyleValue<f32>,
+    pub font_size: ExprDeser,
     /// Color of the font.
     #[serde(default = "default_font_color_style")]
-    pub font_color: StyleValue<Color>,
+    pub font_color: ExprDeser,
     /// Alignment of label along horizontal axis.
     #[serde(default)]
     pub horizontal_alignment: HorizontalAlignment,
@@ -251,43 +232,39 @@ pub struct VtTextStyle {
     pub style: FontStyle,
     /// Width of the outline around the letters.
     #[serde(default = "default_outline_width_style")]
-    pub outline_width: StyleValue<f32>,
+    pub outline_width: ExprDeser,
     /// Color of the outline around the letters.
     #[serde(default = "default_outline_color_style")]
-    pub outline_color: StyleValue<Color>,
+    pub outline_color: ExprDeser,
 }
 
 impl VtTextStyle {
     /// This method returns the value of the struct `TextStyle` on the basis of the
     /// current resolution level.
-    pub fn get_value(self, current_resolution: f64, tile_schema: &TileSchema) -> Option<TextStyle> {
+    pub fn get_value(self, feature: &MvtFeature, view: ExprView) -> Option<TextStyle> {
         Some(TextStyle {
             font_family: self.font_family,
-            font_size: self.font_size.get_value(current_resolution, tile_schema)?,
-            font_color: self.font_color.get_value(current_resolution, tile_schema)?,
+            font_size: self.font_size.eval(feature, view).as_number()? as f32,
+            font_color: self.font_color.eval(feature, view).as_color()?,
             horizontal_alignment: self.horizontal_alignment,
             vertical_alignment: self.vertical_alignment,
             weight: self.weight,
             style: self.style,
-            outline_width: self
-                .outline_width
-                .get_value(current_resolution, tile_schema)?,
-            outline_color: self
-                .outline_color
-                .get_value(current_resolution, tile_schema)?,
+            outline_width: self.outline_width.eval(feature, view).as_number()? as f32,
+            outline_color: self.outline_color.eval(feature, view).as_color()?,
         })
     }
 }
 
-fn default_font_color_style() -> StyleValue<Color> {
+fn default_font_color_style() -> ExprDeser {
     Color::BLACK.into()
 }
 
-fn default_outline_color_style() -> StyleValue<Color> {
+fn default_outline_color_style() -> ExprDeser {
     Color::TRANSPARENT.into()
 }
 
-fn default_outline_width_style() -> StyleValue<f32> {
+fn default_outline_width_style() -> ExprDeser {
     0.0.into()
 }
 

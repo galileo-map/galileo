@@ -14,10 +14,9 @@ use galileo_types::impls::{ClosedContour, Polygon};
 use parking_lot::Mutex;
 pub use vector_tile::VectorTile;
 
-use crate::Color;
+use crate::expr::{EmptyExprFeature, ExprDeser, ExprView};
 use crate::layer::Layer;
 use crate::layer::attribution::Attribution;
-use crate::layer::vector_tile_layer::expressions::StyleValue;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
 use crate::layer::vector_tile_layer::tile_provider::{VectorTileProvider, VtStyleId};
 use crate::messenger::Messenger;
@@ -27,7 +26,6 @@ use crate::tile_schema::{TileIndex, TileSchema};
 use crate::view::MapView;
 
 mod builder;
-pub mod expressions;
 pub mod style;
 pub mod tile_provider;
 mod vector_tile;
@@ -57,7 +55,7 @@ impl std::fmt::Debug for VectorTileLayer {
 
 #[derive(Debug, Clone)]
 struct PreviousBackground {
-    color: StyleValue<Color>,
+    color: ExprDeser,
     replaced_at: web_time::Instant,
 }
 
@@ -269,10 +267,17 @@ impl VectorTileLayer {
         );
         let style = self.tile_provider.get_style(self.style_id)?;
 
-        let resolution = self.tile_schema.select_lod(view.resolution())?.resolution;
+        let lod = self.tile_schema.select_lod(view.resolution())?;
+        let expr_view = ExprView {
+            resolution: lod.resolution,
+            z_index: Some(lod.z_index),
+        };
 
         let mut prev_background = self.prev_background.lock();
-        let new_color = style.background.get_value(resolution, &self.tile_schema)?;
+        let new_color = style
+            .background
+            .eval(&EmptyExprFeature, expr_view)
+            .as_color()?;
         let color = match &*prev_background {
             Some(prev) => {
                 let k = web_time::Instant::now()
@@ -284,7 +289,7 @@ impl VectorTileLayer {
                     *prev_background = None;
                     new_color
                 } else {
-                    let prev_color = prev.color.get_value(resolution, &self.tile_schema)?;
+                    let prev_color = prev.color.eval(&EmptyExprFeature, expr_view).as_color()?;
                     prev_color.blend(new_color.with_alpha((new_color.a() as f32 * k) as u8))
                 }
             }

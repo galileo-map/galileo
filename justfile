@@ -119,3 +119,8 @@ mljs STYLE_FILE="galileo-maplibre/data/maptiler_fmt.json" $VT_API_KEY=VT_API_KEY
 [group('Examples shortcuts')]
 vt:
   cargo run --example vector_tiles
+
+# Run example NAME
+[group('Example shortcuts')]
+ex NAME:
+  cargo run --example {{NAME}}

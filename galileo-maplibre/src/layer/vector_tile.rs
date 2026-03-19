@@ -239,6 +239,9 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let fill_color = &fill.paint.fill_color;
     let fill_opacity = &fill.paint.fill_opacity;
     let color = get_color_value(fill_color, fill_opacity)?;
+    let StyleValue::Simple(color) = color else {
+        return None;
+    };
 
     log_unsupported_field!(fill.paint.fill_antialias);
     log_unsupported_field!(fill.paint.fill_outline_color);
@@ -257,7 +260,9 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
 
     Some(StyleRule {
         layer_name: Some(source_layer),
-        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol { fill_color: color }),
+        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
+            fill_color: color.into(),
+        }),
         min_resolution,
         max_resolution,
         filter: filter.map(Into::into),

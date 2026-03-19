@@ -4,14 +4,19 @@
 use std::sync::Arc;
 
 use egui::FontDefinitions;
-use galileo::MapBuilder;
+use galileo::expr::{
+    ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, LinearInterpolation,
+};
 use galileo::layer::VectorTileLayer;
 use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
-use galileo::layer::vector_tile_layer::style::{StyleRule, VectorTileStyle};
+use galileo::layer::vector_tile_layer::style::{
+    StyleRule, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
+};
 use galileo::render::text::RustybuzzRasterizer;
 use galileo::render::text::text_service::TextService;
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
+use galileo::{Color, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
 use parking_lot::RwLock;
 
@@ -44,9 +49,6 @@ impl eframe::App for App {
                     if ui.button("Cubic Interpolation").clicked() {
                         self.set_style(with_overlay_rule(cubic_interpolation_style()));
                     }
-                    if ui.button("Stepped Interpolation").clicked() {
-                        self.set_style(with_overlay_rule(stepped_interpolation_style()));
-                    }
                 });
             });
     }
@@ -55,7 +57,7 @@ impl eframe::App for App {
 fn with_overlay_rule(overlay: StyleRule) -> VectorTileStyle {
     let mut base: VectorTileStyle =
         serde_json::from_str(include_str!("data/vt_style.json")).expect("invalid style json");
-    base.rules.insert(0, overlay);
+    base.rules = vec![overlay];
     base
 }
 
@@ -118,96 +120,93 @@ pub(crate) fn run() {
         .expect("failed to initialize");
 }
 
-fn stepped_interpolation_style() -> StyleRule {
-    serde_json::from_str(
-        r##"{
-  "symbol": {
-    "polygon": {
-      "fill_color": {
-        "default_value": "#3d835cff",
-        "step_values": [
-          {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
-          {"resolution": 611.4962262813416, "step_value": "#29546dff"},
-          {"resolution": 38.21851414258385, "step_value": "#3d835cff"}
-       ]
-      }
-    }
-  }
-}"##,
-    )
-    .expect("invalid style json")
-}
-
 fn linear_interpolation_style() -> StyleRule {
-    serde_json::from_str(
-        r##"{
-  "symbol": {
-    "polygon": {
-      "fill_color": {
-        "interpolate": {
-          "linear":{
-            "default_value": "#3d835cff",
-            "step_values": [
-              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
-              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
-              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
-            ]
-          }
-        }
-      }
+    StyleRule {
+        layer_name: None,
+        max_resolution: None,
+        min_resolution: None,
+        filter: None,
+        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
+            fill_color: Expr::InterpolateLinear(Box::new(LinearInterpolation {
+                input: Expr::Zoom,
+                control_points: vec![
+                    ControlPoint {
+                        input: 2.0.into(),
+                        output: Color::try_from_hex("#81C4ec").unwrap().into(),
+                    },
+                    ControlPoint {
+                        input: 5.0.into(),
+                        output: Color::try_from_hex("#29546d").unwrap().into(),
+                    },
+                    ControlPoint {
+                        input: 8.0.into(),
+                        output: Color::try_from_hex("#3d835c").unwrap().into(),
+                    },
+                ],
+            }))
+            .into(),
+        }),
     }
-  }
-}"##,
-    )
-    .expect("invalid style json")
 }
 
 fn exponential_interpolation_style() -> StyleRule {
-    serde_json::from_str(
-        r##"{
-  "symbol": {
-    "polygon": {
-      "fill_color": {
-        "interpolate": {
-          "exponential":{
-            "base": 2,
-            "step_values": [
-              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
-              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
-              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
-            ]
-          }
-        }
-      }
+    StyleRule {
+        layer_name: None,
+        max_resolution: None,
+        min_resolution: None,
+        filter: None,
+        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
+            fill_color: Expr::InterpolateExp(Box::new(ExponentialInterpolation {
+                base: 2.0,
+                input: Expr::Zoom,
+                control_points: vec![
+                    ControlPoint {
+                        input: 2.0.into(),
+                        output: Color::try_from_hex("#81C4ec").unwrap().into(),
+                    },
+                    ControlPoint {
+                        input: 5.0.into(),
+                        output: Color::try_from_hex("#29546d").unwrap().into(),
+                    },
+                    ControlPoint {
+                        input: 8.0.into(),
+                        output: Color::try_from_hex("#3d835c").unwrap().into(),
+                    },
+                ],
+            }))
+            .into(),
+        }),
     }
-  }
-}"##,
-    )
-    .expect("invalid style json")
 }
 
 fn cubic_interpolation_style() -> StyleRule {
-    serde_json::from_str(
-        r##"{
-  "symbol": {
-    "polygon": {
-      "fill_color": {
-        "interpolate": {
-          "cubic":{
-          "control_points": [0.25, 0.0, 0.75, 1.0],
-            "step_values": [
-              {"resolution": 9783.939620501465, "step_value": "#81C4EC"},
-              {"resolution": 611.4962262813416, "step_value": "#29546dff"},
-              {"resolution": 2.3886571339114906, "step_value": "#3d835cff"}
-            ]
-          }
-        }
-      }
+    StyleRule {
+        layer_name: None,
+        max_resolution: None,
+        min_resolution: None,
+        filter: None,
+        symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
+            fill_color: Expr::InterpolateCubicBezier(Box::new(CubicBezierInterpolation {
+                curve_params: [0.25, 0.0, 0.75, 1.0],
+                input: Expr::Zoom,
+                control_points: vec![
+                    ControlPoint {
+                        input: 2.0.into(),
+                        output: Color::try_from_hex("#81C4ec").unwrap().into(),
+                    },
+                    ControlPoint {
+                        input: 5.0.into(),
+                        output: Color::try_from_hex("#29546d").unwrap().into(),
+                    },
+                    ControlPoint {
+                        input: 8.0.into(),
+                        output: Color::try_from_hex("#3d835c").unwrap().into(),
+                    },
+                ],
+            }))
+            .into(),
+        }),
     }
-  }
-}"##,
-    )
-    .expect("invalid style json")
 }
 
 fn tile_schema() -> TileSchema {

@@ -2,8 +2,13 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+mod interpolation;
+pub use interpolation::*;
+
 mod value;
 pub use value::{ExprGeometryType, ExprValue};
+
+use crate::Color;
 
 pub mod parser;
 
@@ -31,11 +36,21 @@ pub enum Expr {
 
     GeomType,
     Zoom,
+
+    InterpolateLinear(Box<LinearInterpolation>),
+    InterpolateExp(Box<ExponentialInterpolation>),
+    InterpolateCubicBezier(Box<CubicBezierInterpolation>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct ExprDeser(pub Expr);
+
+impl Default for ExprDeser {
+    fn default() -> Self {
+        Self(Expr::Literal(ExprValue::Null))
+    }
+}
 
 impl ExprDeser {
     pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
@@ -46,6 +61,30 @@ impl ExprDeser {
 impl From<Expr> for ExprDeser {
     fn from(value: Expr) -> Self {
         Self(value)
+    }
+}
+
+impl From<Color> for ExprDeser {
+    fn from(value: Color) -> Self {
+        Self(Expr::Literal(value.into()))
+    }
+}
+
+impl From<f64> for ExprDeser {
+    fn from(value: f64) -> Self {
+        Self(Expr::Literal(value.into()))
+    }
+}
+
+impl From<Color> for Expr {
+    fn from(value: Color) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
+impl From<f64> for Expr {
+    fn from(value: f64) -> Self {
+        Expr::Literal(value.into())
     }
 }
 
@@ -71,6 +110,17 @@ pub trait ExprFeature {
     fn geom_type(&self) -> ExprGeometryType;
 }
 
+pub struct EmptyExprFeature;
+impl ExprFeature for EmptyExprFeature {
+    fn property(&self, _property_name: &str) -> ExprValue<&str> {
+        ExprValue::Null
+    }
+
+    fn geom_type(&self) -> ExprGeometryType {
+        ExprGeometryType::None
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ExprView {
     pub resolution: f64,
@@ -81,18 +131,15 @@ impl Expr {
     pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
         match self {
             Expr::Literal(x) => x.borrowed(),
-
             Expr::All(exprs) => exprs.iter().all(|expr| expr.eval(f, v).to_bool()).into(),
             Expr::Any(exprs) => exprs.iter().any(|expr| expr.eval(f, v).to_bool()).into(),
             Expr::Not(expr) => (!expr.eval(f, v).to_bool()).into(),
-
             Expr::Eq(lhs, rhs) => (lhs.eval(f, v) == rhs.eval(f, v)).into(),
             Expr::Ne(lhs, rhs) => (lhs.eval(f, v) != rhs.eval(f, v)).into(),
             Expr::Gt(lhs, rhs) => (lhs.eval(f, v) > rhs.eval(f, v)).into(),
             Expr::Gte(lhs, rhs) => (lhs.eval(f, v) >= rhs.eval(f, v)).into(),
             Expr::Lt(lhs, rhs) => (lhs.eval(f, v) < rhs.eval(f, v)).into(),
             Expr::Lte(lhs, rhs) => (lhs.eval(f, v) <= rhs.eval(f, v)).into(),
-
             Expr::Get(prop) => f.property(prop),
             Expr::In { needle, haystack } => {
                 let value = needle.eval(f, v);
@@ -102,12 +149,14 @@ impl Expr {
 
                 haystack.iter().any(|expr| expr.eval(f, v) == value).into()
             }
-
             Expr::GeomType => f.geom_type().into(),
             Expr::Zoom => v
                 .z_index
                 .map(|z_level| (z_level as f64).into())
                 .unwrap_or(ExprValue::Null),
+            Expr::InterpolateLinear(ip) => ip.eval(f, v),
+            Expr::InterpolateExp(ip) => ip.eval(f, v),
+            Expr::InterpolateCubicBezier(ip) => ip.eval(f, v),
         }
     }
 }
