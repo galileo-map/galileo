@@ -120,6 +120,7 @@ pub(crate) fn run() {
         .expect("failed to initialize");
 }
 
+#[allow(clippy::unwrap_used)]
 fn linear_interpolation_style() -> StyleRule {
     StyleRule {
         layer_name: None,
@@ -149,6 +150,7 @@ fn linear_interpolation_style() -> StyleRule {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 fn exponential_interpolation_style() -> StyleRule {
     StyleRule {
         layer_name: None,
@@ -179,6 +181,7 @@ fn exponential_interpolation_style() -> StyleRule {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 fn cubic_interpolation_style() -> StyleRule {
     StyleRule {
         layer_name: None,

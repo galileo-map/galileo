@@ -44,6 +44,13 @@ impl<S> ExprValue<S> {
         }
     }
 
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            ExprValue::Number(v) => Some(*v),
+            _ => None,
+        }
+    }
+
     pub fn to_bool(&self) -> bool {
         self.as_bool().unwrap_or(false)
     }

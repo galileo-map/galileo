@@ -3,6 +3,7 @@
 use std::ops::Deref;
 
 use galileo::Color;
+use galileo::expr::ExprValue;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -20,6 +21,12 @@ impl<'de> Deserialize<'de> for MlColor {
 impl From<MlColor> for Color {
     fn from(value: MlColor) -> Self {
         value.0
+    }
+}
+
+impl<T> From<MlColor> for ExprValue<T> {
+    fn from(value: MlColor) -> Self {
+        Self::Color(value.0)
     }
 }
 

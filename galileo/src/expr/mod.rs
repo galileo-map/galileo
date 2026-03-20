@@ -40,6 +40,8 @@ pub enum Expr {
     InterpolateLinear(Box<LinearInterpolation>),
     InterpolateExp(Box<ExponentialInterpolation>),
     InterpolateCubicBezier(Box<CubicBezierInterpolation>),
+
+    WithOpacity(WithOpacityExpr),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -157,6 +159,7 @@ impl Expr {
             Expr::InterpolateLinear(ip) => ip.eval(f, v),
             Expr::InterpolateExp(ip) => ip.eval(f, v),
             Expr::InterpolateCubicBezier(ip) => ip.eval(f, v),
+            Expr::WithOpacity(wo) => wo.eval(f, v),
         }
     }
 }
@@ -164,6 +167,26 @@ impl Expr {
 impl From<ExprValue<String>> for Expr {
     fn from(value: ExprValue<String>) -> Self {
         Self::Literal(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WithOpacityExpr {
+    pub color: Box<Expr>,
+    pub opacity: Box<Expr>,
+}
+
+impl WithOpacityExpr {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
+        let Some(color) = self.color.eval(f, v).as_color() else {
+            return ExprValue::Null;
+        };
+
+        let Some(opacity) = self.opacity.eval(f, v).as_f64() else {
+            return ExprValue::Null;
+        };
+
+        ExprValue::Color(color.with_alpha_float(opacity))
     }
 }
 

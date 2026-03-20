@@ -48,7 +48,7 @@ use super::expression::MlExpr;
 /// The interpolation type for a legacy [`Function`].
 ///
 /// Governs how the function interpolates between stops.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FunctionType {
     /// Passes the input through unchanged (no stops required).
@@ -209,7 +209,7 @@ where
 /// // Function (legacy) — JSON object with a "stops" key
 /// {"base": 1.4, "stops": [[5, 1], [10, 4]]}
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum MlStyleValue<T: Default>
 where
@@ -486,22 +486,6 @@ mod tests {
     }
 
     #[test]
-    fn roundtrip_f64_literal() {
-        let original = json!(1.5);
-        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
-        let back = serde_json::to_value(&v).unwrap();
-        assert_eq!(back, original);
-    }
-
-    #[test]
-    fn roundtrip_expression() {
-        let original = json!(["interpolate", ["linear"], ["zoom"], 5, 1.0, 10, 4.0]);
-        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
-        let back = serde_json::to_value(&v).unwrap();
-        assert_eq!(back, original);
-    }
-
-    #[test]
     fn complex_expression() {
         let input = json!([
             "interpolate",
@@ -518,14 +502,6 @@ mod tests {
             v.as_expression().and_then(|e| e.operator()),
             Some("interpolate")
         );
-    }
-
-    #[test]
-    fn roundtrip_function() {
-        let original = json!({"base": 1.5, "stops": [[0.0, 0.0], [10.0, 1.0]]});
-        let v: MlStyleValue<f64> = serde_json::from_value(original.clone()).unwrap();
-        let back = serde_json::to_value(&v).unwrap();
-        assert_eq!(back, original);
     }
 
     #[test]

@@ -1,13 +1,12 @@
 use galileo::Color;
+use galileo::expr::{
+    ControlPoint, ExponentialInterpolation, Expr, ExprDeser, ExprValue, WithOpacityExpr,
+};
 use galileo::galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use galileo::galileo_types::geo::impls::GeoPoint2d;
 use galileo::galileo_types::geo::{Crs, NewGeoPoint, Projection};
 use galileo::layer::VectorTileLayer;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
-use galileo::layer::vector_tile_layer::expressions::{
-    ExponentialInterpolationArgs, InterpolateExpression, InterpolationArgs, OperationBase,
-    StepValue, StyleValue,
-};
 use galileo::layer::vector_tile_layer::style::{
     StyleRule, VectorTileLineSymbol, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
 };
@@ -18,7 +17,7 @@ use crate::layer::{UNSUPPORTED, log_unsupported_field};
 use crate::style::color::MlColor;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer};
 use crate::style::source::{TileScheme, VectorSource};
-use crate::style::value::{FunctionStop, MlStyleValue};
+use crate::style::value::{FunctionStop, FunctionType, MlStyleValue};
 
 /// Tries to create a [`VectorTileLayer`] from a Maplibre vector source and the style layers that
 /// reference it. Returns `None` if the source cannot be used (e.g. no tile URLs available).
@@ -63,8 +62,9 @@ pub fn try_create(
 ///
 /// Maptiler supports having background layer in any position, and just adds filling of the
 /// entire tile. WE don't support this currently, and always put background at the back.
-fn get_background(layers: &[&MaplibreStyleLayer]) -> StyleValue<Color> {
-    const DEFAULT_TILE_BACKGROUND: StyleValue<Color> = StyleValue::Simple(Color::TRANSPARENT);
+fn get_background(layers: &[&MaplibreStyleLayer]) -> ExprDeser {
+    const DEFAULT_TILE_BACKGROUND: ExprDeser =
+        ExprDeser(Expr::Literal(ExprValue::Color(Color::TRANSPARENT)));
 
     let layer = match layers {
         [] => return DEFAULT_TILE_BACKGROUND,
@@ -96,66 +96,61 @@ fn get_background(layers: &[&MaplibreStyleLayer]) -> StyleValue<Color> {
         &layer.paint.background_color,
         &layer.paint.background_opacity,
     )
+    .map(Into::into)
     .unwrap_or(DEFAULT_TILE_BACKGROUND)
 }
 
-fn get_color_value(
-    color: &MlStyleValue<MlColor>,
-    opacity: &MlStyleValue<f64>,
-) -> Option<StyleValue<Color>> {
+fn get_color_value(color: &MlStyleValue<MlColor>, opacity: &MlStyleValue<f64>) -> Option<Expr> {
     let galileo_color = get_galileo_value(color)?;
-    let galileo_opacity = get_galileo_value(opacity).unwrap_or(StyleValue::Simple(1.0));
+    let galileo_opacity = get_galileo_value(opacity);
 
-    match (galileo_color, galileo_opacity) {
-        (StyleValue::Simple(c), StyleValue::Simple(o)) => Some((*c).with_alpha_float(o).into()),
-        (StyleValue::Simple(c), StyleValue::Interpolate(o)) => Some(StyleValue::Interpolate(
-            o.map(|opacity| (*c).with_alpha_float(opacity)),
-        )),
-        (StyleValue::Simple(c), StyleValue::Steps(o)) => Some(StyleValue::Steps(
-            o.map(|opacity| (*c).with_alpha_float(opacity)),
-        )),
-        (StyleValue::Interpolate(c), StyleValue::Simple(o)) => Some(StyleValue::Interpolate(
-            c.map(|color| (*color).with_alpha_float(o)),
-        )),
-        (StyleValue::Steps(c), StyleValue::Simple(o)) => Some(StyleValue::Steps(
-            c.map(|color| (*color).with_alpha_float(o)),
-        )),
-        _ => {
-            log::debug!(
-                "{UNSUPPORTED} Color values with both color and opacity interpolation are not yet supported",
-            );
-            None
-        }
-    }
+    Some(match galileo_opacity {
+        Some(v) => Expr::WithOpacity(WithOpacityExpr {
+            color: Box::new(galileo_color),
+            opacity: Box::new(v),
+        }),
+        None => galileo_color,
+    })
 }
 
-fn get_galileo_value<T: Copy + Default + std::fmt::Debug>(
-    value: &MlStyleValue<T>,
-) -> Option<StyleValue<T>>
+fn get_galileo_value<T: Copy + Default + std::fmt::Debug>(value: &MlStyleValue<T>) -> Option<Expr>
 where
     for<'de> FunctionStop<T>: Deserialize<'de>,
+    ExprValue<String>: From<T>,
 {
     match value {
-        MlStyleValue::Literal(v) => Some((*v).into()),
-        MlStyleValue::Expression(expr) => {
-            log::debug!(
-                "{UNSUPPORTED} Expressions of type {:?} are not yet supported",
-                expr.operator(),
-            );
-            None
-        }
+        MlStyleValue::Literal(v) => Some(Expr::Literal(ExprValue::from(*v))),
+        MlStyleValue::Expression(expr) => expr.to_galileo_expr(),
         MlStyleValue::Function(function) => {
-            let steps = function.stops.iter().map(|stop| StepValue {
-                basis: stop.input,
-                step_value: stop.output,
-            });
-            let args = InterpolationArgs::Exponential(
-                ExponentialInterpolationArgs::new(function.base, steps).ok()?,
-            );
-            Some(StyleValue::Interpolate(InterpolateExpression::new(
-                args,
-                OperationBase::Zlevel,
-            )))
+            let control_points = function
+                .stops
+                .iter()
+                .map(|stop| ControlPoint {
+                    input: stop.input.into(),
+                    output: ExprValue::<String>::from(stop.output).into(),
+                })
+                .collect();
+
+            if let Some(function_type) = function.function_type
+                && function_type != FunctionType::Exponential
+            {
+                log::debug!(
+                    "{UNSUPPORTED} Function type {function_type:?} is not supported yet. Ignoring",
+                );
+
+                return None;
+            }
+
+            let input = match &function.property {
+                Some(prop_name) => Expr::Get(prop_name.clone()),
+                None => Expr::Zoom,
+            };
+
+            Some(Expr::InterpolateExp(Box::new(ExponentialInterpolation {
+                base: function.base,
+                input,
+                control_points,
+            })))
         }
     }
 }
@@ -239,9 +234,6 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let fill_color = &fill.paint.fill_color;
     let fill_opacity = &fill.paint.fill_opacity;
     let color = get_color_value(fill_color, fill_opacity)?;
-    let StyleValue::Simple(color) = color else {
-        return None;
-    };
 
     log_unsupported_field!(fill.paint.fill_antialias);
     log_unsupported_field!(fill.paint.fill_outline_color);
@@ -301,9 +293,11 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
 
     let stroke_color = &line.paint.line_color;
     let stroke_opacity = &line.paint.line_opacity;
-    let color = get_color_value(stroke_color, stroke_opacity).unwrap_or(Color::TRANSPARENT.into());
+    let color = get_color_value(stroke_color, stroke_opacity)
+        .unwrap_or(Color::TRANSPARENT.into())
+        .into();
     let stroke_width = &line.paint.line_width;
-    let width = get_galileo_value(stroke_width).unwrap_or(1.0.into());
+    let width = get_galileo_value(stroke_width).unwrap_or(1.0.into()).into();
 
     let min_resolution = line
         .maxzoom

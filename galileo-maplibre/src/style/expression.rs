@@ -22,7 +22,10 @@
 
 use std::fmt;
 
-use galileo::expr::{Expr, ExprGeometryType, ExprValue};
+use galileo::expr::{
+    ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, ExprGeometryType,
+    ExprValue, LinearInterpolation,
+};
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
@@ -200,7 +203,7 @@ pub enum MlExpr {
         /// Output when the input is below the first stop.
         default_output: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(MlExpr, MlExpr)>,
+        stops: Vec<(f64, MlExpr)>,
     },
 
     /// `["interpolate", interp, input, stop_input_1, stop_output_1, ...]`
@@ -213,7 +216,7 @@ pub enum MlExpr {
         /// The numeric input expression.
         input: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(MlExpr, MlExpr)>,
+        stops: Vec<(f64, MlExpr)>,
     },
 
     /// `["interpolate-hcl", interp, input, stop_input_1, stop_output_1, ...]`
@@ -226,7 +229,7 @@ pub enum MlExpr {
         /// The numeric input expression.
         input: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(MlExpr, MlExpr)>,
+        stops: Vec<(f64, MlExpr)>,
     },
 
     /// `["interpolate-lab", interp, input, stop_input_1, stop_output_1, ...]`
@@ -239,7 +242,7 @@ pub enum MlExpr {
         /// The numeric input expression.
         input: Box<MlExpr>,
         /// `(threshold, output)` pairs in ascending order.
-        stops: Vec<(MlExpr, MlExpr)>,
+        stops: Vec<(f64, MlExpr)>,
     },
 
     /// `["get", property]` or `["get", property, object_expr]`
@@ -833,6 +836,12 @@ impl MlExpr {
             ),
             MlExpr::In { item, array } => contains(item, array)?,
             MlExpr::NotIn { item, array } => contains(item, array)?,
+            MlExpr::Interpolate {
+                interpolation,
+                input,
+                stops,
+            } => interpolation_to_galileo(interpolation, input, stops)?,
+            MlExpr::Zoom => Expr::Zoom,
             _ => {
                 log::debug!("{UNSUPPORTED} Expression {self:?} is not supported yet");
                 return None;
@@ -841,339 +850,55 @@ impl MlExpr {
     }
 }
 
-impl Serialize for MlExpr {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        // Convert to a serde_json::Value first, then serialize that.
-        // This lets us produce the exact JSON array format `["op", arg1, ...]`.
-        let v = expr_to_value(self);
-        v.serialize(s)
-    }
-}
-
-/// Convert an [`Expr`] to a [`Value`] that matches the MapLibre JSON array
-/// format for expressions.
-fn expr_to_value(e: &MlExpr) -> Value {
-    match e {
-        MlExpr::Literal(v) => v.clone(),
-        MlExpr::LiteralExpr(v) => Value::Array(vec![Value::String("literal".into()), v.clone()]),
-
-        // Variable binding
-        MlExpr::Let { bindings, body } => {
-            let mut arr = vec![Value::String("let".into())];
-            for (name, val) in bindings {
-                arr.push(Value::String(name.clone()));
-                arr.push(expr_to_value(val));
-            }
-            arr.push(expr_to_value(body));
-            Value::Array(arr)
-        }
-        MlExpr::Var(name) => Value::Array(vec![
-            Value::String("var".into()),
-            Value::String(name.clone()),
-        ]),
-
-        // Ramps / curves
-        MlExpr::Step {
-            input,
-            default_output,
-            stops,
-        } => {
-            let mut arr = vec![
-                Value::String("step".into()),
-                expr_to_value(input),
-                expr_to_value(default_output),
-            ];
-            for (inp, out) in stops {
-                arr.push(expr_to_value(inp));
-                arr.push(expr_to_value(out));
-            }
-            Value::Array(arr)
-        }
-        MlExpr::Interpolate {
-            interpolation,
-            input,
-            stops,
-        } => interp_to_array("interpolate", interpolation, input, stops),
-        MlExpr::InterpolateHcl {
-            interpolation,
-            input,
-            stops,
-        } => interp_to_array("interpolate-hcl", interpolation, input, stops),
-        MlExpr::InterpolateLab {
-            interpolation,
-            input,
-            stops,
-        } => interp_to_array("interpolate-lab", interpolation, input, stops),
-
-        // Lookup
-        MlExpr::Get { property, object } => opt_object_array("get", property, object.as_deref()),
-        MlExpr::Has { property, object } => opt_object_array("has", property, object.as_deref()),
-        MlExpr::NotHas { property, object } => {
-            opt_object_array("!has", property, object.as_deref())
-        }
-        MlExpr::At { index, array } => Value::Array(vec![
-            Value::String("at".into()),
-            expr_to_value(index),
-            expr_to_value(array),
-        ]),
-        MlExpr::In { item, array } => {
-            let mut arr = vec![Value::String("in".into()), expr_to_value(item)];
-            for val in array {
-                arr.push(expr_to_value(val));
-            }
-
-            Value::Array(arr)
-        }
-        MlExpr::NotIn { item, array } => {
-            let mut arr = vec![Value::String("!in".into()), expr_to_value(item)];
-            for val in array {
-                arr.push(expr_to_value(val));
-            }
-
-            Value::Array(arr)
-        }
-        MlExpr::IndexOf {
-            item,
-            array_or_string,
-            from_index,
-        } => {
-            let mut arr = vec![
-                Value::String("index-of".into()),
-                expr_to_value(item),
-                expr_to_value(array_or_string),
-            ];
-            if let Some(fi) = from_index {
-                arr.push(expr_to_value(fi));
-            }
-            Value::Array(arr)
-        }
-        MlExpr::Slice {
-            array_or_string,
-            start,
-            end,
-        } => {
-            let mut arr = vec![
-                Value::String("slice".into()),
-                expr_to_value(array_or_string),
-                expr_to_value(start),
-            ];
-            if let Some(e) = end {
-                arr.push(expr_to_value(e));
-            }
-            Value::Array(arr)
-        }
-        MlExpr::Length(inner) => {
-            Value::Array(vec![Value::String("length".into()), expr_to_value(inner)])
-        }
-        MlExpr::GlobalState(inner) => Value::Array(vec![
-            Value::String("global-state".into()),
-            expr_to_value(inner),
-        ]),
-
-        // Decision
-        MlExpr::Case { branches, fallback } => {
-            let mut arr = vec![Value::String("case".into())];
-            for (cond, out) in branches {
-                arr.push(expr_to_value(cond));
-                arr.push(expr_to_value(out));
-            }
-            arr.push(expr_to_value(fallback));
-            Value::Array(arr)
-        }
-        MlExpr::Match {
-            input,
-            branches,
-            fallback,
-        } => {
-            let mut arr = vec![Value::String("match".into()), expr_to_value(input)];
-            for (labels, out) in branches {
-                arr.push(labels.clone());
-                arr.push(expr_to_value(out));
-            }
-            arr.push(expr_to_value(fallback));
-            Value::Array(arr)
-        }
-        MlExpr::Coalesce(args) => variadic_array("coalesce", args),
-        MlExpr::All(args) => variadic_array("all", args),
-        MlExpr::Any(args) => variadic_array("any", args),
-        MlExpr::Not(inner) => Value::Array(vec![Value::String("!".into()), expr_to_value(inner)]),
-        MlExpr::Eq(a, b) => binary_array("==", a, b),
-        MlExpr::Ne(a, b) => binary_array("!=", a, b),
-        MlExpr::Gt(a, b) => binary_array(">", a, b),
-        MlExpr::Gte(a, b) => binary_array(">=", a, b),
-        MlExpr::Lt(a, b) => binary_array("<", a, b),
-        MlExpr::Lte(a, b) => binary_array("<=", a, b),
-        MlExpr::Within(v) => Value::Array(vec![Value::String("within".into()), v.clone()]),
-
-        // Math
-        MlExpr::Add(args) => variadic_array("+", args),
-        MlExpr::Mul(args) => variadic_array("*", args),
-        MlExpr::Sub(a, None) => Value::Array(vec![Value::String("-".into()), expr_to_value(a)]),
-        MlExpr::Sub(a, Some(b)) => binary_array("-", a, b),
-        MlExpr::Div(a, b) => binary_array("/", a, b),
-        MlExpr::Mod(a, b) => binary_array("%", a, b),
-        MlExpr::Pow(a, b) => binary_array("^", a, b),
-        MlExpr::Sqrt(inner) => unary_array("sqrt", inner),
-        MlExpr::Abs(inner) => unary_array("abs", inner),
-        MlExpr::Ceil(inner) => unary_array("ceil", inner),
-        MlExpr::Floor(inner) => unary_array("floor", inner),
-        MlExpr::Round(inner) => unary_array("round", inner),
-        MlExpr::Min(args) => variadic_array("min", args),
-        MlExpr::Max(args) => variadic_array("max", args),
-        MlExpr::Log2(inner) => unary_array("log2", inner),
-        MlExpr::Log10(inner) => unary_array("log10", inner),
-        MlExpr::Ln(inner) => unary_array("ln", inner),
-        MlExpr::Sin(inner) => unary_array("sin", inner),
-        MlExpr::Cos(inner) => unary_array("cos", inner),
-        MlExpr::Tan(inner) => unary_array("tan", inner),
-        MlExpr::Asin(inner) => unary_array("asin", inner),
-        MlExpr::Acos(inner) => unary_array("acos", inner),
-        MlExpr::Atan(inner) => unary_array("atan", inner),
-        MlExpr::Ln2 => Value::Array(vec![Value::String("ln2".into())]),
-        MlExpr::Pi => Value::Array(vec![Value::String("pi".into())]),
-        MlExpr::E => Value::Array(vec![Value::String("e".into())]),
-        MlExpr::Distance(v) => Value::Array(vec![Value::String("distance".into()), v.clone()]),
-
-        // Color
-        MlExpr::Rgb(r, g, b) => Value::Array(vec![
-            Value::String("rgb".into()),
-            expr_to_value(r),
-            expr_to_value(g),
-            expr_to_value(b),
-        ]),
-        MlExpr::Rgba(r, g, b, a) => Value::Array(vec![
-            Value::String("rgba".into()),
-            expr_to_value(r),
-            expr_to_value(g),
-            expr_to_value(b),
-            expr_to_value(a),
-        ]),
-        MlExpr::ToRgba(inner) => unary_array("to-rgba", inner),
-
-        // Type operators
-        MlExpr::TypeOf(inner) => unary_array("typeof", inner),
-        MlExpr::ToString(inner) => unary_array("to-string", inner),
-        MlExpr::ToNumber(args) => variadic_array("to-number", args),
-        MlExpr::ToBoolean(inner) => unary_array("to-boolean", inner),
-        MlExpr::ToColor(args) => variadic_array("to-color", args),
-        MlExpr::NumberAssertion(args) => variadic_array("number", args),
-        MlExpr::StringAssertion(args) => variadic_array("string", args),
-        MlExpr::BooleanAssertion(args) => variadic_array("boolean", args),
-        MlExpr::ObjectAssertion(args) => variadic_array("object", args),
-        MlExpr::ArrayAssertion {
-            element_type,
-            length,
-            value,
-        } => {
-            let mut arr = vec![Value::String("array".into())];
-            if let Some(et) = element_type {
-                arr.push(Value::String(et.clone()));
-                if let Some(len) = length {
-                    arr.push(Value::Number((*len).into()));
-                }
-            }
-            arr.push(expr_to_value(value));
-            Value::Array(arr)
-        }
-        MlExpr::Collator(opts) => {
-            Value::Array(vec![Value::String("collator".into()), opts.clone()])
-        }
-        MlExpr::Format(sections) => {
-            let mut arr = vec![Value::String("format".into())];
-            for (content, style) in sections {
-                arr.push(expr_to_value(content));
-                if let Some(s) = style {
-                    arr.push(s.clone());
-                }
-            }
-            Value::Array(arr)
-        }
-        MlExpr::Image(inner) => unary_array("image", inner),
-        MlExpr::NumberFormat { input, options } => Value::Array(vec![
-            Value::String("number-format".into()),
-            expr_to_value(input),
-            options.clone(),
-        ]),
-
-        // Feature data
-        MlExpr::FeatureState(inner) => unary_array("feature-state", inner),
-        MlExpr::GeometryType => Value::Array(vec![Value::String("geometry-type".into())]),
-        MlExpr::Id => Value::Array(vec![Value::String("id".into())]),
-        MlExpr::Properties => Value::Array(vec![Value::String("properties".into())]),
-        MlExpr::Accumulated => Value::Array(vec![Value::String("accumulated".into())]),
-        MlExpr::LineProgress => Value::Array(vec![Value::String("line-progress".into())]),
-
-        // Camera
-        MlExpr::Zoom => Value::Array(vec![Value::String("zoom".into())]),
-
-        // Heatmap
-        MlExpr::HeatmapDensity => Value::Array(vec![Value::String("heatmap-density".into())]),
-
-        // Color relief
-        MlExpr::Elevation => Value::Array(vec![Value::String("elevation".into())]),
-
-        // String
-        MlExpr::Upcase(inner) => unary_array("upcase", inner),
-        MlExpr::Downcase(inner) => unary_array("downcase", inner),
-        MlExpr::Concat(args) => variadic_array("concat", args),
-        MlExpr::IsSupportedScript(inner) => unary_array("is-supported-script", inner),
-        MlExpr::ResolvedLocale(inner) => unary_array("resolved-locale", inner),
-        MlExpr::Split(a, b) => binary_array("split", a, b),
-        MlExpr::Join(a, b) => binary_array("join", a, b),
-
-        // Unknown
-        MlExpr::Unknown { operator, args } => {
-            let mut arr = vec![Value::String(operator.clone())];
-            arr.extend(args.iter().cloned());
-            Value::Array(arr)
-        }
-    }
-}
-
-fn unary_array(op: &str, inner: &MlExpr) -> Value {
-    Value::Array(vec![Value::String(op.into()), expr_to_value(inner)])
-}
-
-fn binary_array(op: &str, a: &MlExpr, b: &MlExpr) -> Value {
-    Value::Array(vec![
-        Value::String(op.into()),
-        expr_to_value(a),
-        expr_to_value(b),
-    ])
-}
-
-fn variadic_array(op: &str, args: &[MlExpr]) -> Value {
-    let mut arr = vec![Value::String(op.into())];
-    for a in args {
-        arr.push(expr_to_value(a));
-    }
-    Value::Array(arr)
-}
-
-fn opt_object_array(op: &str, property: &MlExpr, object: Option<&MlExpr>) -> Value {
-    let mut arr = vec![Value::String(op.into()), expr_to_value(property)];
-    if let Some(obj) = object {
-        arr.push(expr_to_value(obj));
-    }
-    Value::Array(arr)
-}
-
-fn interp_to_array(
-    op: &str,
+fn interpolation_to_galileo(
     interpolation: &Interpolation,
     input: &MlExpr,
-    stops: &[(MlExpr, MlExpr)],
-) -> Value {
-    let mut arr = vec![
-        Value::String(op.into()),
-        serde_json::to_value(interpolation).unwrap_or(Value::Null),
-        expr_to_value(input),
-    ];
-    for (inp, out) in stops {
-        arr.push(expr_to_value(inp));
-        arr.push(expr_to_value(out));
-    }
-    Value::Array(arr)
+    stops: &[(f64, MlExpr)],
+) -> Option<Expr> {
+    Some(match interpolation {
+        Interpolation::Linear => Expr::InterpolateLinear(Box::new(LinearInterpolation {
+            input: input.to_galileo_expr()?,
+            control_points: stops
+                .iter()
+                .map(|(input, output)| {
+                    output.to_galileo_expr().map(|out| ControlPoint {
+                        input: (*input).into(),
+                        output: out,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+        })),
+        Interpolation::Exponential { base } => {
+            Expr::InterpolateExp(Box::new(ExponentialInterpolation {
+                base: *base,
+                input: input.to_galileo_expr()?,
+                control_points: stops
+                    .iter()
+                    .map(|(input, output)| {
+                        output.to_galileo_expr().map(|out| ControlPoint {
+                            input: (*input).into(),
+                            output: out,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+            }))
+        }
+        Interpolation::CubicBezier { x1, y1, x2, y2 } => {
+            Expr::InterpolateCubicBezier(Box::new(CubicBezierInterpolation {
+                curve_params: [*x1, *y1, *x2, *y2],
+                input: input.to_galileo_expr()?,
+                control_points: stops
+                    .iter()
+                    .map(|(input, output)| {
+                        output.to_galileo_expr().map(|out| ControlPoint {
+                            input: (*input).into(),
+                            output: out,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+            }))
+        }
+    })
 }
 
 impl<'de> Deserialize<'de> for MlExpr {
@@ -1704,7 +1429,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<MlExpr, String> {
 
 /// Parse pairs of `(input, output)` from a flat argument list, used by
 /// `step` and the `interpolate` family.
-fn parse_stop_pairs(args: &mut Vec<Value>, op: &str) -> Result<Vec<(MlExpr, MlExpr)>, String> {
+fn parse_stop_pairs(args: &mut Vec<Value>, op: &str) -> Result<Vec<(f64, MlExpr)>, String> {
     if !args.len().is_multiple_of(2) {
         return Err(format!(
             "expression \"{op}\": stop arguments must come in (input, output) pairs, got {} args",
@@ -1713,7 +1438,12 @@ fn parse_stop_pairs(args: &mut Vec<Value>, op: &str) -> Result<Vec<(MlExpr, MlEx
     }
     let mut stops = Vec::new();
     while args.len() >= 2 {
-        let input = expr_from_value(args.remove(0))?;
+        let input_arg = args.remove(0);
+        let Some(input) = input_arg.as_f64() else {
+            return Err(format!(
+                "stop input must be a number literal, got {input_arg:?}"
+            ));
+        };
         let output = expr_from_value(args.remove(0))?;
         stops.push((input, output));
     }
