@@ -60,35 +60,40 @@ fn ident_or_call(input: &str) -> ParseResult<'_, Expr> {
     }
 }
 
+/// Wraps a parser `f` in `( … )`, stripping surrounding whitespace.
+fn parens<'a, F, O>(f: F) -> impl FnMut(&'a str) -> ParseResult<'a, O>
+where
+    F: FnMut(&'a str) -> ParseResult<'a, O>,
+{
+    delimited(ws(char('(')), f, ws(char(')')))
+}
+
 /// Parses the argument list `( args… )` for a named function and builds the corresponding `Expr`.
 fn function_call<'a>(name: &str, input: &'a str) -> ParseResult<'a, Expr> {
     match name {
         "geom_type" => {
-            let (input, _) = delimited(ws(char('(')), multispace0, ws(char(')')))(input)?;
+            let (input, _) = parens(multispace0)(input)?;
             Ok((input, Expr::GeomType))
         }
         "zoom" => {
-            let (input, _) = delimited(ws(char('(')), multispace0, ws(char(')')))(input)?;
+            let (input, _) = parens(multispace0)(input)?;
             Ok((input, Expr::Zoom))
         }
         "not" => {
-            let (input, inner) = delimited(ws(char('(')), ws(expr), ws(char(')')))(input)?;
+            let (input, inner) = parens(ws(expr))(input)?;
             Ok((input, Expr::Not(Box::new(inner))))
         }
         "all" => {
-            let (input, exprs) = delimited(ws(char('(')), ws(expr_list), ws(char(')')))(input)?;
+            let (input, exprs) = parens(ws(expr_list))(input)?;
             Ok((input, Expr::All(exprs)))
         }
         "any" => {
-            let (input, exprs) = delimited(ws(char('(')), ws(expr_list), ws(char(')')))(input)?;
+            let (input, exprs) = parens(ws(expr_list))(input)?;
             Ok((input, Expr::Any(exprs)))
         }
         "in" => {
-            let (input, (needle, haystack)) = delimited(
-                ws(char('(')),
-                separated_pair(ws(expr), ws(char(',')), ws(expr_list)),
-                ws(char(')')),
-            )(input)?;
+            let (input, (needle, haystack)) =
+                parens(separated_pair(ws(expr), ws(char(',')), ws(expr_list)))(input)?;
             Ok((
                 input,
                 Expr::In {
@@ -98,38 +103,32 @@ fn function_call<'a>(name: &str, input: &'a str) -> ParseResult<'a, Expr> {
             ))
         }
         "rgba" => {
-            let (input, (r, g, b, a)) = delimited(
-                ws(char('(')),
-                tuple((
-                    ws(double_u8),
-                    preceded(ws(char(',')), ws(double_u8)),
-                    preceded(ws(char(',')), ws(double_u8)),
-                    preceded(ws(char(',')), ws(double_u8)),
-                )),
-                ws(char(')')),
-            )(input)?;
+            let (input, (r, g, b, a)) = parens(tuple((
+                ws(double_u8),
+                preceded(ws(char(',')), ws(double_u8)),
+                preceded(ws(char(',')), ws(double_u8)),
+                preceded(ws(char(',')), ws(double_u8)),
+            )))(input)?;
             Ok((
                 input,
                 Expr::Literal(ExprValue::Color(Color::rgba(r, g, b, a))),
             ))
         }
         "hsv" => {
-            let (input, (h, s, v)) = delimited(
-                ws(char('(')),
-                tuple((
-                    ws(double),
-                    preceded(ws(char(',')), ws(double)),
-                    preceded(ws(char(',')), ws(double)),
-                )),
-                ws(char(')')),
-            )(input)?;
+            let (input, (h, s, v)) = parens(tuple((
+                ws(double),
+                preceded(ws(char(',')), ws(double)),
+                preceded(ws(char(',')), ws(double)),
+            )))(input)?;
             Ok((
                 input,
                 Expr::Literal(ExprValue::Color(color_from_hsv(h, s, v))),
             ))
         }
-        // Unknown function name: treat the bare identifier as a Get and leave `(` unparsed.
-        _ => Ok((input, Expr::Get(name.to_string()))),
+        _ => Err(nom::Err::Error(nom::error::Error::new(
+            input,
+            nom::error::ErrorKind::Tag,
+        ))),
     }
 }
 
@@ -494,5 +493,10 @@ mod tests {
             expr,
             Expr::Literal(ExprValue::Color(Color::rgba(255, 0, 0, 255)))
         );
+    }
+
+    #[test]
+    fn parse_unknown_function_is_error() {
+        assert!(parse_expr("unknown_fun(42)").is_err());
     }
 }
