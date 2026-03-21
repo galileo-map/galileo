@@ -1,6 +1,6 @@
 use galileo::Color;
 use galileo::expr::{
-    ControlPoint, ExponentialInterpolation, Expr, ExprDeser, ExprValue, WithOpacityExpr,
+    ColorExpr, ControlPoint, ExponentialInterpolation, Expr, ExprValue, WithOpacityExpr,
 };
 use galileo::galileo_types::cartesian::{CartesianPoint2d, Point2, Rect};
 use galileo::galileo_types::geo::impls::GeoPoint2d;
@@ -62,9 +62,9 @@ pub fn try_create(
 ///
 /// Maptiler supports having background layer in any position, and just adds filling of the
 /// entire tile. WE don't support this currently, and always put background at the back.
-fn get_background(layers: &[&MaplibreStyleLayer]) -> ExprDeser {
-    const DEFAULT_TILE_BACKGROUND: ExprDeser =
-        ExprDeser(Expr::Literal(ExprValue::Color(Color::TRANSPARENT)));
+fn get_background(layers: &[&MaplibreStyleLayer]) -> ColorExpr {
+    const DEFAULT_TILE_BACKGROUND: ColorExpr =
+        ColorExpr::new(Expr::Literal(ExprValue::Color(Color::TRANSPARENT)));
 
     let layer = match layers {
         [] => return DEFAULT_TILE_BACKGROUND,

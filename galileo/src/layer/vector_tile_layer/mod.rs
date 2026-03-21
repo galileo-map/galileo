@@ -14,7 +14,7 @@ use galileo_types::impls::{ClosedContour, Polygon};
 use parking_lot::Mutex;
 pub use vector_tile::VectorTile;
 
-use crate::expr::{EmptyExprFeature, ExprDeser, ExprView};
+use crate::expr::{ColorExpr, EmptyExprFeature, ExprView};
 use crate::layer::Layer;
 use crate::layer::attribution::Attribution;
 use crate::layer::vector_tile_layer::style::VectorTileStyle;
@@ -55,7 +55,7 @@ impl std::fmt::Debug for VectorTileLayer {
 
 #[derive(Debug, Clone)]
 struct PreviousBackground {
-    color: ExprDeser,
+    color: ColorExpr,
     replaced_at: web_time::Instant,
 }
 
@@ -274,10 +274,7 @@ impl VectorTileLayer {
         };
 
         let mut prev_background = self.prev_background.lock();
-        let new_color = style
-            .background
-            .eval(&EmptyExprFeature, expr_view)
-            .as_color()?;
+        let new_color = style.background.eval(&EmptyExprFeature, expr_view)?;
         let color = match &*prev_background {
             Some(prev) => {
                 let k = web_time::Instant::now()
@@ -289,7 +286,7 @@ impl VectorTileLayer {
                     *prev_background = None;
                     new_color
                 } else {
-                    let prev_color = prev.color.eval(&EmptyExprFeature, expr_view).as_color()?;
+                    let prev_color = prev.color.eval(&EmptyExprFeature, expr_view)?;
                     prev_color.blend(new_color.with_alpha((new_color.a() as f32 * k) as u8))
                 }
             }

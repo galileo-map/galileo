@@ -4,7 +4,9 @@ use galileo_mvt::{MvtFeature, MvtValue};
 use serde::{Deserialize, Serialize};
 
 use crate::Color;
-use crate::expr::{ExprDeser, ExprFeature, ExprGeometryType, ExprValue, ExprView};
+use crate::expr::{
+    BoolExpr, ColorExpr, ExprFeature, ExprGeometryType, ExprValue, ExprView, NumExpr,
+};
 use crate::render::point_paint::PointPaint;
 use crate::render::text::{
     FontStyle, FontWeight, HorizontalAlignment, TextStyle, VerticalAlignment,
@@ -21,7 +23,7 @@ pub struct VectorTileStyle {
     pub rules: Vec<StyleRule>,
 
     /// Background color of tiles.
-    pub background: ExprDeser,
+    pub background: ColorExpr,
 }
 
 /// A rule that specifies what kind of features can be drawing with the given symbol.
@@ -36,7 +38,7 @@ pub struct StyleRule {
     pub min_resolution: Option<f64>,
     /// Specifies a set of attributes of a feature that must have the given values for this rule to be applied.
     #[serde(default)]
-    pub filter: Option<ExprDeser>,
+    pub filter: Option<BoolExpr>,
     /// Symbol to draw a feature with.
     #[serde(default)]
     pub symbol: VectorTileSymbol,
@@ -54,7 +56,7 @@ impl StyleRule {
             z_index: Some(z_index),
         };
 
-        expr.eval(feature, expr_view).as_bool().unwrap_or(false)
+        expr.eval(feature, expr_view)
     }
 }
 
@@ -149,16 +151,16 @@ impl VectorTileSymbol {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VectorTilePointSymbol {
     /// Size of the point.
-    pub size: ExprDeser,
+    pub size: NumExpr,
     /// Color of the point.
-    pub color: ExprDeser,
+    pub color: ColorExpr,
 }
 
 impl VectorTilePointSymbol {
     pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<PointPaint<'_>> {
         Some(PointPaint::circle(
-            self.color.eval(feature, view).as_color()?,
-            self.size.eval(feature, view).as_number()? as f32,
+            self.color.eval(feature, view)?,
+            self.size.eval(feature, view)? as f32,
         ))
     }
 }
@@ -167,16 +169,16 @@ impl VectorTilePointSymbol {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VectorTileLineSymbol {
     /// Width of the line in pixels.
-    pub width: ExprDeser,
+    pub width: NumExpr,
     /// Color of the line in pixels.
-    pub stroke_color: ExprDeser,
+    pub stroke_color: ColorExpr,
 }
 
 impl VectorTileLineSymbol {
     pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<LinePaint> {
         Some(LinePaint {
-            color: self.stroke_color.eval(feature, view).as_color()?,
-            width: self.width.eval(feature, view).as_number()?,
+            color: self.stroke_color.eval(feature, view)?,
+            width: self.width.eval(feature, view)?,
             offset: 0.0,
             line_cap: LineCap::Butt,
         })
@@ -187,13 +189,13 @@ impl VectorTileLineSymbol {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VectorTilePolygonSymbol {
     /// Color of the fill of polygon.
-    pub fill_color: ExprDeser,
+    pub fill_color: ColorExpr,
 }
 
 impl VectorTilePolygonSymbol {
     pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<PolygonPaint> {
         Some(PolygonPaint {
-            color: self.fill_color.eval(feature, view).as_color()?,
+            color: self.fill_color.eval(feature, view)?,
         })
     }
 }
@@ -214,10 +216,10 @@ pub struct VtTextStyle {
     /// Name of the font to use.
     pub font_family: Vec<String>,
     /// Size of the font in pixels.
-    pub font_size: ExprDeser,
+    pub font_size: NumExpr,
     /// Color of the font.
     #[serde(default = "default_font_color_style")]
-    pub font_color: ExprDeser,
+    pub font_color: ColorExpr,
     /// Alignment of label along horizontal axis.
     #[serde(default)]
     pub horizontal_alignment: HorizontalAlignment,
@@ -232,10 +234,10 @@ pub struct VtTextStyle {
     pub style: FontStyle,
     /// Width of the outline around the letters.
     #[serde(default = "default_outline_width_style")]
-    pub outline_width: ExprDeser,
+    pub outline_width: NumExpr,
     /// Color of the outline around the letters.
     #[serde(default = "default_outline_color_style")]
-    pub outline_color: ExprDeser,
+    pub outline_color: ColorExpr,
 }
 
 impl VtTextStyle {
@@ -244,27 +246,27 @@ impl VtTextStyle {
     pub fn get_value(self, feature: &MvtFeature, view: ExprView) -> Option<TextStyle> {
         Some(TextStyle {
             font_family: self.font_family,
-            font_size: self.font_size.eval(feature, view).as_number()? as f32,
-            font_color: self.font_color.eval(feature, view).as_color()?,
+            font_size: self.font_size.eval(feature, view)? as f32,
+            font_color: self.font_color.eval(feature, view)?,
             horizontal_alignment: self.horizontal_alignment,
             vertical_alignment: self.vertical_alignment,
             weight: self.weight,
             style: self.style,
-            outline_width: self.outline_width.eval(feature, view).as_number()? as f32,
-            outline_color: self.outline_color.eval(feature, view).as_color()?,
+            outline_width: self.outline_width.eval(feature, view)? as f32,
+            outline_color: self.outline_color.eval(feature, view)?,
         })
     }
 }
 
-fn default_font_color_style() -> ExprDeser {
+fn default_font_color_style() -> ColorExpr {
     Color::BLACK.into()
 }
 
-fn default_outline_color_style() -> ExprDeser {
+fn default_outline_color_style() -> ColorExpr {
     Color::TRANSPARENT.into()
 }
 
-fn default_outline_width_style() -> ExprDeser {
+fn default_outline_width_style() -> NumExpr {
     0.0.into()
 }
 

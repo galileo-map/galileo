@@ -1,5 +1,7 @@
 #![allow(missing_docs)] //TODO: temporary allow
 
+use std::marker::PhantomData;
+
 use serde::{Deserialize, Deserializer, Serialize};
 
 mod interpolation;
@@ -46,35 +48,57 @@ pub enum Expr {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(transparent)]
-pub struct ExprDeser(pub Expr);
+pub struct TypedExpr<Out>(Expr, PhantomData<Out>);
 
-impl Default for ExprDeser {
+pub type ColorExpr = TypedExpr<Color>;
+pub type NumExpr = TypedExpr<f64>;
+pub type BoolExpr = TypedExpr<bool>;
+
+impl<T> Default for TypedExpr<T> {
     fn default() -> Self {
-        Self(Expr::Literal(ExprValue::Null))
+        Self(Expr::Literal(ExprValue::Null), PhantomData)
     }
 }
 
-impl ExprDeser {
-    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
-        self.0.eval(f, v)
+impl<Out> TypedExpr<Out> {
+    pub const fn new(expr: Expr) -> Self {
+        Self(expr, PhantomData)
     }
 }
 
-impl From<Expr> for ExprDeser {
+impl TypedExpr<Color> {
+    pub fn eval(&self, f: &impl ExprFeature, v: ExprView) -> Option<Color> {
+        self.0.eval(f, v).as_color()
+    }
+}
+
+impl TypedExpr<f64> {
+    pub fn eval(&self, f: &impl ExprFeature, v: ExprView) -> Option<f64> {
+        self.0.eval(f, v).as_number()
+    }
+}
+
+impl TypedExpr<bool> {
+    pub fn eval(&self, f: &impl ExprFeature, v: ExprView) -> bool {
+        self.0.eval(f, v).to_bool()
+    }
+}
+
+impl<Out> From<Expr> for TypedExpr<Out> {
     fn from(value: Expr) -> Self {
-        Self(value)
+        Self::new(value)
     }
 }
 
-impl From<Color> for ExprDeser {
+impl From<Color> for TypedExpr<Color> {
     fn from(value: Color) -> Self {
-        Self(Expr::Literal(value.into()))
+        Expr::Literal(value.into()).into()
     }
 }
 
-impl From<f64> for ExprDeser {
+impl From<f64> for TypedExpr<f64> {
     fn from(value: f64) -> Self {
-        Self(Expr::Literal(value.into()))
+        Expr::Literal(value.into()).into()
     }
 }
 
@@ -90,7 +114,7 @@ impl From<f64> for Expr {
     }
 }
 
-impl<'de> Deserialize<'de> for ExprDeser {
+impl<'de, Out> Deserialize<'de> for TypedExpr<Out> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         // Buffer into a generic value so we can inspect the shape without consuming the input.
         let value = serde_json::Value::deserialize(deserializer)?;
@@ -197,7 +221,7 @@ mod tests {
     #[test]
     fn deserialize_expr_from_string() {
         let json = r#""kind == \"road\"""#;
-        let expr: ExprDeser = serde_json::from_str(json).unwrap();
+        let expr: BoolExpr = serde_json::from_str(json).unwrap();
         assert_eq!(
             expr.0,
             Expr::Eq(
@@ -210,13 +234,13 @@ mod tests {
     #[test]
     fn deserialize_expr_from_object() {
         let json = r#"{"Get": "kind"}"#;
-        let expr: ExprDeser = serde_json::from_str(json).unwrap();
+        let expr: NumExpr = serde_json::from_str(json).unwrap();
         assert_eq!(expr.0, Expr::Get("kind".to_string()));
     }
 
     #[test]
     fn deserialize_bad_string_returns_error() {
         let json = r#""@@@ not valid @@@""#;
-        assert!(serde_json::from_str::<Expr>(json).is_err());
+        assert!(serde_json::from_str::<NumExpr>(json).is_err());
     }
 }
