@@ -24,13 +24,14 @@ use std::fmt;
 
 use galileo::expr::{
     ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, ExprGeometryType,
-    ExprValue, LinearInterpolation,
+    ExprValue, LinearInterpolation, MatchCase, MatchExpr,
 };
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use crate::layer::{UNSUPPORTED, log_unsupported};
+use crate::style::color::parse_css_color;
 
 /// The interpolation curve used by [`Expr::Interpolate`] and its color-space
 /// variants.
@@ -250,7 +251,7 @@ pub enum MlExpr {
     /// Retrieves a feature property (or a property from `object_expr`).
     Get {
         /// The property name expression (typically a string literal).
-        property: Box<MlExpr>,
+        property: String,
         /// Optional object to retrieve the property from.
         object: Option<Box<MlExpr>>,
     },
@@ -809,11 +810,22 @@ impl MlExpr {
             })
         }
 
+        fn literal(v: &Value) -> Option<ExprValue<String>> {
+            match v {
+                Value::Bool(v) => Some(ExprValue::Boolean(*v)),
+                Value::Number(v) => Some(ExprValue::Number(v.as_f64()?)),
+                Value::String(v) => Some(
+                    parse_css_color(v)
+                        .map(ExprValue::from)
+                        .unwrap_or_else(|| ExprValue::String(v.clone())),
+                ),
+                Value::Null => Some(ExprValue::Null),
+                _ => None,
+            }
+        }
+
         Some(match self {
-            MlExpr::Literal(Value::Bool(v)) => ExprValue::Boolean(*v).into(),
-            MlExpr::Literal(Value::Number(v)) => ExprValue::Number(v.as_f64()?).into(),
-            MlExpr::Literal(Value::String(v)) => ExprValue::String(v.clone()).into(),
-            MlExpr::Literal(Value::Null) => ExprValue::Null.into(),
+            MlExpr::Literal(l) => literal(l)?.into(),
             MlExpr::All(parts) => Expr::All(
                 parts
                     .iter()
@@ -842,6 +854,39 @@ impl MlExpr {
                 stops,
             } => interpolation_to_galileo(interpolation, input, stops)?,
             MlExpr::Zoom => Expr::Zoom,
+            MlExpr::Get { property, object } => {
+                if object.is_some() {
+                    log_unsupported!(format!("get from an object"));
+                    return None;
+                }
+
+                Expr::Get(property.clone())
+            }
+            MlExpr::Match {
+                input,
+                branches,
+                fallback,
+            } => Expr::Match(Box::new(MatchExpr {
+                input: input.to_galileo_expr()?,
+                cases: branches
+                    .iter()
+                    .map(|(values, out)| {
+                        let entries = match values {
+                            Value::Array(entries) => entries.clone(),
+                            v => vec![v.clone()],
+                        };
+
+                        Some(MatchCase {
+                            in_values: entries
+                                .into_iter()
+                                .map(|v| literal(&v))
+                                .collect::<Option<Vec<_>>>()?,
+                            out: out.to_galileo_expr()?,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+                fallback: fallback.to_galileo_expr()?,
+            })),
             _ => {
                 log::debug!("{UNSUPPORTED} Expression {self:?} is not supported yet");
                 return None;
@@ -1052,7 +1097,10 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<MlExpr, String> {
         }
 
         "get" => {
-            let property = box_expr(take_arg(&mut args, 1, "get")?)?;
+            let property = take_arg(&mut args, 1, "get")?
+                .as_str()
+                .ok_or_else(|| "Expected string value for get argument".to_string())?
+                .to_owned();
             let object = if args.is_empty() {
                 None
             } else {
@@ -1510,7 +1558,7 @@ mod tests {
         let e = parse(json!(["get", "name"]));
         match e {
             MlExpr::Get { property, .. } => {
-                assert!(matches!(*property, MlExpr::Literal(Value::String(_))));
+                assert_eq!(property, "name");
             }
             other => panic!("expected Get, got {other:?}"),
         }

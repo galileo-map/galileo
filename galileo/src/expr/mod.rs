@@ -6,6 +6,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 mod interpolation;
 pub use interpolation::*;
+mod match_expr;
+pub use match_expr::*;
 
 mod value;
 pub use value::{ExprGeometryType, ExprValue};
@@ -42,6 +44,8 @@ pub enum Expr {
     InterpolateLinear(Box<LinearInterpolation>),
     InterpolateExp(Box<ExponentialInterpolation>),
     InterpolateCubicBezier(Box<CubicBezierInterpolation>),
+
+    Match(Box<MatchExpr>),
 
     WithOpacity(WithOpacityExpr),
 }
@@ -183,6 +187,7 @@ impl Expr {
             Expr::InterpolateLinear(ip) => ip.eval(f, v),
             Expr::InterpolateExp(ip) => ip.eval(f, v),
             Expr::InterpolateCubicBezier(ip) => ip.eval(f, v),
+            Expr::Match(m) => m.eval(f, v),
             Expr::WithOpacity(wo) => wo.eval(f, v),
         }
     }
