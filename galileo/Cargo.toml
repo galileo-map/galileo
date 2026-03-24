@@ -30,6 +30,7 @@ base64 = { workspace = true }
 bytemuck = { workspace = true, features = ["derive"] }
 bytes = { workspace = true }
 cfg-if = { workspace = true }
+chumsky = { workspace = true }
 either = { workspace = true }
 futures-intrusive = { workspace = true }
 galileo-mvt = { workspace = true }
@@ -37,10 +38,10 @@ galileo-types = { workspace = true }
 geojson = { workspace = true, optional = true }
 geozero = { workspace = true, features = ["with-geojson", "with-geo"] }
 image = { workspace = true, default-features = false, features = ["png", "jpeg"], optional = true }
+itertools = { workspace = true }
 log = { workspace = true }
 lyon = { workspace = true, features = ["serialization"] }
 nalgebra = { workspace = true }
-nom = { workspace = true }
 num-traits = { workspace = true }
 ordered-float = { workspace = true }
 ordered_hash_map = { workspace = true }

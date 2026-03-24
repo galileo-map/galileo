@@ -2,6 +2,7 @@
 
 use std::marker::PhantomData;
 
+use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize};
 
 mod interpolation;
@@ -10,6 +11,7 @@ mod match_expr;
 pub use match_expr::*;
 
 mod value;
+use serde_json::Value;
 pub use value::{ExprGeometryType, ExprValue};
 
 use crate::Color;
@@ -118,20 +120,42 @@ impl From<f64> for Expr {
     }
 }
 
+impl From<String> for Expr {
+    fn from(value: String) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
+impl From<bool> for Expr {
+    fn from(value: bool) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
 impl<'de, Out> Deserialize<'de> for TypedExpr<Out> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         // Buffer into a generic value so we can inspect the shape without consuming the input.
         let value = serde_json::Value::deserialize(deserializer)?;
 
-        if let serde_json::Value::String(ref s) = value {
-            return parser::parse_expr(s)
-                .map(|(_, expr)| expr.into())
-                .map_err(|e| serde::de::Error::custom(format!("expression parse error: {e}")));
-        }
+        let expr = match value {
+            Value::Number(v) => v
+                .as_f64()
+                .ok_or_else(|| serde::de::Error::custom(format!("invalid number value: {v}")))?
+                .into(),
+            Value::Bool(v) => v.into(),
+            Value::Null => ExprValue::Null.into(),
+            Value::String(s) => parser::parse_expr(&s).map_err(|e| {
+                let errors = e.into_iter().map(|v| v.to_string());
+                let errors = Itertools::intersperse(errors, ", ".to_string());
+                serde::de::Error::custom(format!(
+                    "expression parse error: {}",
+                    errors.collect::<String>(),
+                ))
+            })?,
+            v => Expr::deserialize(v).map_err(serde::de::Error::custom)?,
+        };
 
-        Expr::deserialize(value)
-            .map(Into::into)
-            .map_err(serde::de::Error::custom)
+        Ok(expr.into())
     }
 }
 
@@ -234,6 +258,13 @@ mod tests {
                 Box::new(Expr::Literal(ExprValue::String("road".to_string()))),
             )
         );
+    }
+
+    #[test]
+    fn deserialize_expr_from_num() {
+        let json = "42";
+        let expr: NumExpr = serde_json::from_str(json).unwrap();
+        assert_eq!(expr.0, Expr::Literal(ExprValue::Number(42.0)));
     }
 
     #[test]

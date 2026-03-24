@@ -97,6 +97,12 @@ impl<S> From<Color> for ExprValue<S> {
     }
 }
 
+impl From<String> for ExprValue<String> {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
 impl<S: PartialOrd> PartialOrd for ExprValue<S> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {

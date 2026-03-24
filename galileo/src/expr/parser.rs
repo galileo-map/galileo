@@ -1,502 +1,459 @@
-use nom::IResult;
-use nom::branch::alt;
-use nom::bytes::complete::{tag, tag_no_case, take_while, take_while_m_n, take_while1};
-use nom::character::complete::{char, multispace0};
-use nom::combinator::{map, not, peek, value};
-use nom::multi::separated_list0;
-use nom::number::complete::double;
-use nom::sequence::{delimited, preceded, separated_pair, terminated, tuple};
+#![allow(dead_code)]
 
-use super::{Expr, ExprValue};
+use chumsky::error::Rich;
+use chumsky::prelude::*;
+
 use crate::Color;
+use crate::expr::{Expr, ExprValue};
 
-type ParseResult<'a, T> = IResult<&'a str, T>;
+/// Errors produced by the chumsky-based parser.
+pub type ExprParseError = Vec<Rich<'static, char>>;
+
+type Error<'src> = extra::Err<Rich<'src, char>>;
 
 /// Parses a complete expression from a string slice.
-pub fn parse_expr(input: &str) -> ParseResult<'_, Expr> {
-    ws(expr)(input)
+pub fn parse_expr(input: &str) -> Result<Expr, ExprParseError> {
+    expr_parser()
+        .parse(input)
+        .into_result()
+        .map_err(|errs| errs.into_iter().map(|e| e.into_owned()).collect())
 }
 
-fn ws<'a, F, O>(f: F) -> impl FnMut(&'a str) -> ParseResult<'a, O>
-where
-    F: FnMut(&'a str) -> ParseResult<'a, O>,
-{
-    delimited(multispace0, f, multispace0)
+fn expr_parser<'src>() -> impl Parser<'src, &'src str, Expr, extra::Err<Rich<'src, char>>> {
+    recursive(|expr_parser| choice((binary(expr_parser.clone()).boxed(), atom(expr_parser))))
 }
 
-fn expr(input: &str) -> ParseResult<'_, Expr> {
-    alt((comparison_expr, logical_expr, not_expr, in_expr, atom))(input)
+fn block<'src>(
+    expr_parser: impl Parser<'src, &'src str, Expr, Error<'src>> + Clone,
+) -> impl Parser<'src, &'src str, Expr, extra::Err<Rich<'src, char>>> + Clone {
+    expr_parser
+        .delimited_by(just('('), just(')'))
+        .labelled("expression block")
 }
 
-/// Parses an atom: a literal or an identifier (which is either a known function call or a `Get`).
-fn atom(input: &str) -> ParseResult<'_, Expr> {
-    alt((map(literal, Expr::Literal), ident_or_call))(input)
+fn atom<'src>(
+    expr_parser: impl Parser<'src, &'src str, Expr, Error<'src>> + Clone + 'src,
+) -> impl Parser<'src, &'src str, Expr, Error<'src>> + Clone {
+    choice((
+        block(expr_parser.clone()),
+        literal(),
+        func_call(expr_parser),
+        property(),
+        invalid(),
+    ))
+    .boxed()
 }
 
-/// Parses an identifier. An identifier starts with a letter or `_` and may contain letters,
-/// digits, `_`, or `-`.
-fn ident(input: &str) -> ParseResult<'_, &str> {
-    let (input, first) = take_while1(|c: char| c.is_ascii_alphabetic() || c == '_')(input)?;
-    let (input, rest) =
-        take_while(|c: char| c.is_ascii_alphanumeric() || c == '_' || c == '-')(input)?;
-    // Combine by returning the slice that spans both parts.
-    let full = &input[..0]; // zero-length suffix; we compute the span manually
-    let _ = full;
-    let span_len = first.len() + rest.len();
-    Ok((input, &first[..span_len]))
+fn func0(func_name: &str, constructor: Expr, args: Vec<Expr>) -> Result<Expr, String> {
+    if !args.is_empty() {
+        return Err(format!(
+            "Function `{func_name}` expected 0 arguments, but got {}",
+            args.len()
+        ));
+    }
+
+    Ok(constructor)
 }
 
-/// Dispatches an identifier to a known zero-arg function (`geom_type`, `zoom`), a known
-/// function call with arguments (`all`, `any`, `not`, `in`, `rgba`, `hsv`), or a bare
-/// identifier treated as a `Get` expression.
-fn ident_or_call(input: &str) -> ParseResult<'_, Expr> {
-    let (input, name) = ident(input)?;
-    // Peek: if the next non-space char is `(`, this is a function call.
-    let after_ws = input.trim_start();
-    if after_ws.starts_with('(') {
-        function_call(name, input)
-    } else {
-        Ok((input, Expr::Get(name.to_string())))
+struct FuncContext<'src> {
+    func_name: &'src str,
+    func_name_span: SimpleSpan,
+    args: Vec<Option<(Expr, &'src str, SimpleSpan)>>,
+}
+
+impl<'src> FuncContext<'src> {
+    fn new(
+        func_name: &'src str,
+        func_name_span: SimpleSpan,
+        args: Vec<(Expr, &'src str, SimpleSpan)>,
+    ) -> Self {
+        Self {
+            func_name,
+            func_name_span,
+            args: args.into_iter().map(Some).collect(),
+        }
+    }
+
+    fn all_args_used(&self, span: SimpleSpan) -> Result<(), Rich<'src, char>> {
+        let all_args = self.args.len();
+        let unused_args = self.args.iter().filter(|v| v.is_some()).count();
+
+        if unused_args > 0 {
+            Err(Rich::custom(
+                span,
+                format!(
+                    "function {} expected {} arguments but got {all_args} instead",
+                    self.func_name,
+                    all_args - unused_args
+                ),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn args1<Arg1>(
+        &mut self,
+        constructor: impl FnOnce(Arg1) -> Expr,
+    ) -> Result<Expr, Rich<'src, char>>
+    where
+        Self: GetArg<'src, Arg1>,
+    {
+        Ok(constructor(self.get(0)?))
+    }
+
+    fn unknown(&self) -> Result<Expr, Rich<'src, char>> {
+        Err(Rich::custom(
+            self.func_name_span,
+            format!("Unknown function `{}`", self.func_name),
+        ))
     }
 }
 
-/// Wraps a parser `f` in `( … )`, stripping surrounding whitespace.
-fn parens<'a, F, O>(f: F) -> impl FnMut(&'a str) -> ParseResult<'a, O>
-where
-    F: FnMut(&'a str) -> ParseResult<'a, O>,
-{
-    delimited(ws(char('(')), f, ws(char(')')))
+trait GetArg<'src, T> {
+    fn get(&mut self, index: usize) -> Result<T, Rich<'src, char>>;
 }
 
-/// Parses the argument list `( args… )` for a named function and builds the corresponding `Expr`.
-fn function_call<'a>(name: &str, input: &'a str) -> ParseResult<'a, Expr> {
-    match name {
-        "geom_type" => {
-            let (input, _) = parens(multispace0)(input)?;
-            Ok((input, Expr::GeomType))
+impl<'src> GetArg<'src, String> for FuncContext<'src> {
+    fn get(&mut self, index: usize) -> Result<String, Rich<'src, char>> {
+        if index >= self.args.len() {
+            return Err(Rich::custom(
+                self.func_name_span,
+                format!("function {} missing argumnt {}", self.func_name, index + 1),
+            ));
         }
-        "zoom" => {
-            let (input, _) = parens(multispace0)(input)?;
-            Ok((input, Expr::Zoom))
-        }
-        "not" => {
-            let (input, inner) = parens(ws(expr))(input)?;
-            Ok((input, Expr::Not(Box::new(inner))))
-        }
-        "all" => {
-            let (input, exprs) = parens(ws(expr_list))(input)?;
-            Ok((input, Expr::All(exprs)))
-        }
-        "any" => {
-            let (input, exprs) = parens(ws(expr_list))(input)?;
-            Ok((input, Expr::Any(exprs)))
-        }
-        "in" => {
-            let (input, (needle, haystack)) =
-                parens(separated_pair(ws(expr), ws(char(',')), ws(expr_list)))(input)?;
-            Ok((
-                input,
-                Expr::In {
-                    needle: Box::new(needle),
-                    haystack,
-                },
+
+        let arg = self.args[index]
+            .take()
+            .expect("arguments are used only once");
+
+        if let Expr::Literal(ExprValue::String(value)) = arg.0 {
+            Ok(value)
+        } else {
+            Err(Rich::custom(
+                arg.2,
+                format!(
+                    "expected `String` argument at position `{}` of function `{}`, but got `{}`",
+                    index + 1,
+                    self.func_name,
+                    arg.1,
+                ),
             ))
         }
-        "rgba" => {
-            let (input, (r, g, b, a)) = parens(tuple((
-                ws(double_u8),
-                preceded(ws(char(',')), ws(double_u8)),
-                preceded(ws(char(',')), ws(double_u8)),
-                preceded(ws(char(',')), ws(double_u8)),
-            )))(input)?;
-            Ok((
-                input,
-                Expr::Literal(ExprValue::Color(Color::rgba(r, g, b, a))),
-            ))
-        }
-        "hsv" => {
-            let (input, (h, s, v)) = parens(tuple((
-                ws(double),
-                preceded(ws(char(',')), ws(double)),
-                preceded(ws(char(',')), ws(double)),
-            )))(input)?;
-            Ok((
-                input,
-                Expr::Literal(ExprValue::Color(color_from_hsv(h, s, v))),
-            ))
-        }
-        _ => Err(nom::Err::Error(nom::error::Error::new(
-            input,
-            nom::error::ErrorKind::Tag,
-        ))),
     }
 }
 
-/// Parses a quoted string literal. Both `"hello"` and `'hello'` are accepted; the opening and
-/// closing quote must match.
-fn string_literal(input: &str) -> ParseResult<'_, ExprValue<String>> {
-    let (input, quote) = alt((char('"'), char('\'')))(input)?;
-    let (input, s) = take_while(move |c| c != quote)(input)?;
-    let (input, _) = char(quote)(input)?;
-    Ok((input, ExprValue::String(s.to_string())))
+fn func_call<'src>(
+    expr_parser: impl Parser<'src, &'src str, Expr, Error<'src>> + Clone + 'src,
+) -> impl Parser<'src, &'src str, Expr, Error<'src>> {
+    let arg_list = expr_parser
+        .map_with(|expr, e| (expr, e.slice(), e.span()))
+        .separated_by(just(','))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just('('), just(')'));
+
+    ident()
+        .map_with(|func_name, e| (func_name, e.span()))
+        .then(arg_list)
+        .validate(|((func_name, func_name_span), args), e, emitter| {
+            let mut c = FuncContext::new(func_name, func_name_span, args);
+            let res = match func_name {
+                "zoom" => Ok(Expr::Zoom),
+                "get" => c.args1(Expr::Get),
+                _ => c.unknown(),
+            }
+            .and_then(|r| {
+                c.all_args_used(e.span())?;
+                Ok(r)
+            });
+
+            match res {
+                Ok(expr) => expr,
+                Err(err) => {
+                    emitter.emit(err);
+                    ExprValue::Null.into()
+                }
+            }
+        })
 }
 
-/// Parses a numeric literal, but rejects bare identifiers that `double` would otherwise consume.
-fn number_literal(input: &str) -> ParseResult<'_, ExprValue<String>> {
-    // Reject if the input starts with a letter (would be an ident / keyword).
-    let (_, _) = not(peek(take_while1(|c: char| {
-        c.is_ascii_alphabetic() || c == '_'
-    })))(input)?;
-    map(double, ExprValue::Number)(input)
+fn property<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
+    ident()
+        .map(|name| Expr::Get(name.to_string()))
+        .labelled("property name")
 }
 
-/// Parses `true` or `false` as boolean literals, ensuring they are not a prefix of a longer ident.
-fn bool_literal(input: &str) -> ParseResult<'_, ExprValue<String>> {
-    alt((
-        map(terminated(tag("true"), not(peek(ident_cont))), |_| {
-            ExprValue::Boolean(true)
-        }),
-        map(terminated(tag("false"), not(peek(ident_cont))), |_| {
-            ExprValue::Boolean(false)
-        }),
-    ))(input)
+fn ident<'src>() -> impl Parser<'src, &'src str, &'src str, Error<'src>> {
+    any()
+        .filter(|c: &char| c.is_ascii_alphabetic() || *c == '_')
+        .then(ident_cont().repeated())
+        .to_slice()
 }
 
-/// Parses `null`, ensuring it is not a prefix of a longer identifier.
-fn null_literal(input: &str) -> ParseResult<'_, ExprValue<String>> {
-    value(
-        ExprValue::Null,
-        terminated(tag("null"), not(peek(ident_cont))),
-    )(input)
+fn operator<'src>() -> impl Parser<'src, &'src str, fn(Box<Expr>, Box<Expr>) -> Expr, Error<'src>> {
+    choice((
+        just("==").to(Expr::Eq as fn(_, _) -> _).labelled("=="),
+        just("!=").to(Expr::Ne as fn(_, _) -> _).labelled("!="),
+        just(">").to(Expr::Gt as fn(_, _) -> _).labelled(">"),
+        just(">=").to(Expr::Gte as fn(_, _) -> _).labelled(">="),
+        just("<").to(Expr::Lt as fn(_, _) -> _).labelled("<"),
+        just("<=").to(Expr::Lte as fn(_, _) -> _).labelled("<="),
+    ))
+    .padded()
 }
 
-/// Matches a single identifier-continuation character.
-fn ident_cont(input: &str) -> ParseResult<'_, char> {
-    nom::character::complete::satisfy(|c: char| c.is_ascii_alphanumeric() || c == '_' || c == '-')(
-        input,
-    )
+fn binary<'src>(
+    expr_parser: impl Parser<'src, &'src str, Expr, Error<'src>> + Clone + 'src,
+) -> impl Parser<'src, &'src str, Expr, Error<'src>> {
+    atom(expr_parser.clone())
+        .then(operator())
+        .then(atom(expr_parser))
+        .map(|((lhs, constructor), rhs)| constructor(Box::new(lhs), Box::new(rhs)))
+}
+
+/// Returns a parser for identifier-continuation characters: ASCII alphanumeric, `_`.
+fn ident_cont<'src>() -> impl Parser<'src, &'src str, char, extra::Err<Rich<'src, char>>> {
+    any().filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
+}
+
+/// Parses `true` or `false`, rejecting a longer identifier that merely starts with those words.
+fn bool_literal<'src>()
+-> impl Parser<'src, &'src str, ExprValue<String>, extra::Err<Rich<'src, char>>> {
+    let true_ = just("true").to(ExprValue::Boolean(true));
+    let false_ = just("false").to(ExprValue::Boolean(false));
+
+    choice((true_, false_))
+}
+
+/// Parses `null`, rejecting a longer identifier that merely starts with `null`.
+fn null_literal<'src>()
+-> impl Parser<'src, &'src str, ExprValue<String>, extra::Err<Rich<'src, char>>> {
+    just("null").to(ExprValue::Null)
 }
 
 /// Parses a hex color literal: `#RRGGBB` or `#RRGGBBAA`.
-fn hex_color_literal(input: &str) -> ParseResult<'_, ExprValue<String>> {
-    let (input, _) = char('#')(input)?;
-    let (input, hex) = take_while_m_n(6, 8, |c: char| c.is_ascii_hexdigit())(input)?;
-    if hex.len() != 6 && hex.len() != 8 {
-        return Err(nom::Err::Error(nom::error::Error::new(
-            input,
-            nom::error::ErrorKind::LengthValue,
-        )));
-    }
-    let color_str = format!("#{hex}");
-    match Color::try_from_hex(&color_str) {
-        Some(c) => Ok((input, ExprValue::Color(c))),
-        None => Err(nom::Err::Error(nom::error::Error::new(
-            input,
-            nom::error::ErrorKind::Fail,
-        ))),
-    }
+fn hex_color_literal<'src>()
+-> impl Parser<'src, &'src str, ExprValue<String>, extra::Err<Rich<'src, char>>> {
+    just('#')
+        .ignore_then(
+            any()
+                .filter(|c: &char| c.is_ascii_hexdigit())
+                .repeated()
+                .at_least(6)
+                .at_most(8)
+                .collect::<String>(),
+        )
+        .try_map(|hex, span| {
+            if hex.len() != 6 && hex.len() != 8 {
+                return Err(Rich::custom(span, "hex color must be 6 or 8 digits"));
+            }
+            let color_str = format!("#{hex}");
+            Color::try_from_hex(&color_str)
+                .map(ExprValue::Color)
+                .ok_or_else(|| Rich::custom(span, "invalid hex color"))
+        })
 }
 
-fn literal(input: &str) -> ParseResult<'_, ExprValue<String>> {
-    alt((
-        bool_literal,
-        null_literal,
-        hex_color_literal,
-        number_literal,
-        string_literal,
-    ))(input)
+fn invalid<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
+    any()
+        .and_is(atom_boundary().not().rewind())
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .validate(move |s: &str, e, emitter| {
+            emitter.emit(Rich::custom(e.span(), format!("invalid value `{s}`")));
+            ExprValue::Null.into()
+        })
 }
 
-/// Parses a `double` value and clamps it to a `u8` (0–255).
-fn double_u8(input: &str) -> ParseResult<'_, u8> {
-    map(double, |v: f64| v.clamp(0.0, 255.0) as u8)(input)
+fn number_literal<'src>() -> impl Parser<'src, &'src str, ExprValue<String>, Error<'src>> {
+    let digits = text::digits(10);
+
+    let fraction = just('.').then(digits.or_not()).or_not();
+    let exponent = just('e')
+        .or(just('E'))
+        .then(just('-').or(just('+')).or_not())
+        .then(digits)
+        .or_not();
+
+    digits
+        .then(fraction)
+        .then(exponent)
+        .to_slice()
+        .try_map(|s: &str, span| {
+            s.parse::<f64>()
+                .map(ExprValue::Number)
+                .map_err(|e| Rich::custom(span, e))
+        })
 }
 
-/// Converts HSV (hue 0–360, saturation 0–1, value 0–1) to `Color`.
-fn color_from_hsv(h: f64, s: f64, v: f64) -> Color {
-    let h = h.rem_euclid(360.0);
-    let s = s.clamp(0.0, 1.0);
-    let v = v.clamp(0.0, 1.0);
-
-    let c = v * s;
-    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-    let m = v - c;
-
-    let (r1, g1, b1) = match h as u32 {
-        0..=59 => (c, x, 0.0),
-        60..=119 => (x, c, 0.0),
-        120..=179 => (0.0, c, x),
-        180..=239 => (0.0, x, c),
-        240..=299 => (x, 0.0, c),
-        _ => (c, 0.0, x),
+/// Parses a quoted string literal. Both `"hello"` and `'hello'` are accepted; the opening and
+/// closing quote must match. The escape sequences `\"` and `\'` are supported within the body.
+fn string_literal<'src>() -> impl Parser<'src, &'src str, String, Error<'src>> {
+    let quoted = |quote: char| {
+        let escaped = just('\\').ignore_then(just(quote));
+        let normal = none_of(['\\', quote]);
+        choice((escaped, normal))
+            .repeated()
+            .collect::<String>()
+            .delimited_by(just(quote), just(quote))
     };
-
-    Color::rgba(
-        ((r1 + m) * 255.0).round() as u8,
-        ((g1 + m) * 255.0).round() as u8,
-        ((b1 + m) * 255.0).round() as u8,
-        255,
-    )
+    choice((quoted('"'), quoted('\'')))
 }
 
-/// Parses binary comparison operators: `==`, `!=`, `>=`, `>`, `<=`, `<`.
-fn comparison_expr(input: &str) -> ParseResult<'_, Expr> {
-    let (input, (lhs, op, rhs)) = tuple((
-        ws(atom),
-        ws(alt((
-            tag("=="),
-            tag("!="),
-            tag(">="),
-            tag(">"),
-            tag("<="),
-            tag("<"),
-        ))),
-        ws(atom),
-    ))(input)?;
-
-    let lhs = Box::new(lhs);
-    let rhs = Box::new(rhs);
-    let result = match op {
-        "==" => Expr::Eq(lhs, rhs),
-        "!=" => Expr::Ne(lhs, rhs),
-        ">" => Expr::Gt(lhs, rhs),
-        ">=" => Expr::Gte(lhs, rhs),
-        "<" => Expr::Lt(lhs, rhs),
-        "<=" => Expr::Lte(lhs, rhs),
-        _ => unreachable!(),
-    };
-    Ok((input, result))
-}
-
-/// Parses a comma-separated list of expressions wrapped in square brackets.
-fn expr_list(input: &str) -> ParseResult<'_, Vec<Expr>> {
-    delimited(
-        ws(char('[')),
-        separated_list0(ws(char(',')), ws(expr)),
-        ws(char(']')),
-    )(input)
-}
-
-/// Parses `!atom`.
-fn not_expr(input: &str) -> ParseResult<'_, Expr> {
-    map(preceded(ws(char('!')), atom), |e| Expr::Not(Box::new(e)))(input)
-}
-
-/// Parses `all([…])` and `any([…])` as shorthands using bracket syntax.
-fn logical_expr(input: &str) -> ParseResult<'_, Expr> {
-    let (input, op) = alt((
-        terminated(tag_no_case("all"), peek(ws(char('[')))),
-        terminated(tag_no_case("any"), peek(ws(char('[')))),
-    ))(input)?;
-    let (input, exprs) = ws(expr_list)(input)?;
-    let result = match op.to_ascii_lowercase().as_str() {
-        "all" => Expr::All(exprs),
-        "any" => Expr::Any(exprs),
-        _ => unreachable!(),
-    };
-    Ok((input, result))
-}
-
-/// Parses `in(needle, [a, b, c])`.
-fn in_expr(input: &str) -> ParseResult<'_, Expr> {
-    let (input, _) = terminated(tag("in"), peek(ws(char('('))))(input)?;
-    let (input, (needle, haystack)) = delimited(
-        ws(char('(')),
-        separated_pair(ws(expr), ws(char(',')), ws(expr_list)),
-        ws(char(')')),
-    )(input)?;
-    Ok((
-        input,
-        Expr::In {
-            needle: Box::new(needle),
-            haystack,
-        },
+/// Parses any literal value: `bool`, `null`, hex color, number, or quoted string.
+fn literal<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
+    choice((
+        bool_literal(),
+        null_literal(),
+        hex_color_literal(),
+        number_literal(),
+        string_literal().map(ExprValue::from),
     ))
+    .map(Expr::Literal)
+    .then_ignore(atom_boundary().rewind())
+    .labelled("literal")
+}
+
+fn atom_boundary<'src>() -> impl Parser<'src, &'src str, (), Error<'src>> {
+    choice((operator().ignored(), one_of("()").ignored(), end()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn parse_literal_number() {
-        let (rest, expr) = parse_expr("42").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::Literal(ExprValue::Number(42.0)));
+    fn check(input: &str, expected: Expr) {
+        let res = expr_parser().parse(input).into_result();
+        assert!(
+            res.is_ok(),
+            "Errors parsing input `{input}`. Errors: {:?}",
+            res.err().unwrap()
+        );
+        assert_eq!(res.unwrap(), expected, "Wrong parsing result");
     }
 
     #[test]
-    fn parse_literal_bool() {
-        let (rest, expr) = parse_expr("true").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::Literal(ExprValue::Boolean(true)));
+    fn parse_literals() {
+        let cases = [
+            ("42", 42.0.into()),
+            ("42.", 42.0.into()),
+            ("0042", 42.0.into()),
+            ("1.25e2", 125.0.into()),
+            ("1.25e-2", 0.0125.into()),
+            ("true", true.into()),
+            ("false", false.into()),
+            ("#FFAA00", Color::from_hex("#FFAA00").into()),
+            ("#FFAA00CC", Color::from_hex("#FFAA00CC").into()),
+            ("#ffaa00", Color::from_hex("#FFAA00").into()),
+            ("#fFaA00", Color::from_hex("#FFAA00").into()),
+            (r#""text""#, "text".to_string().into()),
+            (r#""Текст!ёё""#, "Текст!ёё".to_string().into()),
+            (r#""택스트""#, "택스트".to_string().into()),
+            (
+                r#""Escaped \" quotes""#,
+                r#"Escaped " quotes"#.to_string().into(),
+            ),
+            (r#"'text'"#, "text".to_string().into()),
+            (
+                r#"'Escaped \' quotes'"#,
+                "Escaped ' quotes".to_string().into(),
+            ),
+            ("property", Expr::Get("property".to_string())),
+            ("nullish", Expr::Get("nullish".to_string())),
+            ("trueman", Expr::Get("trueman".to_string())),
+            ("zoom()", Expr::Zoom),
+            ("get('property')", Expr::Get("property".to_string())),
+        ];
+
+        for (case, expected) in cases {
+            check(case, expected);
+        }
     }
 
     #[test]
-    fn parse_literal_string() {
-        let (rest, expr) = parse_expr(r#""hello""#).unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::Literal(ExprValue::String("hello".to_string())));
-    }
-
-    #[test]
-    fn parse_literal_string_single_quotes() {
-        let (rest, expr) = parse_expr("'hello'").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::Literal(ExprValue::String("hello".to_string())));
-    }
-
-    #[test]
-    fn parse_single_quotes_in_comparison() {
-        let (rest, expr) = parse_expr("kind == 'road'").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
+    fn parse_binary() {
+        check(
+            "2 == 3",
+            Expr::Eq(Box::new(2.0.into()), Box::new(3.0.into())),
+        );
+        check(
+            "trueman == 42",
             Expr::Eq(
-                Box::new(Expr::Get("kind".to_string())),
-                Box::new(Expr::Literal(ExprValue::String("road".to_string()))),
-            )
+                Box::new(Expr::Get("trueman".to_string())),
+                Box::new(42.0.into()),
+            ),
         );
     }
 
     #[test]
-    fn parse_get_bare_ident() {
-        let (rest, expr) = parse_expr("name").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::Get("name".to_string()));
-    }
-
-    #[test]
-    fn parse_zoom() {
-        let (rest, expr) = parse_expr("zoom()").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::Zoom);
-    }
-
-    #[test]
-    fn parse_geom_type() {
-        let (rest, expr) = parse_expr("geom_type()").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(expr, Expr::GeomType);
-    }
-
-    #[test]
-    fn parse_eq_bare_idents() {
-        let (rest, expr) = parse_expr(r#"kind == "road""#).unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
+    fn parse_block() {
+        check("(42)", Expr::Literal(42.0.into()));
+        check(
+            "(42 == 12)",
+            Expr::Eq(Box::new(42.0.into()), Box::new(12.0.into())),
+        );
+        check(
+            "(42 == 12) == false",
             Expr::Eq(
-                Box::new(Expr::Get("kind".to_string())),
-                Box::new(Expr::Literal(ExprValue::String("road".to_string()))),
-            )
+                Box::new(Expr::Eq(Box::new(42.0.into()), Box::new(12.0.into()))),
+                Box::new(false.into()),
+            ),
+        );
+        check(
+            "true == (42 == 12)",
+            Expr::Eq(
+                Box::new(true.into()),
+                Box::new(Expr::Eq(Box::new(42.0.into()), Box::new(12.0.into()))),
+            ),
         );
     }
 
-    #[test]
-    fn parse_not() {
-        let (rest, expr) = parse_expr("!true").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::Not(Box::new(Expr::Literal(ExprValue::Boolean(true))))
+    fn s(input: &str) -> String {
+        let result = expr_parser().parse(input).into_result();
+        assert!(
+            result.is_err(),
+            "Expression `{input}` should be parsed with error, but returned: {result:#?}"
         );
+
+        format!("{:?}", result.err().unwrap()[0])
+    }
+
+    use insta::assert_debug_snapshot as ass; // Assert SnapShot
+
+    #[test]
+    fn parser_error_num() {
+        ass!(s("1.2.3"), @r#""invalid value `1.2.3` at 0..5""#);
     }
 
     #[test]
-    fn parse_not_fn() {
-        let (rest, expr) = parse_expr("not(true)").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::Not(Box::new(Expr::Literal(ExprValue::Boolean(true))))
-        );
+    fn parser_error_literal() {
+        ass!(s("???"), @r#""invalid value `???` at 0..3""#)
     }
 
     #[test]
-    fn parse_in() {
-        let (rest, expr) = parse_expr(r#"in(kind, ["road", "path"])"#).unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::In {
-                needle: Box::new(Expr::Get("kind".to_string())),
-                haystack: vec![
-                    Expr::Literal(ExprValue::String("road".to_string())),
-                    Expr::Literal(ExprValue::String("path".to_string())),
-                ],
-            }
-        );
+    fn parser_error_unary_with_literal() {
+        ass!(s("property == ???"), @r#""invalid value `???` at 12..15""#)
     }
 
     #[test]
-    fn parse_all_bracket() {
-        let (rest, expr) = parse_expr("all[true, false]").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::All(vec![
-                Expr::Literal(ExprValue::Boolean(true)),
-                Expr::Literal(ExprValue::Boolean(false)),
-            ])
-        );
+    fn parser_error_two_literals() {
+        ass!(s("property 'value'"), @r#""found ''\\''' at 9..10 expected ==, or >""#)
     }
 
     #[test]
-    fn parse_all_fn() {
-        let (rest, expr) = parse_expr("all([true, false])").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::All(vec![
-                Expr::Literal(ExprValue::Boolean(true)),
-                Expr::Literal(ExprValue::Boolean(false)),
-            ])
-        );
+    fn parser_error_unknown_function() {
+        ass!(s("unknown_function()"), @r#""Unknown function `unknown_function` at 0..16""#);
     }
 
     #[test]
-    fn parse_color_hex6() {
-        let (rest, expr) = parse_expr("#FF8800").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::Literal(ExprValue::Color(Color::rgba(0xFF, 0x88, 0x00, 0xFF)))
-        );
+    fn parser_error_invalid_argument_count() {
+        ass!(s("zoom(property)"), @r#""function zoom expected 0 arguments but got 1 instead at 0..14""#);
     }
 
     #[test]
-    fn parse_color_hex8() {
-        let (rest, expr) = parse_expr("#FF880080").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::Literal(ExprValue::Color(Color::rgba(0xFF, 0x88, 0x00, 0x80)))
-        );
-    }
-
-    #[test]
-    fn parse_color_rgba() {
-        let (rest, expr) = parse_expr("rgba(255, 136, 0, 128)").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::Literal(ExprValue::Color(Color::rgba(255, 136, 0, 128)))
-        );
-    }
-
-    #[test]
-    fn parse_color_hsv() {
-        let (rest, expr) = parse_expr("hsv(0, 1, 1)").unwrap();
-        assert!(rest.is_empty());
-        assert_eq!(
-            expr,
-            Expr::Literal(ExprValue::Color(Color::rgba(255, 0, 0, 255)))
-        );
-    }
-
-    #[test]
-    fn parse_unknown_function_is_error() {
-        assert!(parse_expr("unknown_fun(42)").is_err());
+    fn parser_error_invalid_argument_type() {
+        ass!(s("get(42)"), @r#""expected `String` argument at position `1` of function `get`, but got `42` at 4..6""#);
     }
 }
