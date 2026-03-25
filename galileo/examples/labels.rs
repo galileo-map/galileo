@@ -32,7 +32,7 @@ struct EguiMapApp {
     is_bold: bool,
     is_italic: bool,
     outline_width: f32,
-    outline_color: Color32,
+    outline_color: [f32; 4],
     attach_to_map: bool,
 }
 
@@ -52,7 +52,7 @@ impl EguiMapApp {
             is_bold: false,
             is_italic: false,
             outline_width: 0.0,
-            outline_color: Color32::WHITE,
+            outline_color: Color32::WHITE.to_normalized_gamma_f32(),
             attach_to_map: false,
         }
     }
@@ -78,10 +78,10 @@ impl EguiMapApp {
                 style,
                 outline_width: self.outline_width,
                 outline_color: Color::rgba(
-                    self.outline_color.r(),
-                    self.outline_color.g(),
-                    self.outline_color.b(),
-                    self.outline_color.a(),
+                    (self.outline_color[0] * 255.0) as u8,
+                    (self.outline_color[1] * 255.0) as u8,
+                    (self.outline_color[2] * 255.0) as u8,
+                    (self.outline_color[3] * 255.0) as u8,
                 ),
             },
             attach_to_map: self.attach_to_map,
@@ -207,7 +207,7 @@ impl eframe::App for EguiMapApp {
                     }
 
                     if ui
-                        .color_edit_button_srgba(&mut self.outline_color)
+                        .color_edit_button_rgba_unmultiplied(&mut self.outline_color)
                         .changed()
                     {
                         self.update_symbol();

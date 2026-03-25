@@ -214,7 +214,7 @@ impl Pipelines {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: TextureFormat::Rgba8UnormSrgb,
+                    format: TextureFormat::Rgba8Unorm,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                     label: None,
                     view_formats: &[],
@@ -231,7 +231,7 @@ impl Pipelines {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: TextureFormat::Rgba8UnormSrgb,
+                    format: TextureFormat::Rgba8Unorm,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING
                         | wgpu::TextureUsages::COPY_DST
                         | wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -252,7 +252,7 @@ impl Pipelines {
                     &image,
                     texture
                         .as_image_copy()
-                        .to_tagged(wgpu::PredefinedColorSpace::Srgb, false),
+                        .to_tagged(wgpu::PredefinedColorSpace::DisplayP3, false),
                     texture_size,
                 );
 
