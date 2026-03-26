@@ -41,7 +41,7 @@ pub use effects::horizon::HorizonOptions;
 
 const DEFAULT_BACKGROUND: Color = Color::WHITE;
 const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth24PlusStencil8;
-const TARGET_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8UnormSrgb;
+const TARGET_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 
 type TexturesMap = HashMap<u64, (Weak<DecodedImage>, Arc<BindGroup>)>;
 
@@ -300,16 +300,10 @@ impl WgpuRenderer {
         size: Size<u32>,
     ) -> SurfaceConfiguration {
         let surface_caps = surface.get_capabilities(adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(surface_caps.formats[0]);
 
         SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
+            format: TARGET_TEXTURE_FORMAT,
             width: size.width(),
             height: size.height(),
             present_mode: surface_caps.present_modes[0],
