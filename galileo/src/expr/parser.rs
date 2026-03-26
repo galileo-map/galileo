@@ -58,14 +58,14 @@ fn func0(func_name: &str, constructor: Expr, args: Vec<Expr>) -> Result<Expr, St
 struct FuncContext<'src> {
     func_name: &'src str,
     func_name_span: SimpleSpan,
-    args: Vec<Option<(Expr, &'src str, SimpleSpan)>>,
+    args: Vec<Option<(FuncArgument, &'src str, SimpleSpan)>>,
 }
 
 impl<'src> FuncContext<'src> {
     fn new(
         func_name: &'src str,
         func_name_span: SimpleSpan,
-        args: Vec<(Expr, &'src str, SimpleSpan)>,
+        args: Vec<(FuncArgument, &'src str, SimpleSpan)>,
     ) -> Self {
         Self {
             func_name,
@@ -108,6 +108,39 @@ impl<'src> FuncContext<'src> {
             format!("Unknown function `{}`", self.func_name),
         ))
     }
+
+    fn get_arg(
+        &mut self,
+        index: usize,
+    ) -> Result<(FuncArgument, &'src str, SimpleSpan), Rich<'src, char>> {
+        if index >= self.args.len() {
+            return Err(Rich::custom(
+                self.func_name_span,
+                format!("function {} missing argumnt {}", self.func_name, index + 1),
+            ));
+        }
+
+        Ok(self.args[index]
+            .take()
+            .expect("arguments are used only once"))
+    }
+
+    fn arg_type_err(
+        &self,
+        src: &'src str,
+        span: SimpleSpan,
+        arg_index: usize,
+        expected: &'static str,
+    ) -> Rich<'src, char> {
+        Rich::custom(
+            span,
+            format!(
+                "expected `{expected}` argument at position `{}` of function `{}`, but got `{src}`",
+                arg_index + 1,
+                self.func_name,
+            ),
+        )
+    }
 }
 
 trait GetArg<'src, T> {
@@ -116,37 +149,62 @@ trait GetArg<'src, T> {
 
 impl<'src> GetArg<'src, String> for FuncContext<'src> {
     fn get(&mut self, index: usize) -> Result<String, Rich<'src, char>> {
-        if index >= self.args.len() {
-            return Err(Rich::custom(
-                self.func_name_span,
-                format!("function {} missing argumnt {}", self.func_name, index + 1),
-            ));
-        }
-
-        let arg = self.args[index]
-            .take()
-            .expect("arguments are used only once");
-
-        if let Expr::Literal(ExprValue::String(value)) = arg.0 {
+        let arg = self.get_arg(index)?;
+        if let FuncArgument::Expression(Expr::Literal(ExprValue::String(value))) = arg.0 {
             Ok(value)
         } else {
-            Err(Rich::custom(
-                arg.2,
-                format!(
-                    "expected `String` argument at position `{}` of function `{}`, but got `{}`",
-                    index + 1,
-                    self.func_name,
-                    arg.1,
-                ),
-            ))
+            Err(self.arg_type_err(arg.1, arg.2, index, "String"))
         }
     }
+}
+
+impl<'src> GetArg<'src, Vec<Expr>> for FuncContext<'src> {
+    fn get(&mut self, index: usize) -> Result<Vec<Expr>, Rich<'src, char>> {
+        let arg = self.get_arg(index)?;
+        if let FuncArgument::Array(arr) = arg.0 {
+            Ok(arr)
+        } else {
+            dbg!(&arg.0);
+            Err(self.arg_type_err(arg.1, arg.2, index, "[Array]"))
+        }
+    }
+}
+
+#[derive(Debug)]
+enum FuncArgument {
+    Expression(Expr),
+    Array(Vec<Expr>),
+    Tuple(Vec<Expr>),
+}
+
+fn func_arg<'src>(
+    expr_parser: impl Parser<'src, &'src str, Expr, Error<'src>> + Clone + 'src,
+) -> impl Parser<'src, &'src str, FuncArgument, Error<'src>> {
+    let expr = expr_parser.clone().map(FuncArgument::Expression);
+
+    let array = expr_parser
+        .clone()
+        .separated_by(just(','))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just('['), just(']'))
+        .map(FuncArgument::Array);
+
+    let tuple = expr_parser
+        .separated_by(just(','))
+        .at_least(2)
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just('('), just(')'))
+        .map(FuncArgument::Tuple);
+
+    choice((array, tuple, expr)).padded()
 }
 
 fn func_call<'src>(
     expr_parser: impl Parser<'src, &'src str, Expr, Error<'src>> + Clone + 'src,
 ) -> impl Parser<'src, &'src str, Expr, Error<'src>> {
-    let arg_list = expr_parser
+    let arg_list = func_arg(expr_parser)
         .map_with(|expr, e| (expr, e.slice(), e.span()))
         .separated_by(just(','))
         .allow_trailing()
@@ -156,9 +214,12 @@ fn func_call<'src>(
     ident()
         .map_with(|func_name, e| (func_name, e.span()))
         .then(arg_list)
+        .padded()
         .validate(|((func_name, func_name_span), args), e, emitter| {
             let mut c = FuncContext::new(func_name, func_name_span, args);
             let res = match func_name {
+                "any" => c.args1(Expr::Any),
+                "all" => c.args1(Expr::All),
                 "zoom" => Ok(Expr::Zoom),
                 "get" => c.args1(Expr::Get),
                 _ => c.unknown(),
@@ -180,6 +241,7 @@ fn func_call<'src>(
 
 fn property<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
     ident()
+        .padded()
         .map(|name| Expr::Get(name.to_string()))
         .labelled("property name")
 }
@@ -311,13 +373,14 @@ fn literal<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
         number_literal(),
         string_literal().map(ExprValue::from),
     ))
+    .padded()
     .map(Expr::Literal)
     .then_ignore(atom_boundary().rewind())
     .labelled("literal")
 }
 
 fn atom_boundary<'src>() -> impl Parser<'src, &'src str, (), Error<'src>> {
-    choice((operator().ignored(), one_of("()").ignored(), end()))
+    choice((operator().ignored(), one_of("()[],").ignored(), end()))
 }
 
 #[cfg(test)]
@@ -342,12 +405,18 @@ mod tests {
             ("0042", 42.0.into()),
             ("1.25e2", 125.0.into()),
             ("1.25e-2", 0.0125.into()),
+            ("  42", 42.0.into()),
+            ("\t42", 42.0.into()),
+            ("42  ", 42.0.into()),
+            ("  42  ", 42.0.into()),
             ("true", true.into()),
             ("false", false.into()),
+            ("  false  ", false.into()),
             ("#FFAA00", Color::from_hex("#FFAA00").into()),
             ("#FFAA00CC", Color::from_hex("#FFAA00CC").into()),
             ("#ffaa00", Color::from_hex("#FFAA00").into()),
             ("#fFaA00", Color::from_hex("#FFAA00").into()),
+            ("  #fFaA00  ", Color::from_hex("#FFAA00").into()),
             (r#""text""#, "text".to_string().into()),
             (r#""Текст!ёё""#, "Текст!ёё".to_string().into()),
             (r#""택스트""#, "택스트".to_string().into()),
@@ -360,11 +429,28 @@ mod tests {
                 r#"'Escaped \' quotes'"#,
                 "Escaped ' quotes".to_string().into(),
             ),
+            (r#"  "text"  "#, "text".to_string().into()),
             ("property", Expr::Get("property".to_string())),
             ("nullish", Expr::Get("nullish".to_string())),
             ("trueman", Expr::Get("trueman".to_string())),
+            ("  property  ", Expr::Get("property".to_string())),
             ("zoom()", Expr::Zoom),
+            ("  zoom()  ", Expr::Zoom),
             ("get('property')", Expr::Get("property".to_string())),
+            (
+                "any([false, bool_prop])",
+                Expr::Any(vec![false.into(), Expr::Get("bool_prop".to_owned())]),
+            ),
+            (
+                "all([string_prop == 'hi', bool_prop])",
+                Expr::All(vec![
+                    Expr::Eq(
+                        Box::new(Expr::Get("string_prop".to_owned())),
+                        Box::new("hi".to_owned().into()),
+                    ),
+                    Expr::Get("bool_prop".to_owned()),
+                ]),
+            ),
         ];
 
         for (case, expected) in cases {
@@ -439,7 +525,7 @@ mod tests {
 
     #[test]
     fn parser_error_two_literals() {
-        ass!(s("property 'value'"), @r#""found ''\\''' at 9..10 expected ==, or >""#)
+        ass!(s("property 'value'"), @r#""found ''\\''' at 9..10 expected ==, !=, >, >=, <, <=, or end of input""#)
     }
 
     #[test]
@@ -453,7 +539,12 @@ mod tests {
     }
 
     #[test]
-    fn parser_error_invalid_argument_type() {
+    fn parser_error_invalid_argument_type_string() {
         ass!(s("get(42)"), @r#""expected `String` argument at position `1` of function `get`, but got `42` at 4..6""#);
+    }
+
+    #[test]
+    fn parser_error_invalid_argument_type_array() {
+        ass!(s("any(true)"), @r#""expected `[Array]` argument at position `1` of function `any`, but got `true` at 4..8""#);
     }
 }
