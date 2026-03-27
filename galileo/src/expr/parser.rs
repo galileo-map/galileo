@@ -102,6 +102,16 @@ impl<'src> FuncContext<'src> {
         Ok(constructor(self.get(0)?))
     }
 
+    fn args2<Arg1, Arg2>(
+        &mut self,
+        constructor: impl FnOnce(Arg1, Arg2) -> Expr,
+    ) -> Result<Expr, Rich<'src, char>>
+    where
+        Self: GetArg<'src, Arg1> + GetArg<'src, Arg2>,
+    {
+        Ok(constructor(self.get(0)?, self.get(1)?))
+    }
+
     fn unknown(&self) -> Result<Expr, Rich<'src, char>> {
         Err(Rich::custom(
             self.func_name_span,
@@ -147,28 +157,27 @@ trait GetArg<'src, T> {
     fn get(&mut self, index: usize) -> Result<T, Rich<'src, char>>;
 }
 
-impl<'src> GetArg<'src, String> for FuncContext<'src> {
-    fn get(&mut self, index: usize) -> Result<String, Rich<'src, char>> {
-        let arg = self.get_arg(index)?;
-        if let FuncArgument::Expression(Expr::Literal(ExprValue::String(value))) = arg.0 {
-            Ok(value)
-        } else {
-            Err(self.arg_type_err(arg.1, arg.2, index, "String"))
+macro_rules! impl_get_arg {
+    ($ty:ty, $pat:pat => $val:expr, $expected:literal) => {
+        impl<'src> GetArg<'src, $ty> for FuncContext<'src> {
+            fn get(&mut self, index: usize) -> Result<$ty, Rich<'src, char>> {
+                let arg = self.get_arg(index)?;
+                Ok(match arg.0 {
+                    $pat => $val,
+                    _ => return Err(self.arg_type_err(arg.1, arg.2, index, $expected)),
+                })
+            }
         }
-    }
+    };
 }
 
-impl<'src> GetArg<'src, Vec<Expr>> for FuncContext<'src> {
-    fn get(&mut self, index: usize) -> Result<Vec<Expr>, Rich<'src, char>> {
-        let arg = self.get_arg(index)?;
-        if let FuncArgument::Array(arr) = arg.0 {
-            Ok(arr)
-        } else {
-            dbg!(&arg.0);
-            Err(self.arg_type_err(arg.1, arg.2, index, "[Array]"))
-        }
-    }
-}
+impl_get_arg!(Box<Expr>, FuncArgument::Expression(v) => Box::new(v), "Expression");
+impl_get_arg!(
+    String,
+    FuncArgument::Expression(Expr::Literal(ExprValue::String(v))) => v,
+    "String"
+);
+impl_get_arg!(Vec<Expr>, FuncArgument::Array(v) => v, "[Array]");
 
 #[derive(Debug)]
 enum FuncArgument {
@@ -220,8 +229,13 @@ fn func_call<'src>(
             let res = match func_name {
                 "any" => c.args1(Expr::Any),
                 "all" => c.args1(Expr::All),
-                "zoom" => Ok(Expr::Zoom),
+                "not" => c.args1(Expr::Not),
+
                 "get" => c.args1(Expr::Get),
+                "in" => c.args2(|needle, haystack| Expr::In { needle, haystack }),
+
+                "geom_type" => Ok(Expr::GeomType),
+                "zoom" => Ok(Expr::Zoom),
                 _ => c.unknown(),
             }
             .and_then(|r| {
@@ -398,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_literals() {
+    fn parse_atoms() {
         let cases = [
             ("42", 42.0.into()),
             ("42.", 42.0.into()),
@@ -451,6 +465,24 @@ mod tests {
                     Expr::Get("bool_prop".to_owned()),
                 ]),
             ),
+            ("not(true)", Expr::Not(Box::new(true.into()))),
+            (
+                "not(not(bool_prop))",
+                Expr::Not(Box::new(Expr::Not(Box::new(Expr::Get(
+                    "bool_prop".to_string(),
+                ))))),
+            ),
+            (
+                "in(param, ['candidate1', 'candidate2'])",
+                Expr::In {
+                    needle: Box::new(Expr::Get("param".to_owned())),
+                    haystack: vec![
+                        "candidate1".to_owned().into(),
+                        "candidate2".to_owned().into(),
+                    ],
+                },
+            ),
+            ("geom_type()", Expr::GeomType),
         ];
 
         for (case, expected) in cases {
@@ -546,5 +578,15 @@ mod tests {
     #[test]
     fn parser_error_invalid_argument_type_array() {
         ass!(s("any(true)"), @r#""expected `[Array]` argument at position `1` of function `any`, but got `true` at 4..8""#);
+    }
+
+    #[test]
+    fn parser_error_unclosed_bracket() {
+        ass!(s("zoom("), @r#""found end of input at 5..5 expected ''['', ''('', expression block, literal, any, property name, or '')''""#);
+    }
+
+    #[test]
+    fn parser_error_unclosed_array() {
+        ass!(s("any([true, false)"), @r#""found '')'' at 16..17 expected ==, !=, >, >=, <, <=, '','', or '']''""#);
     }
 }
