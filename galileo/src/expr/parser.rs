@@ -126,7 +126,7 @@ impl<'src> FuncContext<'src> {
         if index >= self.args.len() {
             return Err(Rich::custom(
                 self.func_name_span,
-                format!("function {} missing argumnt {}", self.func_name, index + 1),
+                format!("function {} missing argument {}", self.func_name, index + 1),
             ));
         }
 
@@ -177,7 +177,7 @@ impl_get_arg!(
     FuncArgument::Expression(Expr::Literal(ExprValue::String(v))) => v,
     "String"
 );
-impl_get_arg!(Vec<Expr>, FuncArgument::Array(v) => v, "[Array]");
+impl_get_arg!(Vec<Expr>, FuncArgument::Array(v) => v, "Expression Array");
 
 #[derive(Debug)]
 enum FuncArgument {
@@ -577,7 +577,7 @@ mod tests {
 
     #[test]
     fn parser_error_invalid_argument_type_array() {
-        ass!(s("any(true)"), @r#""expected `[Array]` argument at position `1` of function `any`, but got `true` at 4..8""#);
+        ass!(s("any(true)"), @r#""expected `Expression Array` argument at position `1` of function `any`, but got `true` at 4..8""#);
     }
 
     #[test]

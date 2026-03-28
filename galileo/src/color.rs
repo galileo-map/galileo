@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Color representation.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(from = "String", into = "String")]
+#[serde(try_from = "String", into = "String")]
 pub struct Color {
     r: u8,
     g: u8,
@@ -10,9 +10,12 @@ pub struct Color {
     a: u8,
 }
 
-impl From<String> for Color {
-    fn from(value: String) -> Self {
-        Self::try_from_hex(&value).unwrap_or(Color::rgba(0, 0, 0, 255))
+impl TryFrom<String> for Color {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from_hex(value.as_ref())
+            .ok_or_else(|| format!("Invalid hex color value: {value}"))
     }
 }
 

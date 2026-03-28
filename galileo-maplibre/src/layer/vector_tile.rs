@@ -146,7 +146,7 @@ where
                 None => Expr::Zoom,
             };
 
-            Some(Expr::InterpolateExp(Box::new(ExponentialInterpolation {
+            Some(Expr::Exponential(Box::new(ExponentialInterpolation {
                 base: function.base,
                 input,
                 control_points,

@@ -4,9 +4,7 @@
 use std::sync::Arc;
 
 use egui::FontDefinitions;
-use galileo::expr::{
-    ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, LinearInterpolation,
-};
+use galileo::MapBuilder;
 use galileo::layer::VectorTileLayer;
 use galileo::layer::data_provider::remove_parameters_modifier;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
@@ -16,9 +14,9 @@ use galileo::layer::vector_tile_layer::style::{
 use galileo::render::text::RustybuzzRasterizer;
 use galileo::render::text::text_service::TextService;
 use galileo::tile_schema::{TileIndex, TileSchema, TileSchemaBuilder};
-use galileo::{Color, MapBuilder};
 use galileo_egui::{EguiMap, EguiMapState};
 use parking_lot::RwLock;
+use serde_json::json;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -128,24 +126,17 @@ fn linear_interpolation_style() -> StyleRule {
         min_resolution: None,
         filter: None,
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
-            fill_color: Expr::InterpolateLinear(Box::new(LinearInterpolation {
-                input: Expr::Zoom,
-                control_points: vec![
-                    ControlPoint {
-                        input: 2.0.into(),
-                        output: Color::try_from_hex("#81C4ec").unwrap().into(),
-                    },
-                    ControlPoint {
-                        input: 5.0.into(),
-                        output: Color::try_from_hex("#29546d").unwrap().into(),
-                    },
-                    ControlPoint {
-                        input: 8.0.into(),
-                        output: Color::try_from_hex("#3d835c").unwrap().into(),
-                    },
-                ],
+            fill_color: serde_json::from_value(json!({
+                "Linear": {
+                    "input": "Zoom",
+                    "control_points": [
+                        {"input": 2, "output": "#81c4ecff"},
+                        {"input": 5, "output": "#29546dff"},
+                        {"input": 8, "output": "#3d835cff"}
+                    ]
+                }
             }))
-            .into(),
+            .unwrap(),
         }),
     }
 }
@@ -158,25 +149,18 @@ fn exponential_interpolation_style() -> StyleRule {
         min_resolution: None,
         filter: None,
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
-            fill_color: Expr::InterpolateExp(Box::new(ExponentialInterpolation {
-                base: 2.0,
-                input: Expr::Zoom,
-                control_points: vec![
-                    ControlPoint {
-                        input: 2.0.into(),
-                        output: Color::try_from_hex("#81C4ec").unwrap().into(),
-                    },
-                    ControlPoint {
-                        input: 5.0.into(),
-                        output: Color::try_from_hex("#29546d").unwrap().into(),
-                    },
-                    ControlPoint {
-                        input: 8.0.into(),
-                        output: Color::try_from_hex("#3d835c").unwrap().into(),
-                    },
-                ],
+            fill_color: serde_json::from_value(json!({
+                "Exponential": {
+                    "base": 2,
+                    "input": "Zoom",
+                    "control_points": [
+                        {"input": 2, "output": "#81c4ecff"},
+                        {"input": 5, "output": "#29546dff"},
+                        {"input": 8, "output": "#3d835cff"}
+                    ]
+                }
             }))
-            .into(),
+            .unwrap(),
         }),
     }
 }
@@ -189,25 +173,18 @@ fn cubic_interpolation_style() -> StyleRule {
         min_resolution: None,
         filter: None,
         symbol: VectorTileSymbol::Polygon(VectorTilePolygonSymbol {
-            fill_color: Expr::InterpolateCubicBezier(Box::new(CubicBezierInterpolation {
-                curve_params: [0.25, 0.0, 0.75, 1.0],
-                input: Expr::Zoom,
-                control_points: vec![
-                    ControlPoint {
-                        input: 2.0.into(),
-                        output: Color::try_from_hex("#81C4ec").unwrap().into(),
-                    },
-                    ControlPoint {
-                        input: 5.0.into(),
-                        output: Color::try_from_hex("#29546d").unwrap().into(),
-                    },
-                    ControlPoint {
-                        input: 8.0.into(),
-                        output: Color::try_from_hex("#3d835c").unwrap().into(),
-                    },
-                ],
+            fill_color: serde_json::from_value(json!({
+                "CubicBezier": {
+                    "curve_params": [0.25, 0.0, 0.75, 1.0],
+                    "input": "Zoom",
+                    "control_points": [
+                        {"input": 2, "output": "#81c4ecff"},
+                        {"input": 5, "output": "#29546dff"},
+                        {"input": 8, "output": "#3d835cff"}
+                    ]
+                }
             }))
-            .into(),
+            .unwrap(),
         }),
     }
 }

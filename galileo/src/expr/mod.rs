@@ -21,8 +21,6 @@ pub mod parser;
 /// An expression that can be evaluated against a feature and a view to produce an [`ExprValue`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expr {
-    Literal(ExprValue<String>),
-
     All(Vec<Expr>),
     Any(Vec<Expr>),
     Not(Box<Expr>),
@@ -43,13 +41,16 @@ pub enum Expr {
     GeomType,
     Zoom,
 
-    InterpolateLinear(Box<LinearInterpolation>),
-    InterpolateExp(Box<ExponentialInterpolation>),
-    InterpolateCubicBezier(Box<CubicBezierInterpolation>),
+    Linear(Box<LinearInterpolation>),
+    Exponential(Box<ExponentialInterpolation>),
+    CubicBezier(Box<CubicBezierInterpolation>),
 
     Match(Box<MatchExpr>),
 
     WithOpacity(WithOpacityExpr),
+
+    #[serde(untagged)]
+    Literal(ExprValue<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -208,9 +209,9 @@ impl Expr {
                 .z_index
                 .map(|z_level| (z_level as f64).into())
                 .unwrap_or(ExprValue::Null),
-            Expr::InterpolateLinear(ip) => ip.eval(f, v),
-            Expr::InterpolateExp(ip) => ip.eval(f, v),
-            Expr::InterpolateCubicBezier(ip) => ip.eval(f, v),
+            Expr::Linear(ip) => ip.eval(f, v),
+            Expr::Exponential(ip) => ip.eval(f, v),
+            Expr::CubicBezier(ip) => ip.eval(f, v),
             Expr::Match(m) => m.eval(f, v),
             Expr::WithOpacity(wo) => wo.eval(f, v),
         }
@@ -245,6 +246,8 @@ impl WithOpacityExpr {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use super::*;
 
     #[test]
@@ -278,5 +281,46 @@ mod tests {
     fn deserialize_bad_string_returns_error() {
         let json = r#""@@@ not valid @@@""#;
         assert!(serde_json::from_str::<NumExpr>(json).is_err());
+    }
+
+    #[test]
+    fn serialization_of_complex_expressions() {
+        let expr = Expr::Exponential(Box::new(ExponentialInterpolation {
+            base: 2.0,
+            input: Expr::Zoom,
+            control_points: vec![
+                ControlPoint {
+                    input: 10.0.into(),
+                    output: Color::BLACK.into(),
+                },
+                ControlPoint {
+                    input: 20.0.into(),
+                    output: Color::RED.into(),
+                },
+            ],
+        }));
+
+        let json = serde_json::to_string_pretty(&expr).unwrap();
+        let deser: Expr = serde_json::from_str(&json).unwrap();
+        assert_eq!(deser, expr);
+
+        assert_snapshot!(json, @r##"
+        {
+          "Exponential": {
+            "base": 2.0,
+            "input": "Zoom",
+            "control_points": [
+              {
+                "input": 10.0,
+                "output": "#000000FF"
+              },
+              {
+                "input": 20.0,
+                "output": "#FF0000FF"
+              }
+            ]
+          }
+        }
+        "##);
     }
 }

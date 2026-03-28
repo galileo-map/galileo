@@ -13,6 +13,7 @@ pub enum ExprGeometryType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ExprValue<S> {
     Null,
     Boolean(bool),

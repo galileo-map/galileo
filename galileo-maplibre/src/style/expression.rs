@@ -901,7 +901,7 @@ fn interpolation_to_galileo(
     stops: &[(f64, MlExpr)],
 ) -> Option<Expr> {
     Some(match interpolation {
-        Interpolation::Linear => Expr::InterpolateLinear(Box::new(LinearInterpolation {
+        Interpolation::Linear => Expr::Linear(Box::new(LinearInterpolation {
             input: input.to_galileo_expr()?,
             control_points: stops
                 .iter()
@@ -914,7 +914,7 @@ fn interpolation_to_galileo(
                 .collect::<Option<Vec<_>>>()?,
         })),
         Interpolation::Exponential { base } => {
-            Expr::InterpolateExp(Box::new(ExponentialInterpolation {
+            Expr::Exponential(Box::new(ExponentialInterpolation {
                 base: *base,
                 input: input.to_galileo_expr()?,
                 control_points: stops
@@ -929,7 +929,7 @@ fn interpolation_to_galileo(
             }))
         }
         Interpolation::CubicBezier { x1, y1, x2, y2 } => {
-            Expr::InterpolateCubicBezier(Box::new(CubicBezierInterpolation {
+            Expr::CubicBezier(Box::new(CubicBezierInterpolation {
                 curve_params: [*x1, *y1, *x2, *y2],
                 input: input.to_galileo_expr()?,
                 control_points: stops
