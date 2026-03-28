@@ -746,11 +746,7 @@ impl MlExpr {
         fn get_prop(prop: &MlExpr) -> Option<Expr> {
             if let MlExpr::Literal(Value::String(property_name)) = prop {
                 if property_name == "$type" {
-                    // TODO: this is supposed to check geometry type of the layer,
-                    // but in Galileo this is done by the symbol. Need to check if
-                    // it is possible in Maplibre to draw a layer with wrong geometry
-                    // type. If so, do we need to do anything for it?
-                    return None;
+                    return Some(Expr::GeomType);
                 }
 
                 Some(Expr::Get(property_name.clone()))
@@ -847,7 +843,7 @@ impl MlExpr {
                 Box::new(ExprValue::Null.into()),
             ),
             MlExpr::In { item, array } => contains(item, array)?,
-            MlExpr::NotIn { item, array } => contains(item, array)?,
+            MlExpr::NotIn { item, array } => Expr::Not(Box::new(contains(item, array)?)),
             MlExpr::Interpolate {
                 interpolation,
                 input,
@@ -1136,7 +1132,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<MlExpr, String> {
         }
 
         "in" => {
-            let item = box_expr(take_arg(&mut args, 1, "!in")?)?;
+            let item = box_expr(take_arg(&mut args, 1, "in")?)?;
             let mut vals = vec![];
             let mut index = 2;
             while !args.is_empty() {
@@ -1152,7 +1148,7 @@ fn parse_expr_array(mut arr: Vec<Value>) -> Result<MlExpr, String> {
             let mut vals = vec![];
             let mut index = 2;
             while !args.is_empty() {
-                vals.push(expr_from_value(take_arg(&mut args, index, "in")?)?);
+                vals.push(expr_from_value(take_arg(&mut args, index, "!in")?)?);
                 index += 1;
             }
 
