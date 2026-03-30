@@ -16,7 +16,7 @@ use galileo::layer::attribution::Attribution;
 use galileo::render::WgpuRenderer;
 use galileo::{Map, Messenger};
 
-use crate::init::EguiMapOptions;
+use crate::EguiMapOptions;
 
 /// Galileo map widget for EGUI framework.
 ///

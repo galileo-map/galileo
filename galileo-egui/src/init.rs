@@ -6,7 +6,7 @@ use galileo::Map;
 use galileo::control::UserEventHandler;
 use galileo::render::HorizonOptions;
 
-use crate::EguiMapState;
+use crate::{EguiMapOptions, EguiMapState};
 
 struct MapApp {
     pub map: EguiMapState,
@@ -66,19 +66,6 @@ pub struct InitBuilder {
     app_name: Option<String>,
     #[cfg(target_arch = "wasm32")]
     canvas_id: Option<String>,
-}
-
-/// Options of the map
-pub struct EguiMapOptions {
-    pub(crate) horizon_options: Option<HorizonOptions>,
-}
-
-impl Default for EguiMapOptions {
-    fn default() -> Self {
-        Self {
-            horizon_options: Some(HorizonOptions::default()),
-        }
-    }
 }
 
 impl InitBuilder {
