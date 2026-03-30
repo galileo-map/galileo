@@ -33,14 +33,14 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             EguiMap::new(&mut self.map).show_ui(ui);
         });
 
         egui::Window::new("Buttons")
             .title_bar(false)
-            .show(ctx, |ui| {
+            .show(ui.ctx(), |ui| {
                 ui.horizontal(|ui| {
                     if ui.button("winter").clicked() {
                         self.switch_layer("winter-v2");

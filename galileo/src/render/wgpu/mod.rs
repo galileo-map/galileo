@@ -15,8 +15,8 @@ use parking_lot::Mutex;
 use wgpu::util::DeviceExt;
 use wgpu::{
     Adapter, BindGroup, Buffer, BufferAddress, BufferDescriptor, BufferUsages,
-    COPY_BYTES_PER_ROW_ALIGNMENT, Device, Extent3d, Origin3d, Queue,
-    RenderPassDepthStencilAttachment, StoreOp, Surface, SurfaceConfiguration, SurfaceError,
+    COPY_BYTES_PER_ROW_ALIGNMENT, CurrentSurfaceTexture, Device, Extent3d, Origin3d, Queue,
+    RenderPassDepthStencilAttachment, StoreOp, Surface, SurfaceConfiguration, SurfaceStatus,
     SurfaceTexture, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
     TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
     TextureViewDescriptor, WasmNotSendSync,
@@ -94,10 +94,19 @@ impl RenderTargetTexture<'_> {
 }
 
 impl RenderTarget {
-    fn texture(&self) -> Result<RenderTargetTexture<'_>, SurfaceError> {
+    fn texture(&self) -> Result<RenderTargetTexture<'_>, SurfaceStatus> {
         match &self {
             RenderTarget::Surface { surface, .. } => {
-                Ok(RenderTargetTexture::Surface(surface.get_current_texture()?))
+                let texture = match surface.get_current_texture() {
+                    CurrentSurfaceTexture::Success(texture) => texture,
+                    CurrentSurfaceTexture::Suboptimal(texture) => texture,
+                    CurrentSurfaceTexture::Lost => return Err(SurfaceStatus::Lost),
+                    CurrentSurfaceTexture::Occluded => return Err(SurfaceStatus::Occluded),
+                    CurrentSurfaceTexture::Outdated => return Err(SurfaceStatus::Outdated),
+                    CurrentSurfaceTexture::Timeout => return Err(SurfaceStatus::Timeout),
+                    CurrentSurfaceTexture::Validation => return Err(SurfaceStatus::Validation),
+                };
+                Ok(RenderTargetTexture::Surface(texture))
             }
             RenderTarget::Texture(texture, _) => Ok(RenderTargetTexture::Texture(texture)),
         }
@@ -370,9 +379,12 @@ impl WgpuRenderer {
             }
         }
 
-        wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends,
-            ..Default::default()
+            flags: Default::default(),
+            memory_budget_thresholds: Default::default(),
+            backend_options: Default::default(),
+            display: None,
         })
     }
 
@@ -534,9 +546,9 @@ impl WgpuRenderer {
     }
 
     /// Returns the image of the last render operation.
-    pub async fn get_image(&self) -> Result<Vec<u8>, SurfaceError> {
+    pub async fn get_image(&self) -> Result<Vec<u8>, SurfaceStatus> {
         let Some(renderer_targets) = &self.renderer_targets else {
-            return Err(SurfaceError::Lost);
+            return Err(SurfaceStatus::Lost);
         };
 
         let render_target_size = renderer_targets.render_target.size();
@@ -606,12 +618,12 @@ impl WgpuRenderer {
                 Ok(()) => {}
                 Err(err) => {
                     log::error!("Writing to image buffer failed: {err:?}.");
-                    return Err(SurfaceError::Lost);
+                    return Err(SurfaceStatus::Lost);
                 }
             },
             None => {
                 log::error!("Channel was closed");
-                return Err(SurfaceError::Lost);
+                return Err(SurfaceStatus::Lost);
             }
         }
 
@@ -666,6 +678,7 @@ impl WgpuRenderer {
                     depth_stencil_attachment: None,
                     timestamp_writes: None,
                     occlusion_query_set: None,
+                    multiview_mask: None,
                 });
             }
 
@@ -678,7 +691,7 @@ impl WgpuRenderer {
     }
 
     /// Renders the map.
-    pub fn render(&self, map: &Map) -> Result<(), SurfaceError> {
+    pub fn render(&self, map: &Map) -> Result<(), SurfaceStatus> {
         let Some(renderer_targets) = &self.renderer_targets else {
             return Ok(());
         };
@@ -782,6 +795,7 @@ impl WgpuRenderer {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             renderer_targets.pipelines.set_bindings(&mut render_pass);
@@ -942,6 +956,7 @@ impl Canvas for WgpuCanvas<'_> {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             let display_instances: Vec<_> = bundles
@@ -1143,6 +1158,7 @@ impl Canvas for WgpuCanvas<'_> {
                 }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             let instances: Vec<DisplayInstance> = filtered_sets

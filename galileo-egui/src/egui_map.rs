@@ -36,8 +36,8 @@ use crate::EguiMapOptions;
 /// }
 ///
 /// impl eframe::App for MapApp {
-///     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-///         egui::CentralPanel::default().show(ctx, |ui| {
+///     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+///         egui::CentralPanel::default().show_inside(ui, |ui| {
 ///             EguiMap::new(&mut self.map)
 ///                 .with_position(&mut self.position)
 ///                 .with_resolution(&mut self.resolution)

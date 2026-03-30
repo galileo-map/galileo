@@ -34,14 +34,14 @@ impl ClipPipeline {
         let targets = default_targets(format);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[map_view_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(map_view_layout)],
+            immediate_size: 0,
         });
 
         let depth_stencil = Some(DepthStencilState {
             format: DEPTH_FORMAT,
-            depth_write_enabled: false,
-            depth_compare: CompareFunction::Always,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(CompareFunction::Always),
             stencil: StencilState {
                 front: clip_stencil_state,
                 back: clip_stencil_state,

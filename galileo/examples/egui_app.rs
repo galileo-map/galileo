@@ -52,14 +52,14 @@ impl EguiMapApp {
 }
 
 impl eframe::App for EguiMapApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             EguiMap::new(&mut self.map)
                 .with_position(&mut self.position)
                 .with_resolution(&mut self.resolution)
                 .show_ui(ui);
 
-            egui::Window::new("Galileo map").show(ctx, |ui| {
+            egui::Window::new("Galileo map").show(ui, |ui| {
                 ui.label("Map center position:");
                 ui.label(format!(
                     "Lat: {:.4} Lon: {:.4}",

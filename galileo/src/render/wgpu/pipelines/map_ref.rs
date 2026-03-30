@@ -22,8 +22,8 @@ impl MapRefPipeline {
         let targets = default_targets(format);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[map_view_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(map_view_layout)],
+            immediate_size: 0,
         });
         let mut desc =
             pipelines::default_pipeline_descriptor(&layout, &shader, &targets, &buffers, false);

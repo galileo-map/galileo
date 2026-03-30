@@ -157,11 +157,11 @@ impl EguiMapApp {
 }
 
 impl eframe::App for EguiMapApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             EguiMap::new(&mut self.map).show_ui(ui);
 
-            egui::Window::new("Galileo map").show(ctx, |ui| {
+            egui::Window::new("Galileo map").show(ui.ctx(), |ui| {
                 ui.label("Text format:");
 
                 ui.horizontal(|ui| {
