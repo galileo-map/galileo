@@ -263,14 +263,6 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
 
 /// Converts a [`LineLayer`] to a [`StyleRule`], or logs and returns `None` if unsupported.
 fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
-    if line.paint.line_dasharray.is_some() {
-        log::debug!(
-            "{UNSUPPORTED} Line dasharray is not supported yet; skipping layer {}",
-            line.id
-        );
-        return None;
-    }
-
     log_unsupported_field!(line.paint.line_blur);
     log_unsupported_field!(line.paint.line_gap_width);
     log_unsupported_field!(line.paint.line_gradient);
@@ -306,12 +298,14 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         .minzoom
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
     let filter = line.filter.as_ref().and_then(|v| v.to_galileo_expr());
+    let dasharray = line.paint.line_dasharray.clone();
 
     Some(StyleRule {
         layer_name: Some(source_layer),
         symbol: VectorTileSymbol::Line(VectorTileLineSymbol {
             width,
             stroke_color: color,
+            dasharray,
         }),
         min_resolution,
         max_resolution,

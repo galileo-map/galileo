@@ -68,7 +68,7 @@ impl RenderBundle {
     pub fn add_line<N, P, C>(&mut self, line: &C, paint: &LinePaint, min_resolution: f64)
     where
         N: AsPrimitive<f32>,
-        P: CartesianPoint3d<Num = N>,
+        P: CartesianPoint3d<Num = N> + Copy,
         C: Contour<Point = P>,
     {
         self.world_set.add_line(line, paint, min_resolution);
@@ -82,7 +82,7 @@ impl RenderBundle {
         min_resolution: f64,
     ) where
         N: AsPrimitive<f32>,
-        P: CartesianPoint3d<Num = N>,
+        P: CartesianPoint3d<Num = N> + Copy,
         Poly: Polygon,
         Poly::Contour: Contour<Point = P>,
     {

@@ -2,9 +2,10 @@ use std::mem::size_of;
 use std::sync::Arc;
 
 use galileo_types::Polygon;
-use galileo_types::cartesian::{CartesianPoint2d, CartesianPoint3d, Point2, Vector2};
+use galileo_types::cartesian::{CartesianPoint2d, CartesianPoint3d, Point2, Point3, Vector2};
 use galileo_types::contour::Contour;
 use galileo_types::impls::ClosedContour;
+use itertools::Itertools;
 use lyon::lyon_tessellation::{
     BuffersBuilder, FillOptions, FillTessellator, FillVertex, FillVertexConstructor, LineJoin,
     Side, StrokeOptions, StrokeTessellator, StrokeVertex, StrokeVertexConstructor, VertexBuffers,
@@ -21,7 +22,7 @@ use crate::Color;
 use crate::decoded_image::DecodedImage;
 use crate::render::point_paint::{CircleFill, PointPaint, PointShape, SectorParameters};
 use crate::render::text::{TextService, TextShaping, TextStyle};
-use crate::render::{ImagePaint, LinePaint, PolygonPaint};
+use crate::render::{ImagePaint, LineCap, LinePaint, PolygonPaint};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct WorldRenderSet {
@@ -54,6 +55,16 @@ impl Default for WorldRenderSet {
         Self::new(1.0)
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct LineParameters {
+    pub(crate) color: Color,
+    pub(crate) width: f32,
+    pub(crate) offset: f32,
+    pub(crate) cap: LineCap,
+}
+
+pub(crate) struct DashArray<'a>(pub(crate) &'a [f32]);
 
 impl WorldRenderSet {
     pub fn new(dpi_scale_factor: f32) -> Self {
@@ -179,17 +190,32 @@ impl WorldRenderSet {
                 radius,
                 outline,
             } => {
-                self.add_circle(point, *fill, *radius, *outline, paint.offset);
+                self.add_circle(
+                    point,
+                    *fill,
+                    *radius,
+                    outline.as_ref().map(LinePaint::line_parameters),
+                    paint.offset,
+                );
             }
-            PointShape::Sector(parameters) => {
-                self.add_circle_sector(point, *parameters, paint.offset);
+            PointShape::Sector {
+                parameters,
+                outline,
+            } => {
+                self.add_circle_sector(
+                    point,
+                    *parameters,
+                    outline.as_ref().map(LinePaint::line_parameters),
+                    paint.offset,
+                );
             }
             PointShape::Square {
                 fill,
                 size,
                 outline,
             } => {
-                self.add_shape(point, *fill, *size, *outline, &square_shape(), paint.offset);
+                let outline = outline.as_ref().map(LinePaint::line_parameters);
+                self.add_shape(point, *fill, *size, outline, &square_shape(), paint.offset);
             }
             PointShape::FreeShape {
                 fill,
@@ -197,7 +223,8 @@ impl WorldRenderSet {
                 outline,
                 shape,
             } => {
-                self.add_shape(point, *fill, *scale, *outline, shape, paint.offset);
+                let outline = outline.as_ref().map(LinePaint::line_parameters);
+                self.add_shape(point, *fill, *scale, outline, shape, paint.offset);
             }
             PointShape::Label { text, style } => self.add_label(point, text, style, paint.offset),
         };
@@ -206,21 +233,136 @@ impl WorldRenderSet {
     pub fn add_line<N, P, C>(&mut self, line: &C, paint: &LinePaint, min_resolution: f64)
     where
         N: AsPrimitive<f32>,
-        P: CartesianPoint3d<Num = N>,
+        P: CartesianPoint3d<Num = N> + Copy,
         C: Contour<Point = P>,
     {
-        self.add_line_lod(line, *paint, min_resolution);
+        match paint.dasharray() {
+            Some(dasharray) => {
+                self.add_dashed_line(line, dasharray, paint.line_parameters(), min_resolution)
+            }
+            None => self.tessellate_line(
+                line.iter_points(),
+                line.is_closed(),
+                paint.line_parameters(),
+                min_resolution,
+            ),
+        }
     }
 
-    fn add_line_lod<N, P, C>(&mut self, line: &C, paint: LinePaint, min_resolution: f64)
-    where
+    fn add_dashed_line<N, P, C>(
+        &mut self,
+        line: &C,
+        dasharray: DashArray,
+        paint: LineParameters,
+        min_resolution: f64,
+    ) where
+        N: AsPrimitive<f32>,
+        P: CartesianPoint3d<Num = N> + Copy,
+        C: Contour<Point = P>,
+    {
+        const MIN_PATTERN_LENGTH: f32 = 0.1;
+
+        let scale = 1.0 / min_resolution as f32;
+        let pattern = dasharray.0;
+        if pattern.is_empty() {
+            return;
+        }
+
+        let total_pattern_len = pattern.iter().sum::<f32>() * paint.width;
+        if total_pattern_len <= MIN_PATTERN_LENGTH {
+            // If pattern is too short, the result looks exactly the same as a continuous line, but
+            // computations required are much higher. So we just render a line without dashes.
+            return self.tessellate_line(
+                line.iter_points(),
+                line.is_closed(),
+                paint,
+                min_resolution,
+            );
+        }
+
+        let mut pattern_index = 0usize;
+        let mut is_dash = true;
+        let mut remaining_in_segment = pattern[0] * paint.width;
+        let mut current_dash: Vec<Point3<f32>> = vec![];
+
+        for (from, to) in line.iter_points_closing().tuple_windows() {
+            let fx = from.x().as_();
+            let fy = from.y().as_();
+            let fz = from.z().as_();
+            let tx = to.x().as_();
+            let ty = to.y().as_();
+            let tz = to.z().as_();
+
+            let dx = (tx - fx) * scale;
+            let dy = (ty - fy) * scale;
+            let segment_len = (dx * dx + dy * dy).sqrt();
+
+            if segment_len <= 0.0 {
+                continue;
+            }
+
+            let mut traveled = 0.0f32;
+
+            while traveled < segment_len {
+                let t_start = traveled / segment_len;
+                let step = remaining_in_segment.min(segment_len - traveled);
+                traveled += step;
+                let t_end = traveled / segment_len;
+
+                if is_dash {
+                    if current_dash.is_empty() {
+                        current_dash.push(Point3::new(
+                            fx + (tx - fx) * t_start,
+                            fy + (ty - fy) * t_start,
+                            fz + (tz - fz) * t_start,
+                        ));
+                    }
+                    current_dash.push(Point3::new(
+                        fx + (tx - fx) * t_end,
+                        fy + (ty - fy) * t_end,
+                        fz + (tz - fz) * t_end,
+                    ));
+                }
+
+                remaining_in_segment -= step;
+
+                if remaining_in_segment <= 0.0 {
+                    if is_dash && current_dash.len() >= 2 {
+                        self.tessellate_line(
+                            std::mem::take(&mut current_dash),
+                            false,
+                            paint,
+                            min_resolution,
+                        );
+                    } else {
+                        current_dash.clear();
+                    }
+
+                    pattern_index = (pattern_index + 1) % pattern.len();
+                    is_dash = !is_dash;
+                    remaining_in_segment = pattern[pattern_index] * paint.width;
+                }
+            }
+        }
+
+        if is_dash && current_dash.len() >= 2 {
+            self.tessellate_line(current_dash, false, paint, min_resolution);
+        }
+    }
+
+    fn tessellate_line<N, P>(
+        &mut self,
+        line: impl IntoIterator<Item = P>,
+        is_closed: bool,
+        paint: LineParameters,
+        min_resolution: f64,
+    ) where
         N: AsPrimitive<f32>,
         P: CartesianPoint3d<Num = N>,
-        C: Contour<Point = P>,
     {
         let tessellation = &mut self.poly_tessellation;
         let mut path_builder = BuilderWithAttributes::new(1);
-        let mut iterator = line.iter_points();
+        let mut iterator = line.into_iter();
 
         let Some(first_point) = iterator.next() else {
             return;
@@ -244,12 +386,12 @@ impl WorldRenderSet {
             );
         }
 
-        path_builder.end(line.is_closed());
+        path_builder.end(is_closed);
         let path = path_builder.build();
 
         let vertex_constructor = LineVertexConstructor {
-            width: paint.width as f32 * self.dpi_scale_factor,
-            offset: paint.offset as f32,
+            width: paint.width * self.dpi_scale_factor,
+            offset: paint.offset,
             color: paint.color.to_f32_array(),
             resolution: min_resolution as f32,
             path: &path,
@@ -262,8 +404,8 @@ impl WorldRenderSet {
         if let Err(err) = tesselator.tessellate_path(
             &path,
             &StrokeOptions::DEFAULT
-                .with_line_cap(paint.line_cap.into())
-                .with_line_width(paint.width as f32)
+                .with_line_cap(paint.cap.into())
+                .with_line_width(paint.width)
                 .with_miter_limit(1.0)
                 .with_tolerance(0.1)
                 .with_line_join(LineJoin::MiterClip),
@@ -363,12 +505,12 @@ impl WorldRenderSet {
         }
     }
 
-    pub fn add_shape<N, P>(
+    fn add_shape<N, P>(
         &mut self,
         position: &P,
         fill: Color,
         scale: f32,
-        outline: Option<LinePaint>,
+        outline: Option<LineParameters>,
         shape: &ClosedContour<Point2<f32>>,
         offset: Vector2<f32>,
     ) where
@@ -393,7 +535,8 @@ impl WorldRenderSet {
 
             if let Err(err) = StrokeTessellator::new().tessellate(
                 &path,
-                &StrokeOptions::DEFAULT.with_line_width(outline.width as f32 * 2.0),
+                &StrokeOptions::DEFAULT
+                    .with_line_width(outline.width * 2.0 * self.dpi_scale_factor),
                 &mut BuffersBuilder::new(tessellation, vertex_constructor),
             ) {
                 log::warn!("Shape tessellation failed: {err:?}");
@@ -428,7 +571,7 @@ impl WorldRenderSet {
         position: &P,
         fill: CircleFill,
         radius: f32,
-        outline: Option<LinePaint>,
+        outline: Option<LineParameters>,
         offset: Vector2<f32>,
     ) where
         N: AsPrimitive<f32>,
@@ -441,8 +584,8 @@ impl WorldRenderSet {
                 radius,
                 start_angle: 0.0,
                 end_angle: std::f32::consts::PI * 2.0,
-                outline,
             },
+            outline,
             offset,
         )
     }
@@ -451,6 +594,7 @@ impl WorldRenderSet {
         &mut self,
         position: &P,
         parameters: SectorParameters,
+        outline: Option<LineParameters>,
         offset: Vector2<f32>,
     ) where
         N: AsPrimitive<f32>,
@@ -461,7 +605,6 @@ impl WorldRenderSet {
             radius,
             start_angle,
             end_angle,
-            outline,
         } = parameters;
         const TOLERANCE: f32 = 0.1;
         let dr = (end_angle - start_angle)
@@ -509,11 +652,11 @@ impl WorldRenderSet {
         self.poly_tessellation.vertices.append(&mut vertices);
         self.poly_tessellation.indices.append(&mut indices);
 
-        if let Some(mut outline) = outline {
+        if let Some(outline) = outline {
             if !is_full_circle {
                 contour.push(Point2::new(0.0, 0.0));
             }
-            outline.width *= self.dpi_scale_factor as f64;
+
             self.add_shape(
                 position,
                 Color::TRANSPARENT,

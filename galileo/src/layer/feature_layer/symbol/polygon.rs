@@ -78,6 +78,7 @@ impl SimplePolygonSymbol {
                 width: self.stroke_width,
                 offset: self.stroke_offset,
                 line_cap: LineCap::Butt,
+                dasharray: None,
             };
 
             for contour in polygon.iter_contours() {

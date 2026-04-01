@@ -172,15 +172,21 @@ pub struct VectorTileLineSymbol {
     pub width: NumExpr,
     /// Color of the line in pixels.
     pub stroke_color: ColorExpr,
+    /// Parameters of dash array for the line.
+    ///
+    /// Sets length of "dash - gap - dash - ..." of widths of the line. If the specification contains not even number of
+    /// values, the whole pattern is repeated twice when applied.
+    pub dasharray: Option<Vec<f32>>,
 }
 
 impl VectorTileLineSymbol {
-    pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<LinePaint> {
+    pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<LinePaint<'_>> {
         Some(LinePaint {
             color: self.stroke_color.eval(feature, view)?,
             width: self.width.eval(feature, view)?,
             offset: 0.0,
             line_cap: LineCap::Butt,
+            dasharray: self.dasharray.as_deref(),
         })
     }
 }

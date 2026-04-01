@@ -48,7 +48,7 @@ pub struct LinePaint {
 
     /// Dash pattern for the line. Supports expressions.
     #[serde(rename = "line-dasharray", skip_serializing_if = "Option::is_none")]
-    pub line_dasharray: Option<Value>,
+    pub line_dasharray: Option<Vec<f32>>,
 
     /// Gap width for a casing effect. Supports expressions.
     #[serde(rename = "line-gap-width", skip_serializing_if = "Option::is_none")]

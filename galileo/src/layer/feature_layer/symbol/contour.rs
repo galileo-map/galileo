@@ -36,6 +36,7 @@ impl<F> Symbol<F> for SimpleContourSymbol {
             width: self.width,
             offset: 0.0,
             line_cap: LineCap::Butt,
+            dasharray: None,
         };
 
         match geometry {

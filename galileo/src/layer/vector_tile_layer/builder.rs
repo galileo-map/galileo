@@ -498,6 +498,7 @@ impl VectorTileLayerBuilder {
                     symbol: VectorTileSymbol::Line(VectorTileLineSymbol {
                         width: 1.0.into(),
                         stroke_color: Color::BLACK.into(),
+                        dasharray: None,
                     }),
                 },
                 StyleRule {

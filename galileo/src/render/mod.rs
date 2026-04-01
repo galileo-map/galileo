@@ -12,6 +12,7 @@ use render_bundle::RenderBundle;
 use serde::{Deserialize, Serialize};
 
 use crate::Color;
+use crate::render::render_bundle::world_set::{DashArray, LineParameters};
 
 #[cfg(feature = "wgpu")]
 mod wgpu;
@@ -101,8 +102,8 @@ pub struct PolygonPaint {
 }
 
 /// Parameter to draw a line primitive with.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct LinePaint {
+#[derive(Debug, Clone)]
+pub struct LinePaint<'a> {
     /// Color of the line.
     pub color: Color,
     /// Width of the line in pixels.
@@ -112,6 +113,26 @@ pub struct LinePaint {
     pub offset: f64,
     /// Type of the cap of the line.
     pub line_cap: LineCap,
+    /// Parameters of dash array for the line.
+    ///
+    /// Sets length of "dash - gap - dash - ..." of widths of the line. If the specification contains not even number of
+    /// values, the whole pattern is repeated twice when applied.
+    pub dasharray: Option<&'a [f32]>,
+}
+
+impl LinePaint<'_> {
+    pub(crate) fn line_parameters(&self) -> LineParameters {
+        LineParameters {
+            color: self.color,
+            width: self.width as f32,
+            offset: self.offset as f32,
+            cap: self.line_cap,
+        }
+    }
+
+    pub(crate) fn dasharray(&self) -> Option<DashArray<'_>> {
+        self.dasharray.as_ref().map(|v| DashArray(v))
+    }
 }
 
 /// Cap (end point) style of the line.
