@@ -1,5 +1,6 @@
 #![allow(missing_docs)] //TODO: temporary allow
 
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use itertools::Itertools;
@@ -50,7 +51,7 @@ pub enum Expr {
     WithOpacity(WithOpacityExpr),
 
     #[serde(untagged)]
-    Literal(ExprValue<String>),
+    Value(ExprValue<'static>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -63,7 +64,7 @@ pub type BoolExpr = TypedExpr<bool>;
 
 impl<T> Default for TypedExpr<T> {
     fn default() -> Self {
-        Self(Expr::Literal(ExprValue::Null), PhantomData)
+        Self(Expr::Value(ExprValue::Null), PhantomData)
     }
 }
 
@@ -91,6 +92,15 @@ impl TypedExpr<bool> {
     }
 }
 
+impl TypedExpr<Vec<f64>> {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> Option<Cow<'a, [f64]>> {
+        match self.0.eval(f, v) {
+            ExprValue::NumArray(arr) => Some(arr),
+            _ => None,
+        }
+    }
+}
+
 impl<Out> From<Expr> for TypedExpr<Out> {
     fn from(value: Expr) -> Self {
         Self::new(value)
@@ -99,37 +109,43 @@ impl<Out> From<Expr> for TypedExpr<Out> {
 
 impl From<Color> for TypedExpr<Color> {
     fn from(value: Color) -> Self {
-        Expr::Literal(value.into()).into()
+        Expr::Value(value.into()).into()
     }
 }
 
 impl From<f64> for TypedExpr<f64> {
     fn from(value: f64) -> Self {
-        Expr::Literal(value.into()).into()
+        Expr::Value(value.into()).into()
     }
 }
 
 impl From<Color> for Expr {
     fn from(value: Color) -> Self {
-        Expr::Literal(value.into())
+        Expr::Value(value.into())
     }
 }
 
 impl From<f64> for Expr {
     fn from(value: f64) -> Self {
-        Expr::Literal(value.into())
+        Expr::Value(value.into())
     }
 }
 
 impl From<String> for Expr {
     fn from(value: String) -> Self {
-        Expr::Literal(value.into())
+        Expr::Value(value.into())
     }
 }
 
 impl From<bool> for Expr {
     fn from(value: bool) -> Self {
-        Expr::Literal(value.into())
+        Expr::Value(value.into())
+    }
+}
+
+impl From<Vec<f64>> for Expr {
+    fn from(value: Vec<f64>) -> Self {
+        Expr::Value(value.into())
     }
 }
 
@@ -161,13 +177,13 @@ impl<'de, Out> Deserialize<'de> for TypedExpr<Out> {
 }
 
 pub trait ExprFeature {
-    fn property(&self, property_name: &str) -> ExprValue<&str>;
+    fn property(&self, property_name: &str) -> ExprValue<'_>;
     fn geom_type(&self) -> ExprGeometryType;
 }
 
 pub struct EmptyExprFeature;
 impl ExprFeature for EmptyExprFeature {
-    fn property(&self, _property_name: &str) -> ExprValue<&str> {
+    fn property(&self, _property_name: &str) -> ExprValue<'_> {
         ExprValue::Null
     }
 
@@ -183,9 +199,9 @@ pub struct ExprView {
 }
 
 impl Expr {
-    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<'a> {
         match self {
-            Expr::Literal(x) => x.borrowed(),
+            Expr::Value(x) => x.borrowed(),
             Expr::All(exprs) => exprs.iter().all(|expr| expr.eval(f, v).to_bool()).into(),
             Expr::Any(exprs) => exprs.iter().any(|expr| expr.eval(f, v).to_bool()).into(),
             Expr::Not(expr) => (!expr.eval(f, v).to_bool()).into(),
@@ -218,9 +234,9 @@ impl Expr {
     }
 }
 
-impl From<ExprValue<String>> for Expr {
-    fn from(value: ExprValue<String>) -> Self {
-        Self::Literal(value)
+impl From<ExprValue<'static>> for Expr {
+    fn from(value: ExprValue<'static>) -> Self {
+        Self::Value(value)
     }
 }
 
@@ -231,7 +247,7 @@ pub struct WithOpacityExpr {
 }
 
 impl WithOpacityExpr {
-    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<'a> {
         let Some(color) = self.color.eval(f, v).as_color() else {
             return ExprValue::Null;
         };
@@ -258,7 +274,7 @@ mod tests {
             expr.0,
             Expr::Eq(
                 Box::new(Expr::Get("kind".to_string())),
-                Box::new(Expr::Literal(ExprValue::String("road".to_string()))),
+                Box::new(Expr::Value("road".to_string().into())),
             )
         );
     }
@@ -267,7 +283,7 @@ mod tests {
     fn deserialize_expr_from_num() {
         let json = "42";
         let expr: NumExpr = serde_json::from_str(json).unwrap();
-        assert_eq!(expr.0, Expr::Literal(ExprValue::Number(42.0)));
+        assert_eq!(expr.0, Expr::Value(ExprValue::Number(42.0)));
     }
 
     #[test]

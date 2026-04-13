@@ -1,11 +1,13 @@
 //! See [`VectorTileStyle`].
 
+use std::borrow::Cow;
+
 use galileo_mvt::{MvtFeature, MvtValue};
 use serde::{Deserialize, Serialize};
 
 use crate::Color;
 use crate::expr::{
-    BoolExpr, ColorExpr, ExprFeature, ExprGeometryType, ExprValue, ExprView, NumExpr,
+    BoolExpr, ColorExpr, ExprFeature, ExprGeometryType, ExprValue, ExprView, NumExpr, TypedExpr,
 };
 use crate::render::point_paint::PointPaint;
 use crate::render::text::{
@@ -61,7 +63,7 @@ impl StyleRule {
 }
 
 impl ExprFeature for MvtFeature {
-    fn property(&self, property_name: &str) -> crate::expr::ExprValue<&str> {
+    fn property(&self, property_name: &str) -> ExprValue<'_> {
         self.properties
             .get(property_name)
             .map(|v| v.into())
@@ -77,10 +79,10 @@ impl ExprFeature for MvtFeature {
     }
 }
 
-impl<'a> From<&'a MvtValue> for ExprValue<&'a str> {
+impl<'a> From<&'a MvtValue> for ExprValue<'a> {
     fn from(value: &'a MvtValue) -> Self {
         match value {
-            MvtValue::String(v) => Self::String(v),
+            MvtValue::String(v) => Self::String(Cow::Borrowed(v)),
             MvtValue::Float(v) => Self::Number(*v as f64),
             MvtValue::Double(v) => Self::Number(*v),
             MvtValue::Int64(v) => Self::Number(*v as f64),
@@ -176,17 +178,21 @@ pub struct VectorTileLineSymbol {
     ///
     /// Sets length of "dash - gap - dash - ..." of widths of the line. If the specification contains not even number of
     /// values, the whole pattern is repeated twice when applied.
-    pub dasharray: Option<Vec<f32>>,
+    pub dasharray: Option<TypedExpr<Vec<f64>>>,
 }
 
 impl VectorTileLineSymbol {
-    pub(crate) fn to_paint(&self, feature: &MvtFeature, view: ExprView) -> Option<LinePaint<'_>> {
+    pub(crate) fn to_paint<'a>(
+        &'a self,
+        feature: &'a MvtFeature,
+        view: ExprView,
+    ) -> Option<LinePaint<'a>> {
         Some(LinePaint {
             color: self.stroke_color.eval(feature, view)?,
             width: self.width.eval(feature, view)?,
             offset: 0.0,
             line_cap: LineCap::Butt,
-            dasharray: self.dasharray.as_deref(),
+            dasharray: self.dasharray.as_ref().and_then(|v| v.eval(feature, view)),
         })
     }
 }

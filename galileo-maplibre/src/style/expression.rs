@@ -806,14 +806,14 @@ impl MlExpr {
             })
         }
 
-        fn literal(v: &Value) -> Option<ExprValue<String>> {
+        fn literal(v: &Value) -> Option<ExprValue<'static>> {
             match v {
                 Value::Bool(v) => Some(ExprValue::Boolean(*v)),
                 Value::Number(v) => Some(ExprValue::Number(v.as_f64()?)),
                 Value::String(v) => Some(
                     parse_css_color(v)
                         .map(ExprValue::from)
-                        .unwrap_or_else(|| ExprValue::String(v.clone())),
+                        .unwrap_or_else(|| ExprValue::String(v.clone().into())),
                 ),
                 Value::Null => Some(ExprValue::Null),
                 _ => None,

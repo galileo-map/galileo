@@ -64,7 +64,7 @@ pub(crate) struct LineParameters {
     pub(crate) cap: LineCap,
 }
 
-pub(crate) struct DashArray<'a>(pub(crate) &'a [f32]);
+pub(crate) struct DashArray<'a>(pub(crate) &'a [f64]);
 
 impl WorldRenderSet {
     pub fn new(dpi_scale_factor: f32) -> Self {
@@ -268,7 +268,7 @@ impl WorldRenderSet {
             return;
         }
 
-        let total_pattern_len = pattern.iter().sum::<f32>() * paint.width;
+        let total_pattern_len = pattern.iter().sum::<f64>() as f32 * paint.width;
         if total_pattern_len <= MIN_PATTERN_LENGTH {
             // If pattern is too short, the result looks exactly the same as a continuous line, but
             // computations required are much higher. So we just render a line without dashes.
@@ -282,7 +282,7 @@ impl WorldRenderSet {
 
         let mut pattern_index = 0usize;
         let mut is_dash = true;
-        let mut remaining_in_segment = pattern[0] * paint.width;
+        let mut remaining_in_segment = pattern[0] as f32 * paint.width;
         let mut current_dash: Vec<Point3<f32>> = vec![];
 
         for (from, to) in line.iter_points_closing().tuple_windows() {
@@ -340,7 +340,7 @@ impl WorldRenderSet {
 
                     pattern_index = (pattern_index + 1) % pattern.len();
                     is_dash = !is_dash;
-                    remaining_in_segment = pattern[pattern_index] * paint.width;
+                    remaining_in_segment = pattern[pattern_index] as f32 * paint.width;
                 }
             }
         }

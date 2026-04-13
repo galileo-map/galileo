@@ -5,6 +5,7 @@
 //! At this point only [`WgpuRenderer`] is implemented.
 
 use std::any::Any;
+use std::borrow::Cow;
 
 use galileo_types::cartesian::{Size, Vector2};
 use maybe_sync::{MaybeSend, MaybeSync};
@@ -117,7 +118,7 @@ pub struct LinePaint<'a> {
     ///
     /// Sets length of "dash - gap - dash - ..." of widths of the line. If the specification contains not even number of
     /// values, the whole pattern is repeated twice when applied.
-    pub dasharray: Option<&'a [f32]>,
+    pub dasharray: Option<Cow<'a, [f64]>>,
 }
 
 impl LinePaint<'_> {

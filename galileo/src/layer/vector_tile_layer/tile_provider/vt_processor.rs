@@ -198,7 +198,7 @@ impl VtProcessor {
 
     fn get_line_symbol<'a>(
         rule: &'a StyleRule,
-        feature: &MvtFeature,
+        feature: &'a MvtFeature,
         view: ExprView,
     ) -> Option<LinePaint<'a>> {
         rule.symbol.line().and_then(|s| s.to_paint(feature, view))

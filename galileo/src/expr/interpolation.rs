@@ -17,7 +17,7 @@ pub trait Interpolation {
     fn control_points(&self) -> &[ControlPoint];
     fn interpolate_num(&self, t: f64, x1: f64, out1: f64, x2: f64, out2: f64) -> f64;
 
-    fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
+    fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<'static> {
         let Some(input) = self.input().eval(f, v).as_number() else {
             return ExprValue::Null;
         };
@@ -36,8 +36,8 @@ pub trait Interpolation {
 
         match (lower, upper) {
             (None, None) => ExprValue::Null,
-            (Some(lower), None) => lower.1.eval(f, v),
-            (None, Some(upper)) => upper.1.eval(f, v),
+            (Some(lower), None) => lower.1.eval(f, v).owned(),
+            (None, Some(upper)) => upper.1.eval(f, v).owned(),
             (Some(lower), Some(upper)) => self.interpolate(
                 *input,
                 **lower.0,
@@ -66,14 +66,14 @@ pub trait Interpolation {
         Some(evaluated)
     }
 
-    fn interpolate<T>(
+    fn interpolate(
         &self,
         t: f64,
         x1: f64,
-        out1: ExprValue<T>,
+        out1: ExprValue<'_>,
         x2: f64,
-        out2: ExprValue<T>,
-    ) -> ExprValue<T> {
+        out2: ExprValue<'_>,
+    ) -> ExprValue<'static> {
         match (out1, out2) {
             (ExprValue::Number(out1), ExprValue::Number(out2)) => {
                 self.interpolate_num(t, x1, out1, x2, out2).into()
@@ -81,6 +81,10 @@ pub trait Interpolation {
             (ExprValue::Color(out1), ExprValue::Color(out2)) => {
                 self.interpolate_color(t, x1, out1, x2, out2).into()
             }
+            (ExprValue::NumArray(out1), ExprValue::NumArray(out2)) => self
+                .interpolate_num_array(t, x1, &out1, x2, &out2)
+                .map(|v| v.into())
+                .unwrap_or(ExprValue::Null),
             _ => ExprValue::Null,
         }
     }
@@ -92,6 +96,26 @@ pub trait Interpolation {
         let a = self.interpolate_num(t, x1, out1.a() as f64, x2, out2.a() as f64) as u8;
 
         Color::rgba(r, g, b, a)
+    }
+
+    fn interpolate_num_array(
+        &self,
+        t: f64,
+        x1: f64,
+        out1: &[f64],
+        x2: f64,
+        out2: &[f64],
+    ) -> Option<Vec<f64>> {
+        if out1.is_empty() || out1.len() != out2.len() {
+            return None;
+        }
+
+        let mut result = vec![0.0; out1.len()];
+        for i in 0..out1.len() {
+            result[i] = self.interpolate_num(t, x1, out1[i], x2, out2[i]);
+        }
+
+        Some(result)
     }
 }
 

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 
@@ -37,22 +35,12 @@ fn atom<'src>(
     choice((
         block(expr_parser.clone()),
         literal(),
+        num_array(),
         func_call(expr_parser),
         property(),
         invalid(),
     ))
     .boxed()
-}
-
-fn func0(func_name: &str, constructor: Expr, args: Vec<Expr>) -> Result<Expr, String> {
-    if !args.is_empty() {
-        return Err(format!(
-            "Function `{func_name}` expected 0 arguments, but got {}",
-            args.len()
-        ));
-    }
-
-    Ok(constructor)
 }
 
 struct FuncContext<'src> {
@@ -174,7 +162,7 @@ macro_rules! impl_get_arg {
 impl_get_arg!(Box<Expr>, FuncArgument::Expression(v) => Box::new(v), "Expression");
 impl_get_arg!(
     String,
-    FuncArgument::Expression(Expr::Literal(ExprValue::String(v))) => v,
+    FuncArgument::Expression(Expr::Value(ExprValue::String(v))) => v.to_string(),
     "String"
 );
 impl_get_arg!(Vec<Expr>, FuncArgument::Array(v) => v, "Expression Array");
@@ -183,7 +171,6 @@ impl_get_arg!(Vec<Expr>, FuncArgument::Array(v) => v, "Expression Array");
 enum FuncArgument {
     Expression(Expr),
     Array(Vec<Expr>),
-    Tuple(Vec<Expr>),
 }
 
 fn func_arg<'src>(
@@ -199,15 +186,17 @@ fn func_arg<'src>(
         .delimited_by(just('['), just(']'))
         .map(FuncArgument::Array);
 
-    let tuple = expr_parser
+    choice((array, expr)).padded()
+}
+
+fn num_array<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
+    number()
+        .padded()
         .separated_by(just(','))
-        .at_least(2)
         .allow_trailing()
         .collect::<Vec<_>>()
-        .delimited_by(just('('), just(')'))
-        .map(FuncArgument::Tuple);
-
-    choice((array, tuple, expr)).padded()
+        .delimited_by(just('['), just(']'))
+        .map(|v| ExprValue::NumArray(v.into()).into())
 }
 
 fn func_call<'src>(
@@ -295,7 +284,7 @@ fn ident_cont<'src>() -> impl Parser<'src, &'src str, char, extra::Err<Rich<'src
 
 /// Parses `true` or `false`, rejecting a longer identifier that merely starts with those words.
 fn bool_literal<'src>()
--> impl Parser<'src, &'src str, ExprValue<String>, extra::Err<Rich<'src, char>>> {
+-> impl Parser<'src, &'src str, ExprValue<'static>, extra::Err<Rich<'src, char>>> {
     let true_ = just("true").to(ExprValue::Boolean(true));
     let false_ = just("false").to(ExprValue::Boolean(false));
 
@@ -304,13 +293,13 @@ fn bool_literal<'src>()
 
 /// Parses `null`, rejecting a longer identifier that merely starts with `null`.
 fn null_literal<'src>()
--> impl Parser<'src, &'src str, ExprValue<String>, extra::Err<Rich<'src, char>>> {
+-> impl Parser<'src, &'src str, ExprValue<'static>, extra::Err<Rich<'src, char>>> {
     just("null").to(ExprValue::Null)
 }
 
 /// Parses a hex color literal: `#RRGGBB` or `#RRGGBBAA`.
 fn hex_color_literal<'src>()
--> impl Parser<'src, &'src str, ExprValue<String>, extra::Err<Rich<'src, char>>> {
+-> impl Parser<'src, &'src str, ExprValue<'static>, extra::Err<Rich<'src, char>>> {
     just('#')
         .ignore_then(
             any()
@@ -343,7 +332,7 @@ fn invalid<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
         })
 }
 
-fn number_literal<'src>() -> impl Parser<'src, &'src str, ExprValue<String>, Error<'src>> {
+fn number<'src>() -> impl Parser<'src, &'src str, f64, Error<'src>> {
     let digits = text::digits(10);
 
     let fraction = just('.').then(digits.or_not()).or_not();
@@ -357,11 +346,11 @@ fn number_literal<'src>() -> impl Parser<'src, &'src str, ExprValue<String>, Err
         .then(fraction)
         .then(exponent)
         .to_slice()
-        .try_map(|s: &str, span| {
-            s.parse::<f64>()
-                .map(ExprValue::Number)
-                .map_err(|e| Rich::custom(span, e))
-        })
+        .try_map(|s: &str, span| s.parse::<f64>().map_err(|e| Rich::custom(span, e)))
+}
+
+fn number_literal<'src>() -> impl Parser<'src, &'src str, ExprValue<'static>, Error<'src>> {
+    number().map(ExprValue::Number)
 }
 
 /// Parses a quoted string literal. Both `"hello"` and `'hello'` are accepted; the opening and
@@ -388,7 +377,7 @@ fn literal<'src>() -> impl Parser<'src, &'src str, Expr, Error<'src>> {
         string_literal().map(ExprValue::from),
     ))
     .padded()
-    .map(Expr::Literal)
+    .map(Expr::Value)
     .then_ignore(atom_boundary().rewind())
     .labelled("literal")
 }
@@ -483,6 +472,10 @@ mod tests {
                 },
             ),
             ("geom_type()", Expr::GeomType),
+            (
+                "[1, 2, 3]",
+                Expr::Value(ExprValue::NumArray((&[1.0, 2.0, 3.0]).into())),
+            ),
         ];
 
         for (case, expected) in cases {
@@ -507,7 +500,7 @@ mod tests {
 
     #[test]
     fn parse_block() {
-        check("(42)", Expr::Literal(42.0.into()));
+        check("(42)", Expr::Value(42.0.into()));
         check(
             "(42 == 12)",
             Expr::Eq(Box::new(42.0.into()), Box::new(12.0.into())),
@@ -582,7 +575,7 @@ mod tests {
 
     #[test]
     fn parser_error_unclosed_bracket() {
-        ass!(s("zoom("), @r#""found end of input at 5..5 expected ''['', ''('', expression block, literal, any, property name, or '')''""#);
+        ass!(s("zoom("), @r#""found end of input at 5..5 expected ''['', expression block, literal, any, property name, or '')''""#);
     }
 
     #[test]

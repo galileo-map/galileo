@@ -11,12 +11,12 @@ pub struct MatchExpr {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchCase {
-    pub in_values: Vec<ExprValue<String>>,
+    pub in_values: Vec<ExprValue<'static>>,
     pub out: Expr,
 }
 
 impl MatchExpr {
-    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<&'a str> {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<'a> {
         let input = self.input.eval(f, v);
         let fallback = self.fallback.eval(f, v);
         if input.is_null() {

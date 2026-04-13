@@ -24,7 +24,7 @@ impl From<MlColor> for Color {
     }
 }
 
-impl<T> From<MlColor> for ExprValue<T> {
+impl From<MlColor> for ExprValue<'_> {
     fn from(value: MlColor) -> Self {
         Self::Color(value.0)
     }

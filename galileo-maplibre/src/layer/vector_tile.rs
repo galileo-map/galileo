@@ -64,7 +64,7 @@ pub fn try_create(
 /// entire tile. WE don't support this currently, and always put background at the back.
 fn get_background(layers: &[&MaplibreStyleLayer]) -> ColorExpr {
     const DEFAULT_TILE_BACKGROUND: ColorExpr =
-        ColorExpr::new(Expr::Literal(ExprValue::Color(Color::TRANSPARENT)));
+        ColorExpr::new(Expr::Value(ExprValue::Color(Color::TRANSPARENT)));
 
     let layer = match layers {
         [] => return DEFAULT_TILE_BACKGROUND,
@@ -113,13 +113,13 @@ fn get_color_value(color: &MlStyleValue<MlColor>, opacity: &MlStyleValue<f64>) -
     })
 }
 
-fn get_galileo_value<T: Copy + Default + std::fmt::Debug>(value: &MlStyleValue<T>) -> Option<Expr>
+fn get_galileo_value<T: Clone + Default + std::fmt::Debug>(value: &MlStyleValue<T>) -> Option<Expr>
 where
     for<'de> FunctionStop<T>: Deserialize<'de>,
-    ExprValue<String>: From<T>,
+    ExprValue<'static>: From<T>,
 {
     match value {
-        MlStyleValue::Literal(v) => Some(Expr::Literal(ExprValue::from(*v))),
+        MlStyleValue::Literal(v) => Some(Expr::Value(ExprValue::from(v.clone()))),
         MlStyleValue::Expression(expr) => expr.to_galileo_expr(),
         MlStyleValue::Function(function) => {
             let control_points = function
@@ -127,7 +127,7 @@ where
                 .iter()
                 .map(|stop| ControlPoint {
                     input: stop.input.into(),
-                    output: ExprValue::<String>::from(stop.output).into(),
+                    output: ExprValue::from(stop.output.clone()).into(),
                 })
                 .collect();
 
@@ -298,7 +298,11 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
         .minzoom
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
     let filter = line.filter.as_ref().and_then(|v| v.to_galileo_expr());
-    let dasharray = line.paint.line_dasharray.clone();
+    let dasharray = line
+        .paint
+        .line_dasharray
+        .as_ref()
+        .and_then(|v| get_galileo_value(v).map(|v| v.into()));
 
     Some(StyleRule {
         layer_name: Some(source_layer),
