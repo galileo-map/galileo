@@ -751,8 +751,9 @@ impl MlExpr {
 
                 Some(Expr::Get(property_name.clone()))
             } else {
-                log::debug!("{UNSUPPORTED} Expected '{prop:?}' to be a property name");
-                None
+                // If LHS of an expression is not a string literal, it should be some kind of
+                // expression
+                prop.to_galileo_expr()
             }
         }
 
@@ -912,6 +913,18 @@ impl MlExpr {
                     fallback: default_output.to_galileo_expr()?,
                 }))
             }
+            MlExpr::Case { branches, fallback } => Expr::Select(Box::new(SelectExpr {
+                cases: branches
+                    .iter()
+                    .map(|(condition, out)| {
+                        Some(SelectCase {
+                            condition: condition.to_galileo_expr()?,
+                            out: out.to_galileo_expr()?,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+                fallback: fallback.to_galileo_expr()?,
+            })),
             _ => {
                 log::debug!("{UNSUPPORTED} Expression {self:?} is not supported yet");
                 return None;

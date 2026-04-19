@@ -237,7 +237,7 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
 
     if !fill.paint.fill_antialias {
         log::debug!(
-            "{} not-antialised polygons are not supported yet",
+            "{} not-antialiased polygons are not supported yet",
             crate::layer::UNSUPPORTED,
         );
     }
