@@ -266,6 +266,10 @@ fn default_one() -> MlStyleValue<f64> {
     MlStyleValue::Literal(1.0)
 }
 
+fn default_true() -> bool {
+    true
+}
+
 fn deser_default_one<'de, D>(deserializer: D) -> Result<MlStyleValue<f64>, D::Error>
 where
     D: serde::Deserializer<'de>,

@@ -8,7 +8,7 @@ use crate::style::color::MlColor;
 use crate::style::expression::MlExpr;
 use crate::style::value::MlStyleValue;
 use crate::style::{
-    default_one, default_transparent, deser_default_one, deser_default_transparent,
+    default_one, default_transparent, default_true, deser_default_one, deser_default_transparent,
     deserialize_opt_f64,
 };
 
@@ -16,8 +16,8 @@ use crate::style::{
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct FillPaint {
     /// Whether or not the fill should be antialiased. Supports expressions.
-    #[serde(rename = "fill-antialias", skip_serializing_if = "Option::is_none")]
-    pub fill_antialias: Option<Value>,
+    #[serde(rename = "fill-antialias", default = "default_true")]
+    pub fill_antialias: bool,
 
     /// Fill colour.
     #[serde(
