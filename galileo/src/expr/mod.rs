@@ -47,6 +47,7 @@ pub enum Expr {
     CubicBezier(Box<CubicBezierInterpolation>),
 
     Match(Box<MatchExpr>),
+    Select(Box<SelectExpr>),
 
     WithOpacity(WithOpacityExpr),
 
@@ -229,6 +230,7 @@ impl Expr {
             Expr::Exponential(ip) => ip.eval(f, v),
             Expr::CubicBezier(ip) => ip.eval(f, v),
             Expr::Match(m) => m.eval(f, v),
+            Expr::Select(s) => s.eval(f, v),
             Expr::WithOpacity(wo) => wo.eval(f, v),
         }
     }

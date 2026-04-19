@@ -24,7 +24,7 @@ use std::fmt;
 
 use galileo::expr::{
     ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, ExprGeometryType,
-    ExprValue, LinearInterpolation, MatchCase, MatchExpr,
+    ExprValue, LinearInterpolation, MatchCase, MatchExpr, SelectCase, SelectExpr,
 };
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -883,6 +883,35 @@ impl MlExpr {
                     .collect::<Option<Vec<_>>>()?,
                 fallback: fallback.to_galileo_expr()?,
             })),
+            MlExpr::Step {
+                input,
+                default_output,
+                stops,
+            } => {
+                let last_stop = stops.iter().last()?;
+                let mut cases = vec![];
+                let boxed_input = Box::new(input.to_galileo_expr()?);
+
+                let mut prev_out = default_output.to_galileo_expr()?;
+                for stop in stops {
+                    cases.push(SelectCase {
+                        condition: Expr::Lte(boxed_input.clone(), Box::new(stop.0.into())),
+                        out: prev_out,
+                    });
+
+                    prev_out = stop.1.to_galileo_expr()?;
+                }
+
+                cases.push(SelectCase {
+                    condition: Expr::Gte(boxed_input.clone(), Box::new(last_stop.0.into())),
+                    out: prev_out,
+                });
+
+                Expr::Select(Box::new(SelectExpr {
+                    cases,
+                    fallback: default_output.to_galileo_expr()?,
+                }))
+            }
             _ => {
                 log::debug!("{UNSUPPORTED} Expression {self:?} is not supported yet");
                 return None;

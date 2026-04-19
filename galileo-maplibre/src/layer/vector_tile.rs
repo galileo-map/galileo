@@ -235,7 +235,7 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
     let fill_opacity = &fill.paint.fill_opacity;
     let color = get_color_value(fill_color, fill_opacity)?;
 
-    if fill.paint.fill_antialias == false {
+    if !fill.paint.fill_antialias {
         log::debug!(
             "{} not-antialised polygons are not supported yet",
             crate::layer::UNSUPPORTED,
