@@ -8,14 +8,16 @@ use galileo::galileo_types::geo::{Crs, NewGeoPoint, Projection};
 use galileo::layer::VectorTileLayer;
 use galileo::layer::vector_tile_layer::VectorTileLayerBuilder;
 use galileo::layer::vector_tile_layer::style::{
-    StyleRule, VectorTileLineSymbol, VectorTilePolygonSymbol, VectorTileStyle, VectorTileSymbol,
+    StyleRule, VectorTileLabelSymbol, VectorTileLineSymbol, VectorTilePolygonSymbol,
+    VectorTileStyle, VectorTileSymbol, VtTextStyle,
 };
+use galileo::render::text::{FontStyle, FontWeight, HorizontalAlignment, VerticalAlignment};
 use galileo::tile_schema::{TileSchema, TileSchemaBuilder, VerticalDirection};
 use serde::Deserialize;
 
 use crate::layer::{UNSUPPORTED, log_unsupported_field};
 use crate::style::color::MlColor;
-use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer};
+use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer, SymbolLayer};
 use crate::style::source::{TileScheme, VectorSource};
 use crate::style::value::{FunctionStop, FunctionType, MlStyleValue};
 
@@ -197,6 +199,11 @@ fn build_rules(layers: &[&MaplibreStyleLayer], tile_schema: &TileSchema) -> Vec<
                     rules.push(rule);
                 }
             }
+            MaplibreStyleLayer::Symbol(symbol) => {
+                if let Some(rule) = symbol_rule(symbol, tile_schema) {
+                    rules.push(rule);
+                }
+            }
             other => {
                 log::debug!(
                     "{UNSUPPORTED} Maplibre layer type '{}' (id: '{}') inside a vector source \
@@ -216,6 +223,151 @@ fn build_rules(layers: &[&MaplibreStyleLayer], tile_schema: &TileSchema) -> Vec<
         );
     }
     rules
+}
+
+fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
+    let source_layer = match &symbol.source_layer {
+        Some(l) => l.clone(),
+        None => {
+            log::debug!(
+                "{UNSUPPORTED} Symbol layer '{}' has no source-layer; skipping.",
+                symbol.id
+            );
+            return None;
+        }
+    };
+
+    let min_resolution = symbol
+        .maxzoom
+        .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+    let max_resolution = symbol
+        .minzoom
+        .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
+    let filter = symbol.filter.as_ref().and_then(|v| v.to_galileo_expr());
+
+    let font_color = get_color_value(&symbol.paint.text_color, &symbol.paint.text_opacity)?;
+    let outline_color =
+        get_color_value(&symbol.paint.text_halo_color, &MlStyleValue::Literal(1.0))?;
+    let font_size = get_galileo_value(
+        &symbol
+            .layout
+            .text_size
+            .clone()
+            .unwrap_or_else(|| 16.0.into()),
+    )?;
+    let outline_width = get_galileo_value(
+        &symbol
+            .paint
+            .text_halo_width
+            .clone()
+            .unwrap_or_else(|| 0.0.into()),
+    )?;
+
+    let (font_family, weight, font_style) = parse_ml_fonts(&symbol.layout.text_font);
+
+    let style = VtTextStyle {
+        font_family,
+        font_size: font_size.into(),
+        font_color: font_color.into(),
+        horizontal_alignment: match symbol.layout.text_anchor.as_deref() {
+            Some("left") | Some("top-left") | Some("bottom-left") => HorizontalAlignment::Left,
+            Some("right") | Some("top-right") | Some("bottom-right") => HorizontalAlignment::Right,
+            _ => HorizontalAlignment::Center,
+        },
+        vertical_alignment: match symbol.layout.text_anchor.as_deref() {
+            Some("top") | Some("top-left") | Some("top-right") => VerticalAlignment::Top,
+            Some("bottom") | Some("bottom-left") | Some("bottom-right") => {
+                VerticalAlignment::Bottom
+            }
+            _ => VerticalAlignment::Middle,
+        },
+        weight,
+        style: font_style,
+        outline_width: outline_width.into(),
+        outline_color: outline_color.into(),
+    };
+
+    Some(StyleRule {
+        layer_name: Some(source_layer),
+        symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
+            pattern: symbol.layout.text_field.clone().unwrap_or_default(),
+            text_style: style,
+        }),
+        min_resolution,
+        max_resolution,
+        filter: filter.map(Into::into),
+    })
+}
+
+/// Parses Maplibre `text-font` entries into a font family list, [`FontWeight`], and [`FontStyle`].
+///
+/// Maplibre encodes weight and style as suffixes appended to the family name, e.g.
+/// `"Roboto Bold Italic"` or `"Noto Sans Regular"`. This function strips the known
+/// weight and style keywords from the end of each entry to recover the bare family name, and
+/// derives `FontWeight` / `FontStyle` from the first entry that contains them.
+///
+/// All family names are collected so the renderer can fall back through the list.
+fn parse_ml_fonts(text_font: &[String]) -> (Vec<String>, FontWeight, FontStyle) {
+    const STYLES: &[(&str, FontStyle)] = &[
+        ("Italic", FontStyle::Italic),
+        ("Oblique", FontStyle::Oblique),
+    ];
+
+    const WEIGHTS: &[(&str, FontWeight)] = &[
+        ("Thin", FontWeight::THIN),
+        ("ExtraLight", FontWeight::EXTRA_LIGHT),
+        ("Light", FontWeight::LIGHT),
+        ("Regular", FontWeight::NORMAL),
+        ("Medium", FontWeight::MEDIUM),
+        ("SemiBold", FontWeight::SEMI_BOLD),
+        ("Bold", FontWeight::BOLD),
+        ("ExtraBold", FontWeight::EXTRA_BOLD),
+        ("Black", FontWeight::BLACK),
+        ("Heavy", FontWeight::BLACK),
+    ];
+
+    let mut families = Vec::with_capacity(text_font.len());
+    let mut resolved_weight = FontWeight::NORMAL;
+    let mut resolved_style = FontStyle::Normal;
+    let mut style_resolved = false;
+
+    for font_str in text_font {
+        let mut rest = font_str.trim();
+
+        if !style_resolved {
+            if let Some((suffix, s)) = STYLES.iter().find(|(kw, _)| rest.ends_with(*kw)) {
+                rest = rest[..rest.len() - suffix.len()].trim();
+                resolved_style = *s;
+            }
+
+            if let Some((suffix, w)) = WEIGHTS.iter().find(|(kw, _)| rest.ends_with(*kw)) {
+                rest = rest[..rest.len() - suffix.len()].trim();
+                resolved_weight = *w;
+            }
+
+            style_resolved = true;
+        } else {
+            // For fallback fonts, strip any trailing style/weight keywords too.
+            for (suffix, _) in STYLES.iter() {
+                if rest.ends_with(*suffix) {
+                    rest = rest[..rest.len() - suffix.len()].trim();
+                    break;
+                }
+            }
+            for (suffix, _) in WEIGHTS.iter() {
+                if rest.ends_with(*suffix) {
+                    rest = rest[..rest.len() - suffix.len()].trim();
+                    break;
+                }
+            }
+        }
+
+        if !rest.is_empty() {
+            families.push(rest.to_string());
+        }
+    }
+
+    (families, resolved_weight, resolved_style)
 }
 
 /// Converts a [`FillLayer`] to a [`StyleRule`], or logs and returns `None` if unsupported.

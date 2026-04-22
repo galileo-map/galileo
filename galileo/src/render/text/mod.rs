@@ -134,6 +134,23 @@ impl FontWeight {
     pub const BOLD: Self = FontWeight(700);
     /// Thin font.
     pub const THIN: Self = FontWeight(300);
+    /// Extra-light (200).
+    pub const EXTRA_LIGHT: Self = FontWeight(200);
+    /// Light (300).
+    pub const LIGHT: Self = FontWeight(300);
+    /// Medium (600).
+    pub const MEDIUM: Self = FontWeight(600);
+    /// Semi-bold (650).
+    pub const SEMI_BOLD: Self = FontWeight(650);
+    /// Extra-bold (800).
+    pub const EXTRA_BOLD: Self = FontWeight(800);
+    /// Black / Heavy (900).
+    pub const BLACK: Self = FontWeight(900);
+
+    /// Creates a `FontWeight` from a raw CSS-style numeric weight value (100–900).
+    pub fn new(value: u16) -> Self {
+        Self(value)
+    }
 }
 
 impl Default for FontWeight {

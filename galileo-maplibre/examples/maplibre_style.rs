@@ -1,4 +1,6 @@
 use galileo::MapBuilder;
+use galileo::render::text::RustybuzzRasterizer;
+use galileo::render::text::text_service::TextService;
 use galileo_maplibre::MaplibreLayer;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -20,6 +22,8 @@ fn main() {
 }
 
 async fn create_map(style_path: &str) -> galileo::Map {
+    initialize_font_service();
+
     let Some(api_key) = std::option_env!("VT_API_KEY") else {
         panic!(
             "Set the MapTiler API key into VT_API_KEY environment variable when building this example"
@@ -37,4 +41,9 @@ async fn create_map(style_path: &str) -> galileo::Map {
         .with_z_level(8)
         .with_layer(layer)
         .build()
+}
+
+fn initialize_font_service() {
+    let rasterizer = RustybuzzRasterizer::default();
+    TextService::initialize(rasterizer).load_fonts("galileo/examples/data/fonts");
 }

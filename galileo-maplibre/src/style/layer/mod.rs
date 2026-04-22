@@ -217,7 +217,7 @@ mod tests {
         };
         assert_eq!(s.id, "Labels");
         assert!(s.layout.text_field.is_some());
-        assert!(s.layout.text_font.is_some());
+        assert_eq!(&s.layout.text_font, &["Open Sans Regular".to_string()]);
     }
 
     #[test]

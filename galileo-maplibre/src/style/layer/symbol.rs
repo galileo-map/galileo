@@ -4,10 +4,23 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::common::{Visibility, deserialize_visibility_or_default};
-use crate::style::deserialize_opt_f64;
+use crate::style::color::MlColor;
+use crate::style::expression::MlExpr;
+use crate::style::value::MlStyleValue;
+use crate::style::{
+    default_one, default_transparent, deser_default_one, deser_default_transparent,
+    deserialize_opt_f64,
+};
+
+fn default_font() -> Vec<String> {
+    vec![
+        "Open Sans Regular".to_string(),
+        "Arial Unicode MS Regular".to_string(),
+    ]
+}
 
 /// Paint properties for a `symbol` layer.
-#[derive(Debug, Clone, PartialEq, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct SymbolPaint {
     /// Icon colour. Supports expressions.
     #[serde(rename = "icon-color", skip_serializing_if = "Option::is_none")]
@@ -26,8 +39,13 @@ pub struct SymbolPaint {
     pub icon_halo_blur: Option<Value>,
 
     /// Icon opacity. Supports expressions.
-    #[serde(rename = "icon-opacity", skip_serializing_if = "Option::is_none")]
-    pub icon_opacity: Option<Value>,
+    #[serde(
+        rename = "icon-opacity",
+        default = "default_one",
+        deserialize_with = "deser_default_one",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub icon_opacity: MlStyleValue<f64>,
 
     /// Icon translation offset. Supports expressions.
     #[serde(rename = "icon-translate", skip_serializing_if = "Option::is_none")]
@@ -48,24 +66,37 @@ pub struct SymbolPaint {
     pub icon_emissive_strength: Option<Value>,
 
     /// Text colour. Supports expressions.
-    #[serde(rename = "text-color", skip_serializing_if = "Option::is_none")]
-    pub text_color: Option<Value>,
+    #[serde(
+        rename = "text-color",
+        default = "default_transparent",
+        deserialize_with = "deser_default_transparent"
+    )]
+    pub text_color: MlStyleValue<MlColor>,
 
     /// Text halo colour. Supports expressions.
-    #[serde(rename = "text-halo-color", skip_serializing_if = "Option::is_none")]
-    pub text_halo_color: Option<Value>,
+    #[serde(
+        rename = "text-halo-color",
+        default = "default_transparent",
+        deserialize_with = "deser_default_transparent"
+    )]
+    pub text_halo_color: MlStyleValue<MlColor>,
 
     /// Width of the halo around text. Supports expressions.
     #[serde(rename = "text-halo-width", skip_serializing_if = "Option::is_none")]
-    pub text_halo_width: Option<Value>,
+    pub text_halo_width: Option<MlStyleValue<f64>>,
 
     /// Fade out the halo towards the outside. Supports expressions.
     #[serde(rename = "text-halo-blur", skip_serializing_if = "Option::is_none")]
     pub text_halo_blur: Option<Value>,
 
     /// Text opacity. Supports expressions.
-    #[serde(rename = "text-opacity", skip_serializing_if = "Option::is_none")]
-    pub text_opacity: Option<Value>,
+    #[serde(
+        rename = "text-opacity",
+        default = "default_one",
+        deserialize_with = "deser_default_one",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub text_opacity: MlStyleValue<f64>,
 
     /// Text translation offset. Supports expressions.
     #[serde(rename = "text-translate", skip_serializing_if = "Option::is_none")]
@@ -84,6 +115,29 @@ pub struct SymbolPaint {
         skip_serializing_if = "Option::is_none"
     )]
     pub text_emissive_strength: Option<Value>,
+}
+
+impl Default for SymbolPaint {
+    fn default() -> Self {
+        Self {
+            icon_color: Default::default(),
+            icon_halo_color: Default::default(),
+            icon_halo_width: Default::default(),
+            icon_halo_blur: Default::default(),
+            icon_opacity: default_one(),
+            icon_translate: Default::default(),
+            icon_translate_anchor: Default::default(),
+            icon_emissive_strength: Default::default(),
+            text_color: default_transparent(),
+            text_halo_color: default_transparent(),
+            text_halo_width: Default::default(),
+            text_halo_blur: Default::default(),
+            text_opacity: default_one(),
+            text_translate: Default::default(),
+            text_translate_anchor: Default::default(),
+            text_emissive_strength: Default::default(),
+        }
+    }
 }
 
 /// Layout properties for a `symbol` layer.
@@ -180,15 +234,15 @@ pub struct SymbolLayout {
 
     /// Part of the text placed nearest to the anchor. Supports expressions.
     #[serde(rename = "text-anchor", skip_serializing_if = "Option::is_none")]
-    pub text_anchor: Option<Value>,
+    pub text_anchor: Option<String>,
 
     /// Value to use for a text label. Supports expressions.
     #[serde(rename = "text-field", skip_serializing_if = "Option::is_none")]
-    pub text_field: Option<Value>,
+    pub text_field: Option<String>,
 
     /// Font stack for the glyphs. Supports expressions.
-    #[serde(rename = "text-font", skip_serializing_if = "Option::is_none")]
-    pub text_font: Option<Value>,
+    #[serde(rename = "text-font", default = "default_font")]
+    pub text_font: Vec<String>,
 
     /// If true, other symbols can be visible even if they collide with the text.
     #[serde(
@@ -248,8 +302,8 @@ pub struct SymbolLayout {
     pub text_rotation_alignment: Option<Value>,
 
     /// Font size. Supports expressions.
-    #[serde(rename = "text-size", skip_serializing_if = "Option::is_none")]
-    pub text_size: Option<Value>,
+    #[serde(rename = "text-size")]
+    pub text_size: Option<MlStyleValue<f64>>,
 
     /// Specifies how to capitalize text. Supports expressions.
     #[serde(rename = "text-transform", skip_serializing_if = "Option::is_none")]
@@ -303,7 +357,7 @@ pub struct SymbolLayer {
 
     /// Filter expression to select features from the source.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub filter: Option<Value>,
+    pub filter: Option<MlExpr>,
 
     /// Layout properties.
     #[serde(default)]
