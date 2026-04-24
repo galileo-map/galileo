@@ -96,15 +96,18 @@ fn get_background(layers: &[&MaplibreStyleLayer]) -> ColorExpr {
 
     get_color_value(
         &layer.paint.background_color,
-        &layer.paint.background_opacity,
+        Some(&layer.paint.background_opacity),
     )
     .map(Into::into)
     .unwrap_or(DEFAULT_TILE_BACKGROUND)
 }
 
-fn get_color_value(color: &MlStyleValue<MlColor>, opacity: &MlStyleValue<f64>) -> Option<Expr> {
+fn get_color_value(
+    color: &MlStyleValue<MlColor>,
+    opacity: Option<&MlStyleValue<f64>>,
+) -> Option<Expr> {
     let galileo_color = get_galileo_value(color)?;
-    let galileo_opacity = get_galileo_value(opacity);
+    let galileo_opacity = opacity.map(|v| get_galileo_value(v).unwrap_or(1.0.into()));
 
     Some(match galileo_opacity {
         Some(v) => Expr::WithOpacity(WithOpacityExpr {
@@ -245,9 +248,13 @@ fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRu
         .and_then(|lod| tile_schema.lod_resolution(lod.round() as u32));
     let filter = symbol.filter.as_ref().and_then(|v| v.to_galileo_expr());
 
-    let font_color = get_color_value(&symbol.paint.text_color, &symbol.paint.text_opacity)?;
-    let outline_color =
-        get_color_value(&symbol.paint.text_halo_color, &MlStyleValue::Literal(1.0))?;
+    let font_color = get_color_value(&symbol.paint.text_color, Some(&symbol.paint.text_opacity))?;
+    // Even though Maplibre docs don't mention this, but it seems that text opacity is also
+    // applied to the outline color, so we use it here.
+    let outline_color = get_color_value(
+        &symbol.paint.text_halo_color,
+        Some(&symbol.paint.text_opacity),
+    )?;
     let font_size = get_galileo_value(
         &symbol
             .layout
@@ -264,6 +271,7 @@ fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRu
     )?;
 
     let (font_family, weight, font_style) = parse_ml_fonts(&symbol.layout.text_font);
+    dbg!(&font_color);
 
     let style = VtTextStyle {
         font_family,
@@ -385,7 +393,7 @@ fn fill_rule(fill: &FillLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
 
     let fill_color = &fill.paint.fill_color;
     let fill_opacity = &fill.paint.fill_opacity;
-    let color = get_color_value(fill_color, fill_opacity)?;
+    let color = get_color_value(fill_color, Some(fill_opacity))?;
 
     if !fill.paint.fill_antialias {
         log::debug!(
@@ -443,7 +451,7 @@ fn line_rule(line: &LineLayer, tile_schema: &TileSchema) -> Option<StyleRule> {
 
     let stroke_color = &line.paint.line_color;
     let stroke_opacity = &line.paint.line_opacity;
-    let color = get_color_value(stroke_color, stroke_opacity)
+    let color = get_color_value(stroke_color, Some(stroke_opacity))
         .unwrap_or(Color::TRANSPARENT.into())
         .into();
     let stroke_width = &line.paint.line_width;

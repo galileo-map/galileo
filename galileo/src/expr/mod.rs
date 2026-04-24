@@ -258,7 +258,7 @@ impl WithOpacityExpr {
             return ExprValue::Null;
         };
 
-        ExprValue::Color(color.with_alpha_float(opacity))
+        ExprValue::Color(color.with_alpha_float(color.a() as f64 / 255.0 * opacity))
     }
 }
 
