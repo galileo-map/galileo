@@ -140,6 +140,20 @@ impl Default for SymbolPaint {
     }
 }
 
+/// Rule for placing a a text or symbol label.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum SymbolPlacement {
+    /// At position of a point geometry.
+    #[serde(rename = "point")]
+    Point,
+    /// Along a line.
+    #[serde(rename = "line")]
+    Line,
+    /// At a center point of line or polygon geometry.
+    #[serde(rename = "line-center")]
+    LineCenter,
+}
+
 /// Layout properties for a `symbol` layer.
 #[derive(Debug, Clone, PartialEq, Deserialize, Default)]
 pub struct SymbolLayout {
@@ -149,7 +163,7 @@ pub struct SymbolLayout {
 
     /// Label placement relative to its geometry. Supports expressions.
     #[serde(rename = "symbol-placement", skip_serializing_if = "Option::is_none")]
-    pub symbol_placement: Option<Value>,
+    pub symbol_placement: Option<SymbolPlacement>,
 
     /// Distance between two symbol anchors. Supports expressions.
     #[serde(rename = "symbol-spacing", skip_serializing_if = "Option::is_none")]

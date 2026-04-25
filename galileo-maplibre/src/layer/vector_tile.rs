@@ -17,6 +17,7 @@ use serde::Deserialize;
 
 use crate::layer::{UNSUPPORTED, log_unsupported_field};
 use crate::style::color::MlColor;
+use crate::style::layer::symbol::SymbolPlacement;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer, SymbolLayer};
 use crate::style::source::{TileScheme, VectorSource};
 use crate::style::value::{FunctionStop, FunctionType, MlStyleValue};
@@ -271,7 +272,6 @@ fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRu
     )?;
 
     let (font_family, weight, font_style) = parse_ml_fonts(&symbol.layout.text_font);
-    dbg!(&font_color);
 
     let style = VtTextStyle {
         font_family,
@@ -295,16 +295,25 @@ fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRu
         outline_color: outline_color.into(),
     };
 
-    Some(StyleRule {
-        layer_name: Some(source_layer),
-        symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
-            pattern: symbol.layout.text_field.clone().unwrap_or_default(),
-            text_style: style,
+    match symbol.layout.symbol_placement {
+        Some(SymbolPlacement::Point) | None => Some(StyleRule {
+            layer_name: Some(source_layer),
+            symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
+                pattern: symbol.layout.text_field.clone().unwrap_or_default(),
+                text_style: style,
+            }),
+            min_resolution,
+            max_resolution,
+            filter: filter.map(Into::into),
         }),
-        min_resolution,
-        max_resolution,
-        filter: filter.map(Into::into),
-    })
+        Some(SymbolPlacement::Line) | Some(SymbolPlacement::LineCenter) => {
+            log::debug!(
+                "{UNSUPPORTED} Placing labels along lines is not supported yet. Layer '{}' is skipped.",
+                symbol.id
+            );
+            None
+        }
+    }
 }
 
 /// Parses Maplibre `text-font` entries into a font family list, [`FontWeight`], and [`FontStyle`].
