@@ -142,6 +142,13 @@ impl WgpuRenderer {
             .await
             .ok()?;
 
+        let info = adapter.get_info();
+        log::info!(
+            "Galileo wgpu adapter: {:?} backend, device \"{}\"",
+            info.backend,
+            info.name
+        );
+
         let (device, queue) = Self::create_device(&adapter).await;
 
         Some(Self {
@@ -374,6 +381,12 @@ impl WgpuRenderer {
         cfg_if! {
             if #[cfg(target_os = "android")] {
                 let backends = wgpu::Backends::GL;
+            } else if #[cfg(target_arch = "wasm32")] {
+                // WebGL2 cannot copy a texture into a buffer, so
+                // `new_with_texture_rt` plus `get_image` silently produce empty
+                // frames on the GL backend. Headless rendering on the web
+                // therefore requires WebGPU.
+                let backends = wgpu::Backends::BROWSER_WEBGPU;
             } else {
                 let backends = wgpu::Backends::all();
             }
