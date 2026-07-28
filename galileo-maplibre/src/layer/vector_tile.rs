@@ -17,6 +17,7 @@ use serde::Deserialize;
 
 use crate::layer::{UNSUPPORTED, log_unsupported_field};
 use crate::style::color::MlColor;
+use crate::style::expression::MlExpr;
 use crate::style::layer::symbol::SymbolPlacement;
 use crate::style::layer::{FillLayer, Layer as MaplibreStyleLayer, LineLayer, SymbolLayer};
 use crate::style::source::{TileScheme, VectorSource};
@@ -299,7 +300,7 @@ fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRu
         Some(SymbolPlacement::Point) | None => Some(StyleRule {
             layer_name: Some(source_layer),
             symbol: VectorTileSymbol::Label(VectorTileLabelSymbol {
-                pattern: symbol.layout.text_field.clone().unwrap_or_default(),
+                pattern: text_field_pattern(symbol),
                 text_style: style,
             }),
             min_resolution,
@@ -312,6 +313,36 @@ fn symbol_rule(symbol: &SymbolLayer, tile_schema: &TileSchema) -> Option<StyleRu
                 symbol.id
             );
             None
+        }
+    }
+}
+
+/// Resolve a symbol layer's `text-field` into a label pattern.
+///
+/// Galileo labels are token patterns such as `"{name}"`, which the renderer
+/// substitutes per feature. A `text-field` may instead be a modern expression or
+/// a legacy stops function, so translate the shapes that have an exact token
+/// equivalent and fall back to an empty pattern otherwise. An unsupported
+/// `text-field` costs the layer its labels rather than dropping the layer.
+fn text_field_pattern(symbol: &SymbolLayer) -> String {
+    let Some(text_field) = &symbol.layout.text_field else {
+        return String::new();
+    };
+
+    match text_field {
+        MlStyleValue::Literal(pattern) => pattern.clone(),
+        // `["get", "name"]` is exactly what the token `{name}` already means.
+        MlStyleValue::Expression(MlExpr::Get {
+            property,
+            object: None,
+        }) => format!("{{{property}}}"),
+        other => {
+            log::debug!(
+                "{UNSUPPORTED} 'symbol.layout.text-field' value {other:?} is not supported yet. \
+                 Layer '{}' renders without labels.",
+                symbol.id
+            );
+            String::new()
         }
     }
 }

@@ -221,6 +221,32 @@ mod tests {
     }
 
     #[test]
+    fn text_field_accepts_a_token_string_an_expression_and_a_stops_function() {
+        // All three are valid `text-field` shapes in the style spec, and a layer
+        // whose `text-field` fails to parse is dropped entirely.
+        for text_field in [
+            r#""{name}""#,
+            r#"["get", "name"]"#,
+            r#"{"stops": [[2, "{ABBREV}"], [4, "{NAME}"]]}"#,
+        ] {
+            let json = format!(
+                r##"{{
+                    "id": "Labels",
+                    "type": "symbol",
+                    "source": "src",
+                    "layout": {{ "text-field": {text_field} }}
+                }}"##
+            );
+            let layer: Layer = serde_json::from_str(&json)
+                .unwrap_or_else(|error| panic!("text-field {text_field} failed to parse: {error}"));
+            let Layer::Symbol(symbol) = layer else {
+                panic!("expected Symbol")
+            };
+            assert!(symbol.layout.text_field.is_some(), "{text_field}");
+        }
+    }
+
+    #[test]
     fn parse_raster_layer() {
         let json = r#"{
             "id": "Satellite",
