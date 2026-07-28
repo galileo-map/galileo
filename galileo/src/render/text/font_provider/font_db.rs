@@ -38,6 +38,11 @@ impl FontProvider for FontdbFontProvider {
 
         match source {
             Source::Binary(data) => Some((Arc::new((*data).as_ref().to_vec()), index)),
+            // `fontdb::Source` gains file-backed variants when its `fs` feature is
+            // enabled, which any other crate in the dependency graph can do. This
+            // provider is wasm-only and has no filesystem, so it cannot use them.
+            #[allow(unreachable_patterns)]
+            _ => None,
         }
     }
 
