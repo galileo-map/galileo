@@ -252,7 +252,7 @@ pub struct SymbolLayout {
 
     /// Value to use for a text label. Supports expressions.
     #[serde(rename = "text-field", skip_serializing_if = "Option::is_none")]
-    pub text_field: Option<String>,
+    pub text_field: Option<MlStyleValue<String>>,
 
     /// Font stack for the glyphs. Supports expressions.
     #[serde(rename = "text-font", default = "default_font")]
