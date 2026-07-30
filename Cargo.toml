@@ -85,7 +85,7 @@ prost-build = "0.12"
 quick_cache = "0.4"
 raw-window-handle = "0.6"
 regex = "1.11"
-reqwest = { version = "0.12", default-features = false }
+reqwest = { version = "0.13", default-features = false }
 rustybuzz = "0.20"
 serde = "1"
 serde-wasm-bindgen = "0.6"
