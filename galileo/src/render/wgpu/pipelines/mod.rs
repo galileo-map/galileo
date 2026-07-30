@@ -252,7 +252,7 @@ impl Pipelines {
                     &image,
                     texture
                         .as_image_copy()
-                        .to_tagged(wgpu::PredefinedColorSpace::DisplayP3, false),
+                        .to_tagged(wgpu::PredefinedColorSpace::Srgb, false),
                     texture_size,
                 );
 

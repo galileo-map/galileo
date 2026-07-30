@@ -773,11 +773,8 @@ fn build_contour_path(
 ) -> Option<()> {
     let mut iterator = contour.iter_points();
 
-    if let Some(first_point) = iterator.next() {
-        let _ = path_builder.begin(point(first_point.x() * scale, first_point.y() * scale), &[]);
-    } else {
-        return None;
-    }
+    let first_point = iterator.next()?;
+    let _ = path_builder.begin(point(first_point.x() * scale, first_point.y() * scale), &[]);
 
     for p in iterator {
         let _ = path_builder.line_to(point(p.x() * scale, p.y() * scale), &[]);
