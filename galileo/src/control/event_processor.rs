@@ -176,8 +176,8 @@ impl EventProcessor {
 
                 Some(events)
             }
-            RawUserEvent::Scroll(delta) => {
-                Some(vec![UserEvent::Scroll(delta, self.get_mouse_event())])
+            RawUserEvent::Scroll(lines) => {
+                Some(vec![UserEvent::Scroll(lines, self.get_mouse_event())])
             }
             RawUserEvent::TouchStart(touch) => {
                 for i in 0..self.touches.len() {

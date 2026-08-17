@@ -305,8 +305,8 @@ impl UserEventHandler for MapController {
                 }
                 _ => EventPropagation::Propagate,
             },
-            UserEvent::Scroll(delta, mouse_event) => {
-                let zoom = self.get_zoom(*delta);
+            UserEvent::Scroll(lines, mouse_event) => {
+                let zoom = self.get_zoom(*lines);
 
                 let target = map
                     .target_view()
@@ -353,8 +353,8 @@ impl UserEventHandler for MapController {
 }
 
 impl MapController {
-    fn get_zoom(&self, delta: f64) -> f64 {
-        (self.config.zoom_speed + 1.0).powf(-delta)
+    fn get_zoom(&self, lines: f64) -> f64 {
+        (self.config.zoom_speed + 1.0).powf(-lines)
     }
 
     fn get_rotation(&self, curr_view: &MapView, px_delta: Vector2) -> MapView {

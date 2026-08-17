@@ -8,7 +8,8 @@ use egui::{Event, Image, ImageSource, Sense, TextureId, Ui, Vec2};
 use egui_wgpu::RenderState;
 use egui_wgpu::wgpu::{FilterMode, TextureView};
 use galileo::control::{
-    EventProcessor, MapController, MouseButton, RawUserEvent, TouchEvent, UserEventHandler,
+    EventProcessor, MapController, MouseButton, RawUserEvent, SCROLL_LINE_MULTIPLIER,
+    SCROLL_PAGE_MULTIPLIER, TouchEvent, UserEventHandler,
 };
 use galileo::galileo_types::cartesian::{Point2, Size};
 use galileo::galileo_types::geo::impls::GeoPoint2d;
@@ -415,34 +416,18 @@ impl<'a> EguiMapState {
                 );
                 Some(RawUserEvent::PointerMoved(pointer_position))
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            Event::MouseWheel { delta, .. } => {
-                let zoom = delta[1] as f64;
-
-                if zoom.abs() < 0.0001 {
-                    return None;
-                }
-
-                Some(RawUserEvent::Scroll(zoom))
-            }
-            #[cfg(target_arch = "wasm32")]
             Event::MouseWheel { delta, unit, .. } => {
-                // Winit produces different values in different browsers and they are all different
-                // from native platforms. See ttps://github.com/rust-windowing/winit/issues/22
-                //
-                // This hack is based on manual tests and might break in future. But this is the
-                // best I could come up with to mitigate the issue.
-                let zoom = match unit {
-                    egui::MouseWheelUnit::Point => delta[1] as f64 / 120.0,
-                    egui::MouseWheelUnit::Line => delta[1] as f64 / 6.0,
-                    egui::MouseWheelUnit::Page => delta[1] as f64,
+                let lines = match unit {
+                    egui::MouseWheelUnit::Point => delta[1] as f64 / SCROLL_LINE_MULTIPLIER,
+                    egui::MouseWheelUnit::Line => delta[1] as f64,
+                    egui::MouseWheelUnit::Page => delta[1] as f64 * SCROLL_PAGE_MULTIPLIER,
                 };
 
-                if zoom.abs() < 0.0001 {
+                if lines.abs() < 0.0001 {
                     return None;
                 }
 
-                Some(RawUserEvent::Scroll(zoom))
+                Some(RawUserEvent::Scroll(lines))
             }
             Event::Touch {
                 device_id: _,
