@@ -22,6 +22,11 @@ mod map;
 pub use event_processor::EventProcessor;
 pub use map::{MapController, MapControllerConfiguration};
 
+/// In the context of scrolling text, how many pixels make up one line height of text?
+pub const SCROLL_LINE_MULTIPLIER: f64 = 20.0;
+/// In the context of scrolling text, how many pixels make up one page height of text?
+pub const SCROLL_PAGE_MULTIPLIER: f64 = SCROLL_LINE_MULTIPLIER * 6.0;
+
 /// User input handler.
 pub trait UserEventHandler {
     /// Handle the event.

@@ -6,7 +6,7 @@ use galileo_types::cartesian::Point2;
 use winit::event::{ElementState, MouseScrollDelta, Touch, TouchPhase, WindowEvent};
 use winit::window::Window;
 
-use crate::control::{MouseButton, RawUserEvent, TouchEvent};
+use crate::control::{MouseButton, RawUserEvent, SCROLL_LINE_MULTIPLIER, TouchEvent};
 use crate::messenger::Messenger;
 
 /// Converts `winit` events into `Galileo` [`RawUserEvent`]s.
@@ -30,15 +30,16 @@ impl WinitInputHandler {
                 Some(RawUserEvent::PointerMoved(pointer_position))
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                let zoom = match delta {
+                let lines = match delta {
+                    MouseScrollDelta::PixelDelta(pos) => pos.y / SCROLL_LINE_MULTIPLIER,
                     MouseScrollDelta::LineDelta(_, dy) => *dy as f64,
-                    MouseScrollDelta::PixelDelta(pos) => pos.y / 114.0,
                 };
-                if zoom.abs() < 0.0001 {
+
+                if lines.abs() < 0.0001 {
                     return None;
                 }
 
-                Some(RawUserEvent::Scroll(zoom))
+                Some(RawUserEvent::Scroll(lines))
             }
             WindowEvent::Touch(touch) => match touch.phase {
                 TouchPhase::Started => {

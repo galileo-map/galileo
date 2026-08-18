@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use galileo_types::cartesian::Vector2;
+use num_traits::Inv;
 
 use super::MouseEvent;
 use crate::control::{EventPropagation, MouseButton, UserEvent, UserEventHandler};
@@ -354,7 +355,9 @@ impl UserEventHandler for MapController {
 
 impl MapController {
     fn get_zoom(&self, delta: f64) -> f64 {
-        (self.config.zoom_speed + 1.0).powf(-delta)
+        let factor = 1.0 + self.config.zoom_speed * delta.abs();
+
+        if delta < 0.0 { factor } else { factor.inv() }
     }
 
     fn get_rotation(&self, curr_view: &MapView, px_delta: Vector2) -> MapView {
