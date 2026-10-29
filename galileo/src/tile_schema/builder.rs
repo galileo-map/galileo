@@ -1,6 +1,5 @@
 //! Builder for [`TileSchema`].
 
-use core::f64;
 use std::sync::Arc;
 
 use ahash::HashMap;
@@ -384,8 +383,6 @@ impl TileSchemaBuilder {
 
 #[cfg(test)]
 mod tests {
-    use core::f64;
-
     use approx::assert_abs_diff_eq;
 
     use super::*;
