@@ -92,6 +92,7 @@ mod messenger;
 pub mod platform;
 pub mod render;
 pub mod tile_schema;
+pub(crate) mod util;
 mod view;
 
 #[cfg(test)]

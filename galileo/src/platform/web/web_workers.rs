@@ -2,16 +2,13 @@
 
 use std::cell::{LazyCell, RefCell};
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use bytes::Bytes;
 use futures::channel::oneshot;
 use futures::channel::oneshot::Sender;
 use galileo_mvt::MvtTile;
-use serde::{Deserialize, Serialize};
 use tokio::sync::watch::Receiver;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
@@ -22,6 +19,10 @@ use crate::layer::vector_tile_layer::style::VectorTileStyle;
 use crate::layer::vector_tile_layer::tile_provider::processor::TileProcessingError;
 use crate::render::render_bundle::RenderBundle;
 use crate::tile_schema::TileIndex;
+use crate::util::web_worker::{
+    WebWorkerError, WebWorkerRequest, WebWorkerRequestId, WebWorkerRequestPayload,
+    WebWorkerResponse, WebWorkerResponsePayload,
+};
 
 const WORKER_URL: &str = "./vt_worker.js";
 const WORKER_COUNT: usize = 4;
@@ -45,81 +46,6 @@ pub struct WebWorkerService {
     next_worker: AtomicUsize,
     pending_requests: Rc<RefCell<HashMap<WebWorkerRequestId, WwSender>>>,
     is_ready: Receiver<bool>,
-}
-
-const INVALID_ID: u64 = 0;
-static NEXT_ID: AtomicU64 = AtomicU64::new(1);
-
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
-struct WebWorkerRequestId(u64);
-
-impl Display for WebWorkerRequestId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl WebWorkerRequestId {
-    fn next() -> Self {
-        Self(NEXT_ID.fetch_add(1, Ordering::Relaxed))
-    }
-
-    fn empty() -> Self {
-        Self(INVALID_ID)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct WebWorkerRequest {
-    request_id: WebWorkerRequestId,
-    payload: WebWorkerRequestPayload,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum WebWorkerRequestPayload {
-    ProcessVtTile {
-        tile: MvtTile,
-        index: TileIndex,
-        style: VectorTileStyle,
-        tile_schema: TileSchema,
-    },
-    LoadFont {
-        font_data: Bytes,
-    },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct WebWorkerResponse {
-    request_id: WebWorkerRequestId,
-    payload: WebWorkerResponsePayload,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum WebWorkerResponsePayload {
-    Ready,
-    ProcessVtTile {
-        result: Result<RenderBundle, TileProcessingError>,
-    },
-    LoadFont,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum WebWorkerError {}
-
-impl TryFrom<Result<WebWorkerResponsePayload, WebWorkerError>> for RenderBundle {
-    type Error = TileProcessingError;
-
-    fn try_from(
-        value: Result<WebWorkerResponsePayload, WebWorkerError>,
-    ) -> Result<Self, Self::Error> {
-        match value {
-            Ok(WebWorkerResponsePayload::ProcessVtTile { result }) => result,
-            _ => {
-                log::error!("Unexpected response type for tile processing request: {value:?}");
-                Err(TileProcessingError::Internal)
-            }
-        }
-    }
 }
 
 impl WebWorkerService {
@@ -474,6 +400,8 @@ mod worker {
             Err(_) => Err(TileProcessingError::Rendering),
         };
 
-        WebWorkerResponsePayload::ProcessVtTile { result }
+        WebWorkerResponsePayload::ProcessVtTile {
+            result: Box::new(result),
+        }
     }
 }

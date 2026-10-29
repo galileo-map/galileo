@@ -16,12 +16,12 @@ use crate::error::GalileoMvtError;
 mod contour;
 pub mod error;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MvtTile {
     pub layers: Vec<MvtLayer>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MvtLayer {
     pub name: String,
     pub features: Vec<MvtFeature>,
@@ -29,14 +29,14 @@ pub struct MvtLayer {
     pub size: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MvtFeature {
     pub id: Option<u64>,
     pub properties: HashMap<String, MvtValue>,
     pub geometry: MvtGeometry,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MvtValue {
     String(String),
     Float(f32),
