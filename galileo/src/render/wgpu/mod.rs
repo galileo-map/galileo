@@ -85,9 +85,9 @@ impl RenderTargetTexture<'_> {
         }
     }
 
-    fn present(self) {
+    fn present(self, queue: &Queue) {
         match self {
-            RenderTargetTexture::Surface(t) => t.present(),
+            RenderTargetTexture::Surface(t) => queue.present(t),
             RenderTargetTexture::Texture(_) => {}
         }
     }
@@ -138,6 +138,7 @@ impl WgpuRenderer {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: None,
                 force_fallback_adapter: false,
+                apply_limit_buckets: true,
             })
             .await
             .ok()?;
@@ -297,6 +298,7 @@ impl WgpuRenderer {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
+                apply_limit_buckets: true,
             })
             .await
             .ok()?;
@@ -319,6 +321,7 @@ impl WgpuRenderer {
             desired_maximum_frame_latency: 2,
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
+            color_space: wgpu::SurfaceColorSpace::Auto,
         }
     }
 
@@ -627,7 +630,10 @@ impl WgpuRenderer {
             }
         }
 
-        let data = buffer_slice.get_mapped_range();
+        let Ok(data) = buffer_slice.get_mapped_range() else {
+            return Err(SurfaceStatus::Lost);
+        };
+
         let mut pixels = vec![
             0u8;
             (render_target_size.width() * render_target_size.height() * RGBA_BYTES_PER_PIXEL)
@@ -703,7 +709,7 @@ impl WgpuRenderer {
 
         self.render_to_texture_view(map, &view);
 
-        texture.present();
+        texture.present(&self.queue);
 
         Ok(())
     }

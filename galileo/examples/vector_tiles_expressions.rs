@@ -30,7 +30,7 @@ struct App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             EguiMap::new(&mut self.map).show_ui(ui);
         });
 
@@ -66,7 +66,7 @@ impl App {
 
         let text_service = TextService::initialize(provider);
         for font in fonts.font_data.values() {
-            text_service.load_font(Arc::new(font.font.to_vec()));
+            text_service.load_font(Arc::new((*font.font).as_ref().to_vec()));
         }
 
         Self {
