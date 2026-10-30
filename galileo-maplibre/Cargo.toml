@@ -9,6 +9,7 @@ keywords.workspace = true
 documentation = "https://docs.rs/galileo-mvt"
 description = "Galileo layer based on Maplibre (Mapbox) style specification"
 readme = "./README.md"
+publish = false
 
 [dependencies]
 csscolorparser = { workspace = true }
