@@ -23,7 +23,7 @@ pub use event_processor::EventProcessor;
 pub use map::{MapController, MapControllerConfiguration};
 
 /// User input handler.
-pub trait UserEventHandler {
+pub trait UserEventHandler: MaybeSend + MaybeSync {
     /// Handle the event.
     fn handle(&self, event: &UserEvent, map: &mut Map) -> EventPropagation;
 }

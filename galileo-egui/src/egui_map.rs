@@ -491,3 +491,11 @@ impl Messenger for MapStateMessenger {
         }
     }
 }
+
+// Checks that the map state is Sync + Send.
+// Allows sharing it between egui viewports.
+#[cfg(not(target_arch = "wasm32"))]
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<EguiMapState>();
+};
