@@ -174,6 +174,9 @@ impl RasterTileProvider {
         for index in indices {
             if let Some(TileState::Loaded) = tiles.get(index) {
                 let Some(image) = images.get(&TileIndex::from(*index)) else {
+                    // The image was evicted from the cache before the tile was packed. Reset the
+                    // tile state so that the tile is loaded again.
+                    tiles.remove(index);
                     continue;
                 };
 
