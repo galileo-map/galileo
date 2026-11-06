@@ -656,6 +656,8 @@ impl WgpuRenderer {
 
     /// Renders the map to the given texture.
     pub fn render_to_texture_view(&self, map: &Map, view: &TextureView) {
+        self.trim_textures();
+
         if let Some(renderer_targets) = &self.renderer_targets {
             let mut encoder = self
                 .device
@@ -701,8 +703,6 @@ impl WgpuRenderer {
         let Some(renderer_targets) = &self.renderer_targets else {
             return Ok(());
         };
-
-        self.trim_textures();
 
         let texture = renderer_targets.render_target.texture()?;
         let view = texture.view();
