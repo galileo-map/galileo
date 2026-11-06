@@ -149,6 +149,15 @@ pub struct EguiMapState {
     map_ready: bool,
 }
 
+impl Drop for EguiMapState {
+    fn drop(&mut self) {
+        self.egui_render_state
+            .renderer
+            .write()
+            .free_texture(&self.texture_id);
+    }
+}
+
 impl<'a> EguiMapState {
     /// Creates a new instance of the state.
     ///
@@ -370,13 +379,16 @@ impl<'a> EguiMapState {
         };
         log::info!("Using filter mode: {filter_mode:?}");
 
-        let texture_id = self
-            .egui_render_state
+        self.egui_render_state
             .renderer
             .write()
-            .register_native_texture(&self.egui_render_state.device, &texture, filter_mode);
+            .update_egui_texture_from_wgpu_texture(
+                &self.egui_render_state.device,
+                &texture,
+                filter_mode,
+                self.texture_id,
+            );
 
-        self.texture_id = texture_id;
         self.texture_view = texture;
 
         self.map.redraw();
