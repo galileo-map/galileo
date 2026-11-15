@@ -414,4 +414,24 @@ mod tests {
             ExprValue::Color(Color::rgba(255, 10, 0, 255))
         )
     }
+
+    #[test]
+    fn rgb_expr_eval_rounds_channels() {
+        let expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(10.6)),
+        ));
+
+        assert_eq!(
+            expr.eval(
+                &EmptyExprFeature,
+                ExprView {
+                    resolution: 1.0,
+                    z_index: None
+                }
+            ),
+            ExprValue::Color(Color::rgba(255, 255, 11, 255))
+        )
+    }
 }
