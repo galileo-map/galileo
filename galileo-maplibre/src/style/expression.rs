@@ -24,7 +24,7 @@ use std::fmt;
 
 use galileo::expr::{
     ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, ExprGeometryType,
-    ExprValue, LinearInterpolation, MatchCase, MatchExpr, SelectCase, SelectExpr,
+    ExprValue, LinearInterpolation, MatchCase, MatchExpr, RgbExpr, SelectCase, SelectExpr,
 };
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -851,6 +851,11 @@ impl MlExpr {
                 stops,
             } => interpolation_to_galileo(interpolation, input, stops)?,
             MlExpr::Zoom => Expr::Zoom,
+            MlExpr::Rgb(r, g, b) => Expr::Rgb(RgbExpr(
+                Box::new(r.to_galileo_expr()?),
+                Box::new(g.to_galileo_expr()?),
+                Box::new(b.to_galileo_expr()?),
+            )),
             MlExpr::Get { property, object } => {
                 if object.is_some() {
                     log_unsupported!(format!("get from an object"));

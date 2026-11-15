@@ -51,6 +51,8 @@ pub enum Expr {
 
     WithOpacity(WithOpacityExpr),
 
+    Rgb(RgbExpr),
+
     #[serde(untagged)]
     Value(ExprValue<'static>),
 }
@@ -232,6 +234,7 @@ impl Expr {
             Expr::Match(m) => m.eval(f, v),
             Expr::Select(s) => s.eval(f, v),
             Expr::WithOpacity(wo) => wo.eval(f, v),
+            Expr::Rgb(rgb) => rgb.eval(f, v),
         }
     }
 }
@@ -239,6 +242,36 @@ impl Expr {
 impl From<ExprValue<'static>> for Expr {
     fn from(value: ExprValue<'static>) -> Self {
         Self::Value(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RgbExpr(pub Box<Expr>, pub Box<Expr>, pub Box<Expr>);
+
+impl RgbExpr {
+    pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<'a> {
+        let Some(red) = self.0.eval(f, v).as_f64() else {
+            return ExprValue::Null;
+        };
+
+        let Some(green) = self.1.eval(f, v).as_f64() else {
+            return ExprValue::Null;
+        };
+
+        let Some(blue) = self.2.eval(f, v).as_f64() else {
+            return ExprValue::Null;
+        };
+
+        ExprValue::Color(Color::rgba(
+            Self::to_channel(red),
+            Self::to_channel(green),
+            Self::to_channel(blue),
+            255,
+        ))
+    }
+
+    fn to_channel(v: f64) -> u8 {
+        v.clamp(0.0, 255.0).round() as u8
     }
 }
 
@@ -340,5 +373,45 @@ mod tests {
           }
         }
         "##);
+    }
+
+    #[test]
+    fn rgb_expr_eval() {
+        let expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(255.0)),
+        ));
+
+        assert_eq!(
+            expr.eval(
+                &EmptyExprFeature,
+                ExprView {
+                    resolution: 1.0,
+                    z_index: None
+                }
+            ),
+            ExprValue::Color(Color::rgba(255, 255, 255, 255))
+        )
+    }
+
+    #[test]
+    fn rgb_expr_eval_clamps_channels() {
+        let expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::from(300.0)),
+            Box::new(Expr::from(300.0)),
+            Box::new(Expr::from(300.0)),
+        ));
+
+        assert_eq!(
+            expr.eval(
+                &EmptyExprFeature,
+                ExprView {
+                    resolution: 1.0,
+                    z_index: None
+                }
+            ),
+            ExprValue::Color(Color::rgba(255, 255, 255, 255))
+        )
     }
 }
