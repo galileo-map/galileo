@@ -434,4 +434,58 @@ mod tests {
             ExprValue::Color(Color::rgba(255, 255, 11, 255))
         )
     }
+
+    #[test]
+    fn check_invalid_rgb_channels() {
+        let invalid_r_channel_expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::Get("missing".to_string())),
+            Box::new(Expr::from(20.0)),
+            Box::new(Expr::from(30.0)),
+        ));
+
+        let invalid_g_channel_expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::from(10.0)),
+            Box::new(Expr::Get("missing".to_string())),
+            Box::new(Expr::from(30.0)),
+        ));
+
+        let invalid_b_channel_expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::from(10.0)),
+            Box::new(Expr::from(20.0)),
+            Box::new(Expr::Get("missing".to_string())),
+        ));
+
+        assert_eq!(
+            invalid_r_channel_expr.eval(
+                &EmptyExprFeature,
+                ExprView {
+                    resolution: 1.0,
+                    z_index: None
+                }
+            ),
+            ExprValue::Null
+        );
+
+        assert_eq!(
+            invalid_g_channel_expr.eval(
+                &EmptyExprFeature,
+                ExprView {
+                    resolution: 1.0,
+                    z_index: None
+                }
+            ),
+            ExprValue::Null
+        );
+
+        assert_eq!(
+            invalid_b_channel_expr.eval(
+                &EmptyExprFeature,
+                ExprView {
+                    resolution: 1.0,
+                    z_index: None
+                }
+            ),
+            ExprValue::Null
+        );
+    }
 }
