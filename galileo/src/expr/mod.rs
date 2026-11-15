@@ -378,9 +378,9 @@ mod tests {
     #[test]
     fn rgb_expr_eval() {
         let expr = Expr::Rgb(RgbExpr(
-            Box::new(Expr::from(255.0)),
-            Box::new(Expr::from(255.0)),
-            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(10.0)),
+            Box::new(Expr::from(20.0)),
+            Box::new(Expr::from(30.0)),
         ));
 
         assert_eq!(
@@ -391,7 +391,7 @@ mod tests {
                     z_index: None
                 }
             ),
-            ExprValue::Color(Color::rgba(255, 255, 255, 255))
+            ExprValue::Color(Color::rgba(10, 20, 30, 255))
         )
     }
 
@@ -399,8 +399,8 @@ mod tests {
     fn rgb_expr_eval_clamps_channels() {
         let expr = Expr::Rgb(RgbExpr(
             Box::new(Expr::from(300.0)),
-            Box::new(Expr::from(300.0)),
-            Box::new(Expr::from(300.0)),
+            Box::new(Expr::from(301.0)),
+            Box::new(Expr::from(302.0)),
         ));
 
         assert_eq!(
