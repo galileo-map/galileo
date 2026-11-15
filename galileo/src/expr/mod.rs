@@ -301,6 +301,13 @@ mod tests {
 
     use super::*;
 
+    fn create_view() -> ExprView {
+        ExprView {
+            resolution: 1.0,
+            z_index: None,
+        }
+    }
+
     #[test]
     fn deserialize_expr_from_string() {
         let json = r#""kind == \"road\"""#;
@@ -384,13 +391,7 @@ mod tests {
         ));
 
         assert_eq!(
-            expr.eval(
-                &EmptyExprFeature,
-                ExprView {
-                    resolution: 1.0,
-                    z_index: None
-                }
-            ),
+            expr.eval(&EmptyExprFeature, create_view()),
             ExprValue::Color(Color::rgba(10, 20, 30, 255))
         )
     }
@@ -404,13 +405,7 @@ mod tests {
         ));
 
         assert_eq!(
-            expr.eval(
-                &EmptyExprFeature,
-                ExprView {
-                    resolution: 1.0,
-                    z_index: None
-                }
-            ),
+            expr.eval(&EmptyExprFeature, create_view()),
             ExprValue::Color(Color::rgba(255, 10, 0, 255))
         )
     }
@@ -424,13 +419,7 @@ mod tests {
         ));
 
         assert_eq!(
-            expr.eval(
-                &EmptyExprFeature,
-                ExprView {
-                    resolution: 1.0,
-                    z_index: None
-                }
-            ),
+            expr.eval(&EmptyExprFeature, create_view()),
             ExprValue::Color(Color::rgba(255, 255, 11, 255))
         )
     }
@@ -456,35 +445,17 @@ mod tests {
         ));
 
         assert_eq!(
-            invalid_r_channel_expr.eval(
-                &EmptyExprFeature,
-                ExprView {
-                    resolution: 1.0,
-                    z_index: None
-                }
-            ),
+            invalid_r_channel_expr.eval(&EmptyExprFeature, create_view()),
             ExprValue::Null
         );
 
         assert_eq!(
-            invalid_g_channel_expr.eval(
-                &EmptyExprFeature,
-                ExprView {
-                    resolution: 1.0,
-                    z_index: None
-                }
-            ),
+            invalid_g_channel_expr.eval(&EmptyExprFeature, create_view()),
             ExprValue::Null
         );
 
         assert_eq!(
-            invalid_b_channel_expr.eval(
-                &EmptyExprFeature,
-                ExprView {
-                    resolution: 1.0,
-                    z_index: None
-                }
-            ),
+            invalid_b_channel_expr.eval(&EmptyExprFeature, create_view()),
             ExprValue::Null
         );
     }
