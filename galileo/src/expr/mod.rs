@@ -459,4 +459,52 @@ mod tests {
             ExprValue::Null
         );
     }
+
+    #[test]
+    fn serialize_rgb_expr() {
+        let expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::Get("r".to_string())),
+            Box::new(Expr::from(20.0)),
+            Box::new(Expr::from(30.0)),
+        ));
+
+        let json = serde_json::to_string_pretty(&expr).unwrap();
+        let deser: Expr = serde_json::from_str(&json).unwrap();
+        assert_eq!(deser, expr);
+
+        assert_snapshot!(json, @r##"
+        {
+          "Rgb": [
+            {
+              "Get": "r"
+            },
+            20.0,
+            30.0
+          ]
+        }
+        "##);
+    }
+
+    #[test]
+    fn deserialize_rgb_expr() {
+        let json = r##"
+        {
+          "Rgb": [
+            10.0,
+            20.0,
+            30.0
+          ]
+        }
+        "##;
+
+        let expr = Expr::Rgb(RgbExpr(
+            Box::new(Expr::from(10.0)),
+            Box::new(Expr::from(20.0)),
+            Box::new(Expr::from(30.0)),
+        ));
+
+        let deserialized_expr: Expr = serde_json::from_str(json).unwrap();
+
+        assert_eq!(expr, deserialized_expr);
+    }
 }
