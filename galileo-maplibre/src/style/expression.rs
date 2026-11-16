@@ -24,7 +24,7 @@ use std::fmt;
 
 use galileo::expr::{
     ControlPoint, CubicBezierInterpolation, ExponentialInterpolation, Expr, ExprGeometryType,
-    ExprValue, LinearInterpolation, MatchCase, MatchExpr, SelectCase, SelectExpr,
+    ExprValue, LinearInterpolation, MatchCase, MatchExpr, RgbaExpr, SelectCase, SelectExpr,
 };
 use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -851,6 +851,18 @@ impl MlExpr {
                 stops,
             } => interpolation_to_galileo(interpolation, input, stops)?,
             MlExpr::Zoom => Expr::Zoom,
+            MlExpr::Rgb(r, g, b) => Expr::Rgba(RgbaExpr(
+                Box::new(r.to_galileo_expr()?),
+                Box::new(g.to_galileo_expr()?),
+                Box::new(b.to_galileo_expr()?),
+                Box::new(Expr::from(1.0)),
+            )),
+            MlExpr::Rgba(r, g, b, a) => Expr::Rgba(RgbaExpr(
+                Box::new(r.to_galileo_expr()?),
+                Box::new(g.to_galileo_expr()?),
+                Box::new(b.to_galileo_expr()?),
+                Box::new(a.to_galileo_expr()?),
+            )),
             MlExpr::Get { property, object } => {
                 if object.is_some() {
                     log_unsupported!(format!("get from an object"));
@@ -1935,5 +1947,35 @@ mod tests {
             }
             other => panic!("expected Format, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn ml_rgb_expr_to_galileo_rgba_expr() {
+        let e = parse(json!(["rgb", ["get", "r"], 20, 30])).to_galileo_expr();
+
+        assert_eq!(
+            e,
+            Some(Expr::Rgba(RgbaExpr(
+                Box::new(Expr::Get("r".to_string())),
+                Box::new(Expr::from(20.0)),
+                Box::new(Expr::from(30.0)),
+                Box::new(Expr::from(1.0))
+            )))
+        );
+    }
+
+    #[test]
+    fn ml_rgba_expr_to_galileo_rgba_expr() {
+        let e = parse(json!(["rgba", ["get", "r"], 20, 30, 0.5])).to_galileo_expr();
+
+        assert_eq!(
+            e,
+            Some(Expr::Rgba(RgbaExpr(
+                Box::new(Expr::Get("r".to_string())),
+                Box::new(Expr::from(20.0)),
+                Box::new(Expr::from(30.0)),
+                Box::new(Expr::from(0.5))
+            )))
+        );
     }
 }
