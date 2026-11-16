@@ -1941,4 +1941,18 @@ mod tests {
             other => panic!("expected Format, got {other:?}"),
         }
     }
+
+    #[test]
+    fn ml_rgb_expr_to_galileo_rgb_expr() {
+        let e = parse(json!(["rgb", ["get", "r"], 20, 30])).to_galileo_expr();
+
+        assert_eq!(
+            e,
+            Some(Expr::Rgb(RgbExpr(
+                Box::new(Expr::Get("r".to_string())),
+                Box::new(Expr::from(20.0)),
+                Box::new(Expr::from(30.0)),
+            )))
+        );
+    }
 }
