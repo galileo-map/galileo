@@ -51,7 +51,7 @@ pub enum Expr {
 
     WithOpacity(WithOpacityExpr),
 
-    Rgb(RgbExpr),
+    Rgba(RgbaExpr),
 
     #[serde(untagged)]
     Value(ExprValue<'static>),
@@ -234,7 +234,7 @@ impl Expr {
             Expr::Match(m) => m.eval(f, v),
             Expr::Select(s) => s.eval(f, v),
             Expr::WithOpacity(wo) => wo.eval(f, v),
-            Expr::Rgb(rgb) => rgb.eval(f, v),
+            Expr::Rgba(rgb) => rgb.eval(f, v),
         }
     }
 }
@@ -246,9 +246,9 @@ impl From<ExprValue<'static>> for Expr {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RgbExpr(pub Box<Expr>, pub Box<Expr>, pub Box<Expr>);
+pub struct RgbaExpr(pub Box<Expr>, pub Box<Expr>, pub Box<Expr>, pub Box<Expr>);
 
-impl RgbExpr {
+impl RgbaExpr {
     pub fn eval<'a>(&'a self, f: &'a impl ExprFeature, v: ExprView) -> ExprValue<'a> {
         let Some(red) = self.0.eval(f, v).as_f64() else {
             return ExprValue::Null;
@@ -262,11 +262,15 @@ impl RgbExpr {
             return ExprValue::Null;
         };
 
+        let Some(alpha) = self.3.eval(f, v).as_f64() else {
+            return ExprValue::Null;
+        };
+
         ExprValue::Color(Color::rgba(
             Self::to_channel(red),
             Self::to_channel(green),
             Self::to_channel(blue),
-            255,
+            Self::to_channel(alpha * 255.0),
         ))
     }
 
@@ -383,11 +387,12 @@ mod tests {
     }
 
     #[test]
-    fn rgb_expr_eval() {
-        let expr = Expr::Rgb(RgbExpr(
+    fn rgba_expr_eval() {
+        let expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::from(10.0)),
             Box::new(Expr::from(20.0)),
             Box::new(Expr::from(30.0)),
+            Box::new(Expr::from(1.0)),
         ));
 
         assert_eq!(
@@ -397,11 +402,12 @@ mod tests {
     }
 
     #[test]
-    fn rgb_expr_eval_clamps_channels() {
-        let expr = Expr::Rgb(RgbExpr(
+    fn rgba_expr_eval_clamps_channels() {
+        let expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::from(300.0)),
             Box::new(Expr::from(10.0)),
             Box::new(Expr::from(-5.0)),
+            Box::new(Expr::from(1.0)),
         ));
 
         assert_eq!(
@@ -411,11 +417,12 @@ mod tests {
     }
 
     #[test]
-    fn rgb_expr_eval_rounds_channels() {
-        let expr = Expr::Rgb(RgbExpr(
+    fn rgba_expr_eval_rounds_channels() {
+        let expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::from(255.0)),
             Box::new(Expr::from(10.4)),
             Box::new(Expr::from(10.6)),
+            Box::new(Expr::from(1.0)),
         ));
 
         assert_eq!(
@@ -425,23 +432,41 @@ mod tests {
     }
 
     #[test]
-    fn check_invalid_rgb_channels() {
-        let invalid_r_channel_expr = Expr::Rgb(RgbExpr(
+    fn rgba_expr_eval_coverts_alpha() {
+        let expr = Expr::Rgba(RgbaExpr(
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(255.0)),
+            Box::new(Expr::from(0.5)),
+        ));
+
+        assert_eq!(
+            expr.eval(&EmptyExprFeature, create_view()),
+            ExprValue::Color(Color::rgba(255, 255, 255, 128))
+        )
+    }
+
+    #[test]
+    fn check_invalid_rgba_channels() {
+        let invalid_r_channel_expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::Get("missing".to_string())),
             Box::new(Expr::from(20.0)),
             Box::new(Expr::from(30.0)),
+            Box::new(Expr::from(1.0)),
         ));
 
-        let invalid_g_channel_expr = Expr::Rgb(RgbExpr(
+        let invalid_g_channel_expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::from(10.0)),
             Box::new(Expr::Get("missing".to_string())),
             Box::new(Expr::from(30.0)),
+            Box::new(Expr::from(1.0)),
         ));
 
-        let invalid_b_channel_expr = Expr::Rgb(RgbExpr(
+        let invalid_b_channel_expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::from(10.0)),
             Box::new(Expr::from(20.0)),
             Box::new(Expr::Get("missing".to_string())),
+            Box::new(Expr::from(1.0)),
         ));
 
         assert_eq!(
@@ -461,11 +486,12 @@ mod tests {
     }
 
     #[test]
-    fn serialize_rgb_expr() {
-        let expr = Expr::Rgb(RgbExpr(
+    fn serialize_rgba_expr() {
+        let expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::Get("r".to_string())),
             Box::new(Expr::from(20.0)),
             Box::new(Expr::from(30.0)),
+            Box::new(Expr::from(1.0)),
         ));
 
         let json = serde_json::to_string_pretty(&expr).unwrap();
@@ -474,33 +500,36 @@ mod tests {
 
         assert_snapshot!(json, @r##"
         {
-          "Rgb": [
+          "Rgba": [
             {
               "Get": "r"
             },
             20.0,
-            30.0
+            30.0,
+            1.0
           ]
         }
         "##);
     }
 
     #[test]
-    fn deserialize_rgb_expr() {
+    fn deserialize_rgba_expr() {
         let json = r##"
         {
-          "Rgb": [
+          "Rgba": [
             10.0,
             20.0,
-            30.0
+            30.0,
+            1.0
           ]
         }
         "##;
 
-        let expr = Expr::Rgb(RgbExpr(
+        let expr = Expr::Rgba(RgbaExpr(
             Box::new(Expr::from(10.0)),
             Box::new(Expr::from(20.0)),
             Box::new(Expr::from(30.0)),
+            Box::new(Expr::from(1.0)),
         ));
 
         let deserialized_expr: Expr = serde_json::from_str(json).unwrap();
